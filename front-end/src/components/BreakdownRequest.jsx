@@ -1,0 +1,100 @@
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import "./Breakdown.css";
+
+function BreakdownRequest() {
+  const navigate = useNavigate();
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    vehicle: "",
+    location: "",
+    issue: "",
+    shareLocation: true,
+  });
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Send to backend here
+    console.log("Breakdown request:", form);
+    setSubmitted(true);
+    setTimeout(() => navigate("/"), 2000);
+  };
+
+  if (submitted) {
+    return (
+      <div className="breakdown-container">
+        <div className="success-message">
+          <div className="success-icon">✓</div>
+          <h2>Request Received</h2>
+          <p>Our team has been notified and will call you shortly.</p>
+          <button className="btn-primary" onClick={() => navigate("/")}>Back to Home</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="breakdown-container">
+      <div className="breakdown-hero">
+        <h1>🆘 Request Roadside Assistance</h1>
+        <p>Tell us where you are and what happened — we’ll handle the rest.</p>
+      </div>
+
+      <form className="breakdown-form" onSubmit={handleSubmit}>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Name *</label>
+            <input name="name" value={form.name} onChange={handleChange} required placeholder="Your full name" />
+          </div>
+          <div className="form-group">
+            <label>Phone *</label>
+            <input name="phone" type="tel" value={form.phone} onChange={handleChange} required placeholder="9XXXXXXXXX" />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Vehicle *</label>
+          <input name="vehicle" value={form.vehicle} onChange={handleChange} required placeholder="e.g., 2019 Maruti Swift, GJ-01-AB-1234" />
+        </div>
+
+        <div className="form-group">
+          <label>Location *</label>
+          <input name="location" value={form.location} onChange={handleChange} required placeholder="Nearest landmark / Address / Share link" />
+        </div>
+
+        <div className="form-group">
+          <label>What happened?</label>
+          <textarea name="issue" rows="4" value={form.issue} onChange={handleChange} placeholder="Flat tire, engine not starting, out of fuel, etc." />
+        </div>
+
+        <label className="checkbox">
+          <input type="checkbox" name="shareLocation" checked={form.shareLocation} onChange={handleChange} />
+          Share live location with our agent
+        </label>
+
+        <div className="actions-row">
+          <button type="button" className="btn-secondary" onClick={() => navigate(-1)}>Cancel</button>
+          <button type="submit" className="btn-primary">Request Help</button>
+        </div>
+      </form>
+
+      <div className="breakdown-grid">
+        <div className="b-card">🪫 Battery Jump-start</div>
+        <div className="b-card">🛞 Tire Change / Puncture</div>
+        <div className="b-card">⛽ Emergency Fuel</div>
+        <div className="b-card">🪝 Towing Service</div>
+        <div className="b-card">🔧 Quick Mechanical Fix</div>
+        <div className="b-card">📑 Accident Assistance</div>
+      </div>
+    </div>
+  );
+}
+
+export default BreakdownRequest;
