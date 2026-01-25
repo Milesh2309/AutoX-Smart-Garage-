@@ -33,6 +33,7 @@ function ProtectedAdminRoute({ children }) {
   
   if (role !== 'admin') {
     return <Navigate to="/login" replace />;
+    
   }
   
   return children;
