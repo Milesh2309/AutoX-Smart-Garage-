@@ -12,6 +12,8 @@ import ManageModifications from './pages/ManageModifications';
 import ManageUsers from './pages/ManageUsers';
 import AdminSettings from './pages/AdminSettings';
 import ManageInventory from './pages/ManageInventory';
+import Reports from './pages/Reports';
+import DataGrid from './pages/DataGrid';
 import { useAuth } from '../context/AuthContext';
 
 function AdminDashboard() {
@@ -35,6 +37,8 @@ function AdminDashboard() {
       
       <div className="admin-content">
         {currentPage === 'dashboard' && <Dashboard onNavigate={setCurrentPage} />}
+        {currentPage === 'reports' && <Reports />}
+        {currentPage === 'datagrid' && <DataGrid />}
         {currentPage === 'services' && <ManageServices />}
         {currentPage === 'bookings' && <ManageBookings />}
         {currentPage === 'breakdown' && <ManageBreakdown />}

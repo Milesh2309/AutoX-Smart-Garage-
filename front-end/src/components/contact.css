@@ -1,7 +1,7 @@
 .contact-page {
   position: relative;
   min-height: 100vh;
-  padding: 32px 16px;
+  padding: 24px 12px;
   background-image: linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.55)),
     url('https://images.unsplash.com/photo-1493238792000-8113da705763?auto=format&fit=crop&w=1280&q=60');
   background-size: cover;
@@ -12,7 +12,7 @@
 .contact-hero {
   background: linear-gradient(135deg, rgba(220, 38, 38, 0.95) 0%, rgba(153, 27, 27, 0.95) 100%);
   color: white;
-  padding: 60px 20px;
+  padding: 48px 20px;
   text-align: center;
   margin-bottom: 40px;
   box-shadow: 0 4px 20px rgba(220, 38, 38, 0.3);
@@ -44,7 +44,7 @@
 /* Contact Form Section */
 .contact-form-section {
   background: rgba(255, 255, 255, 0.92);
-  padding: 40px;
+  padding: 32px;
   border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(6px);
