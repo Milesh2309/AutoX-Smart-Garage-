@@ -7,6 +7,7 @@
   background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
   color: white;
   padding: 14px 0;
+  margin: 0;
   box-shadow: 0 2px 12px rgba(220, 38, 38, 0.25);
   z-index: 50;
   transition: all 0.3s ease;

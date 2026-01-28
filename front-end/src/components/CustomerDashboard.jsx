@@ -364,35 +364,95 @@ function CustomerDashboard() {
           <div className="content-section">
             <div className="section-header">
               <h1>My Profile</h1>
-              <p>Update your profile information</p>
+              <p>Manage and update your profile information</p>
             </div>
 
-            <div className="content-card">
-              <div className="profile-form">
-                <div className="form-group">
-                  <label>Email</label>
-                  <input type="email" value={user.email} readOnly />
+            <div className="profile-container">
+              {/* Profile Header Card */}
+              <div className="profile-header-card">
+                <div className="profile-avatar-section">
+                  <div className="profile-avatar-large">👤</div>
+                  <div className="profile-header-info">
+                    <h2>{user.email.split('@')[0].toUpperCase()}</h2>
+                    <p className="profile-member-since">Member since 2024</p>
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label>Name</label>
-                  <input type="text" value={user.email.split('@')[0].toUpperCase()} readOnly />
+              </div>
+
+              {/* Profile Information Card */}
+              <div className="content-card">
+                <div className="card-header">
+                  <h3>Account Information</h3>
+                  <p>Your account details</p>
                 </div>
-                <div className="form-group">
-                  <label>Phone</label>
-                  <input type="tel" placeholder="Add your phone number" />
+                
+                <div className="profile-form">
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="email">Email Address</label>
+                      <input id="email" type="email" value={user.email} readOnly />
+                      <span className="readonly-note">This cannot be changed</span>
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="name">Full Name</label>
+                      <input id="name" type="text" value={user.email.split('@')[0].toUpperCase()} readOnly />
+                      <span className="readonly-note">This cannot be changed</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label>Address</label>
-                  <textarea placeholder="Enter your address"></textarea>
+              </div>
+
+              {/* Contact Information Card */}
+              <div className="content-card">
+                <div className="card-header">
+                  <h3>Contact Information</h3>
+                  <p>Update your contact details</p>
                 </div>
-                <div className="form-group">
-                  <label>City</label>
-                  <input type="text" placeholder="Enter your city" />
+                
+                <div className="profile-form">
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="phone">Phone Number</label>
+                      <input id="phone" type="tel" placeholder="Enter your phone number" />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="city">City</label>
+                      <input id="city" type="text" placeholder="Enter your city" />
+                    </div>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="address">Address</label>
+                    <textarea id="address" placeholder="Enter your complete address"></textarea>
+                  </div>
                 </div>
-                <div className="form-actions">
-                  <button className="btn-primary">Save Changes</button>
-                  <button className="btn-secondary">Cancel</button>
+              </div>
+
+              {/* Additional Information Card */}
+              <div className="content-card">
+                <div className="card-header">
+                  <h3>Additional Information</h3>
+                  <p>Help us serve you better</p>
                 </div>
+                
+                <div className="profile-form">
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="vehicle">Vehicle Type</label>
+                      <input id="vehicle" type="text" placeholder="e.g., Honda Civic, Maruti Swift" />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="registration">Registration Number</label>
+                      <input id="registration" type="text" placeholder="e.g., GJ 01 AA 1234" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="profile-form-actions">
+                <button className="btn-primary btn-save-profile">Save All Changes</button>
+                <button className="btn-secondary">Discard Changes</button>
               </div>
             </div>
           </div>

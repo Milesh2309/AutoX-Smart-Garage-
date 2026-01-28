@@ -158,7 +158,6 @@ function Services() {
             className={`service-card ${activeService === service.id ? 'active' : ''}`}
             onClick={() => handleServiceClick(service.id)}
           >
-            <div className="service-icon">{service.icon}</div>
             <div className="service-image">
               <img src={service.image} alt={service.title} />
               <div className="service-overlay"></div>

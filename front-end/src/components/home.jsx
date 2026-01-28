@@ -42,11 +42,11 @@ function Home() {
   }, [heroImages.length]);
 
   const services = [
-    { id: 1, name: "🚗 Smart Garage Services", details: "Full vehicle diagnostics, maintenance, and scheduled servicing by certified technicians.", actions: ["Book Service", "View Packages"] },
-    { id: 2, name: "🛠 Vehicle Breakdown Assistance", details: "24/7 roadside support for breakdowns, tire changes, fuel delivery, and quick fixes.", actions: ["Call Now", "Request Help"] },
-    { id: 3, name: "⚙ Vehicle Modification", details: "Expert custom modifications, upgrades, and tuning to enhance performance and aesthetics.", actions: ["Explore Mods", "Get Quote"] },
-    { id: 4, name: "🔧 Car & Bike Repair", details: "Comprehensive repair services for all vehicle types with genuine parts and warranty.", actions: ["Schedule Repair", "Check Status"] },
-    { id: 5, name: "🚘 Emergency Roadside Help", details: "Immediate assistance for accidents, mechanical failures, and emergency towing services.", actions: ["Emergency SOS", "Learn More"] }
+    { id: 1, name: " Smart Garage Services", details: "Full vehicle diagnostics, maintenance, and scheduled servicing by certified technicians.", actions: ["Book Service", "View Packages"] },
+    { id: 2, name: " Vehicle Breakdown Assistance", details: "24/7 roadside support for breakdowns, tire changes, fuel delivery, and quick fixes.", actions: ["Call Now", "Request Help"] },
+    { id: 3, name: " Vehicle Modification", details: "Expert custom modifications, upgrades, and tuning to enhance performance and aesthetics.", actions: ["Explore Mods", "Get Quote"] },
+    { id: 4, name: " Car & Bike Repair", details: "Comprehensive repair services for all vehicle types with genuine parts and warranty.", actions: ["Schedule Repair", "Check Status"] },
+    { id: 5, name: " Emergency Roadside Help", details: "Immediate assistance for accidents, mechanical failures, and emergency towing services.", actions: ["Emergency SOS", "Learn More"] }
   ];
 
   const packages = [
@@ -237,9 +237,27 @@ function Home() {
       <div className="home-bg">
         {/* Tip: To use a local image, add public/bg.jpg and replace the URL in .home-bg in CSS */}
         <div className="home">
+          {/* Animated Hero Video Section */}
+          <div className="hero-animation-section">
+            <video 
+              className="hero-animation-video"
+              autoPlay 
+              loop 
+              muted 
+              playsInline
+            >
+              <source src="/img/web images/animeson/animeson.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+            <div className="hero-animation-overlay">
+              <h1 className="hero-animation-title">Welcome to AUTOX</h1>
+              <p className="hero-animation-subtitle">Premium automotive services at your fingertips</p>
+            </div>
+          </div>
+
           <div className="home-hero">
           <div className="home-copy">
-            <h1>Welcome to AUTOX</h1>
+            <h1>Your Complete Automotive Solution</h1>
             <p className="lead">Premium support for every ride—from routine service to urgent roadside help.</p>
           </div>
 
