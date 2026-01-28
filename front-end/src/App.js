@@ -25,6 +25,7 @@ import RepairStatus from "./components/RepairStatus";
 import EmergencySOS from "./components/EmergencySOS";
 import EmergencyInfo from "./components/EmergencyInfo";
 import Gallery from "./components/Gallery";
+import LoadingAnimation from "./components/LoadingAnimation";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
 // Simple route transition to animate page changes when navigating from the navbar
@@ -52,11 +53,13 @@ function AnimatedRoutes() {
   const location = useLocation();
   const [displayLocation, setDisplayLocation] = useState(location);
   const [transitionStage, setTransitionStage] = useState('fadeIn');
+  const [showVideo, setShowVideo] = useState(false);
 
   // Start fade-out when the url changes
   useEffect(() => {
     if (location.pathname !== displayLocation.pathname) {
       setTransitionStage('fadeOut');
+      setShowVideo(true);
     }
   }, [location, displayLocation.pathname]);
 
@@ -71,8 +74,13 @@ function AnimatedRoutes() {
     }
   }, [transitionStage, location]);
 
+  const handleVideoComplete = () => {
+    setShowVideo(false);
+  };
+
   return (
     <>
+      {showVideo && <LoadingAnimation onComplete={handleVideoComplete} />}
       {transitionStage === 'fadeOut' && (
         <>
           <div className="route-overlay" aria-hidden>
@@ -125,9 +133,16 @@ function AnimatedRoutes() {
 }
 
 function App() {
+  const [showLoading, setShowLoading] = useState(true);
+
+  const handleLoadingComplete = () => {
+    setShowLoading(false);
+  };
+
   return (
     <Router>
       <AuthProvider>
+        {showLoading && <LoadingAnimation onComplete={handleLoadingComplete} />}
         <div className="app">
           {/* Navbar - Always visible */}
           <Navbar />
