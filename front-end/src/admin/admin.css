@@ -321,9 +321,12 @@ body, .admin-dashboard, .admin-login-page {
   border: 1px solid rgba(229, 229, 229, 0.8);
   backdrop-filter: blur(6px) saturate(110%);
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 20px;
   transition: all 0.3s;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .stat-card:hover {
@@ -333,6 +336,12 @@ body, .admin-dashboard, .admin-login-page {
 
 .stat-icon {
   font-size: 40px;
+  flex-shrink: 0;
+}
+
+.stat-content {
+  width: 100%;
+  overflow: hidden;
 }
 
 .stat-content h3 {
@@ -350,20 +359,41 @@ body, .admin-dashboard, .admin-login-page {
 }
 
 .revenue-breakdown {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 12px;
+  margin-top: 15px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .revenue-pill {
-  background: rgba(220, 38, 38, 0.08);
-  border: 1px solid rgba(220, 38, 38, 0.2);
-  color: #b91c1c;
-  padding: 6px 10px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 600;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(220, 38, 38, 0.2);
+  color: #1f2937;
+  padding: 14px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: center;
+  transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+.revenue-pill:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(220, 38, 38, 0.4);
+  transform: translateY(-3px);
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.15);
 }
 
 /* Dashboard Section */

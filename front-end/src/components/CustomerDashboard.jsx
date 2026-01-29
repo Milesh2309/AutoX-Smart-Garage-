@@ -7,6 +7,34 @@ function CustomerDashboard() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState('details'); // 'details' or 'renew'
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingModalType, setBookingModalType] = useState('reschedule'); // 'reschedule' or 'cancel'
+  
+  // Profile states
+  const [profilePhoto, setProfilePhoto] = useState(null);
+  const [profileName, setProfileName] = useState(user.email.split('@')[0].toUpperCase());
+  const [isEditingName, setIsEditingName] = useState(false);
+  
+  // Profile form data
+  const [profileData, setProfileData] = useState({
+    phone: '',
+    city: '',
+    address: '',
+    vehicle: '',
+    registration: ''
+  });
+  
+  const [savedProfileData, setSavedProfileData] = useState({
+    phone: '',
+    city: '',
+    address: '',
+    vehicle: '',
+    registration: ''
+  });
 
   if (!user) {
     navigate('/login', { replace: true });
@@ -97,6 +125,41 @@ function CustomerDashboard() {
     { id: 'profile', label: 'Profile', icon: '👤' },
   ];
 
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePhoto(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleNameSave = () => {
+    if (profileName.trim()) {
+      setIsEditingName(false);
+      alert('Profile name updated successfully!');
+    }
+  };
+
+  const handleProfileChange = (field, value) => {
+    setProfileData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSaveProfile = () => {
+    setSavedProfileData(profileData);
+    alert('All changes saved successfully! ✓');
+  };
+
+  const handleDiscardChanges = () => {
+    setProfileData(savedProfileData);
+    alert('All changes discarded.');
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
@@ -127,9 +190,15 @@ function CustomerDashboard() {
 
         <div className="customer-nav-footer">
           <div className="user-info">
-            <div className="user-avatar">👤</div>
+            <div className="user-avatar">
+              {profilePhoto ? (
+                <img src={profilePhoto} alt="Profile" className="sidebar-profile-image" />
+              ) : (
+                '👤'
+              )}
+            </div>
             <div className="user-details">
-              <p className="user-name">{user.email.split('@')[0].toUpperCase()}</p>
+              <p className="user-name">{profileName}</p>
               <p className="user-email">{user.email}</p>
             </div>
           </div>
@@ -262,8 +331,26 @@ function CustomerDashboard() {
                       </ul>
                     </div>
                     <div className="package-actions">
-                      <button className="btn-primary">Renew Package</button>
-                      <button className="btn-secondary">View Details</button>
+                      <button 
+                        className="btn-primary" 
+                        onClick={() => {
+                          setSelectedPackage(pkg);
+                          setModalType('renew');
+                          setShowModal(true);
+                        }}
+                      >
+                        Renew Package
+                      </button>
+                      <button 
+                        className="btn-secondary" 
+                        onClick={() => {
+                          setSelectedPackage(pkg);
+                          setModalType('details');
+                          setShowModal(true);
+                        }}
+                      >
+                        View Details
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -343,8 +430,26 @@ function CustomerDashboard() {
                         </div>
                       </div>
                       <div className="booking-actions">
-                        <button className="btn-secondary">Reschedule</button>
-                        <button className="btn-danger">Cancel</button>
+                        <button 
+                          className="btn-secondary"
+                          onClick={() => {
+                            setSelectedBooking(booking);
+                            setBookingModalType('reschedule');
+                            setShowBookingModal(true);
+                          }}
+                        >
+                          Reschedule
+                        </button>
+                        <button 
+                          className="btn-danger"
+                          onClick={() => {
+                            setSelectedBooking(booking);
+                            setBookingModalType('cancel');
+                            setShowBookingModal(true);
+                          }}
+                        >
+                          Cancel
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -371,9 +476,56 @@ function CustomerDashboard() {
               {/* Profile Header Card */}
               <div className="profile-header-card">
                 <div className="profile-avatar-section">
-                  <div className="profile-avatar-large">👤</div>
+                  <div className="profile-avatar-container">
+                    <div className="profile-avatar-large">
+                      {profilePhoto ? (
+                        <img src={profilePhoto} alt="Profile" className="profile-image" />
+                      ) : (
+                        <span className="avatar-placeholder">👤</span>
+                      )}
+                    </div>
+                    <label htmlFor="photo-upload" className="photo-upload-btn">
+                      📷 Change Photo
+                      <input
+                        type="file"
+                        id="photo-upload"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                  </div>
                   <div className="profile-header-info">
-                    <h2>{user.email.split('@')[0].toUpperCase()}</h2>
+                    <div className="profile-name-section">
+                      {isEditingName ? (
+                        <div className="name-edit-container">
+                          <input
+                            type="text"
+                            className="name-edit-input"
+                            value={profileName}
+                            onChange={(e) => setProfileName(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleNameSave()}
+                            autoFocus
+                          />
+                          <button className="btn-save-name" onClick={handleNameSave}>
+                            ✓ Save
+                          </button>
+                          <button className="btn-cancel-name" onClick={() => {
+                            setProfileName(user.email.split('@')[0].toUpperCase());
+                            setIsEditingName(false);
+                          }}>
+                            ✕ Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="name-display-container">
+                          <h2>{profileName}</h2>
+                          <button className="btn-edit-name" onClick={() => setIsEditingName(true)}>
+                            ✏️ Edit Name
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <p className="profile-member-since">Member since 2024</p>
                   </div>
                 </div>
@@ -395,8 +547,8 @@ function CustomerDashboard() {
                     </div>
                     <div className="form-group">
                       <label htmlFor="name">Full Name</label>
-                      <input id="name" type="text" value={user.email.split('@')[0].toUpperCase()} readOnly />
-                      <span className="readonly-note">This cannot be changed</span>
+                      <input id="name" type="text" value={profileName} readOnly />
+                      <span className="readonly-note">Edit using the button above</span>
                     </div>
                   </div>
                 </div>
@@ -413,17 +565,34 @@ function CustomerDashboard() {
                   <div className="form-row">
                     <div className="form-group">
                       <label htmlFor="phone">Phone Number</label>
-                      <input id="phone" type="tel" placeholder="Enter your phone number" />
+                      <input 
+                        id="phone" 
+                        type="tel" 
+                        placeholder="Enter your phone number" 
+                        value={profileData.phone}
+                        onChange={(e) => handleProfileChange('phone', e.target.value)}
+                      />
                     </div>
                     <div className="form-group">
                       <label htmlFor="city">City</label>
-                      <input id="city" type="text" placeholder="Enter your city" />
+                      <input 
+                        id="city" 
+                        type="text" 
+                        placeholder="Enter your city" 
+                        value={profileData.city}
+                        onChange={(e) => handleProfileChange('city', e.target.value)}
+                      />
                     </div>
                   </div>
                   
                   <div className="form-group">
                     <label htmlFor="address">Address</label>
-                    <textarea id="address" placeholder="Enter your complete address"></textarea>
+                    <textarea 
+                      id="address" 
+                      placeholder="Enter your complete address"
+                      value={profileData.address}
+                      onChange={(e) => handleProfileChange('address', e.target.value)}
+                    ></textarea>
                   </div>
                 </div>
               </div>
@@ -439,11 +608,23 @@ function CustomerDashboard() {
                   <div className="form-row">
                     <div className="form-group">
                       <label htmlFor="vehicle">Vehicle Type</label>
-                      <input id="vehicle" type="text" placeholder="e.g., Honda Civic, Maruti Swift" />
+                      <input 
+                        id="vehicle" 
+                        type="text" 
+                        placeholder="e.g., Honda Civic, Maruti Swift" 
+                        value={profileData.vehicle}
+                        onChange={(e) => handleProfileChange('vehicle', e.target.value)}
+                      />
                     </div>
                     <div className="form-group">
                       <label htmlFor="registration">Registration Number</label>
-                      <input id="registration" type="text" placeholder="e.g., GJ 01 AA 1234" />
+                      <input 
+                        id="registration" 
+                        type="text" 
+                        placeholder="e.g., GJ 01 AA 1234" 
+                        value={profileData.registration}
+                        onChange={(e) => handleProfileChange('registration', e.target.value)}
+                      />
                     </div>
                   </div>
                 </div>
@@ -451,13 +632,362 @@ function CustomerDashboard() {
 
               {/* Action Buttons */}
               <div className="profile-form-actions">
-                <button className="btn-primary btn-save-profile">Save All Changes</button>
-                <button className="btn-secondary">Discard Changes</button>
+                <button 
+                  className="btn-primary btn-save-profile"
+                  onClick={handleSaveProfile}
+                >
+                  💾 Save All Changes
+                </button>
+                <button 
+                  className="btn-secondary"
+                  onClick={handleDiscardChanges}
+                >
+                  🔄 Discard Changes
+                </button>
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Modal for Package Details and Renewal */}
+      {showModal && selectedPackage && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
+
+            {modalType === 'details' ? (
+              <>
+                <h2 className="modal-title">{selectedPackage.name}</h2>
+                <div className="modal-body">
+                  <div className="detail-section">
+                    <h3>Package Information</h3>
+                    <div className="info-grid">
+                      <div className="info-item">
+                        <span className="info-label">Price:</span>
+                        <span className="info-value">{selectedPackage.price}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">Status:</span>
+                        <span className="info-value status-active">{selectedPackage.status}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">Next Due:</span>
+                        <span className="info-value">{selectedPackage.nextDue}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="detail-section">
+                    <h3>Included Services</h3>
+                    <ul className="services-list modal-services">
+                      {selectedPackage.services.map((service, idx) => (
+                        <li key={idx}>
+                          <span className="service-icon">✓</span>
+                          <span>{service}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="detail-section">
+                    <h3>How to Use</h3>
+                    <p className="info-text">
+                      To book a service under this package, go to the "Book Service" section and select this package. Our mechanics will contact you within 2 hours to confirm the appointment.
+                    </p>
+                  </div>
+
+                  <div className="detail-section">
+                    <h3>Benefits</h3>
+                    <ul className="benefits-list">
+                      <li>✓ Free cancellation up to 24 hours before service</li>
+                      <li>✓ Priority booking with flexible scheduling</li>
+                      <li>✓ 30-day warranty on all services</li>
+                      <li>✓ Dedicated customer support</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="modal-actions">
+                  <button 
+                    className="btn-primary"
+                    onClick={() => setShowModal(false)}
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="modal-title">Renew {selectedPackage.name}</h2>
+                <div className="modal-body">
+                  <div className="renewal-section">
+                    <h3>Renewal Details</h3>
+                    <div className="renewal-info">
+                      <p><strong>Current Package:</strong> {selectedPackage.name}</p>
+                      <p><strong>Current Price:</strong> {selectedPackage.price}</p>
+                      <p><strong>Renewal Date:</strong> {selectedPackage.nextDue}</p>
+                    </div>
+                  </div>
+
+                  <div className="renewal-section">
+                    <h3>Renewal Options</h3>
+                    <div className="renewal-options">
+                      <div className="option">
+                        <input type="radio" id="renew-1month" name="renewal" defaultChecked />
+                        <label htmlFor="renew-1month">Renew for 1 Month - {selectedPackage.price}</label>
+                      </div>
+                      <div className="option">
+                        <input type="radio" id="renew-3months" name="renewal" />
+                        <label htmlFor="renew-3months">Renew for 3 Months - {selectedPackage.price} x 3 (Get 10% off)</label>
+                      </div>
+                      <div className="option">
+                        <input type="radio" id="renew-6months" name="renewal" />
+                        <label htmlFor="renew-6months">Renew for 6 Months - {selectedPackage.price} x 6 (Get 20% off)</label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="renewal-section">
+                    <h3>Payment Method</h3>
+                    <div className="payment-options">
+                      <div className="payment-option">
+                        <input type="radio" id="pay-online" name="payment" defaultChecked />
+                        <label htmlFor="pay-online">Pay Online</label>
+                      </div>
+                      <div className="payment-option">
+                        <input type="radio" id="pay-upi" name="payment" />
+                        <label htmlFor="pay-upi">UPI/Digital Wallet</label>
+                      </div>
+                      <div className="payment-option">
+                        <input type="radio" id="pay-cash" name="payment" />
+                        <label htmlFor="pay-cash">Pay at Service Center</label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="modal-actions">
+                  <button 
+                    className="btn-secondary"
+                    onClick={() => setShowModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    className="btn-primary"
+                    onClick={() => {
+                      alert(`Package renewed successfully! Confirmation email will be sent to ${user.email}`);
+                      setShowModal(false);
+                    }}
+                  >
+                    Proceed with Renewal
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Booking Modal for Reschedule and Cancel */}
+      {showBookingModal && selectedBooking && (
+        <div className="modal-overlay" onClick={() => setShowBookingModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowBookingModal(false)}>✕</button>
+
+            {bookingModalType === 'reschedule' ? (
+              <>
+                <h2 className="modal-title">Reschedule Booking</h2>
+                <div className="modal-body">
+                  <div className="booking-info-section">
+                    <h3>Current Booking Details</h3>
+                    <div className="booking-info-grid">
+                      <div className="info-item">
+                        <span className="info-label">Service:</span>
+                        <span className="info-value">{selectedBooking.service}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">Current Date:</span>
+                        <span className="info-value">{selectedBooking.date}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">Current Time:</span>
+                        <span className="info-value">{selectedBooking.time}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">Mechanic:</span>
+                        <span className="info-value">{selectedBooking.mechanic}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="booking-info-section">
+                    <h3>Select New Date & Time</h3>
+                    <div className="form-group">
+                      <label htmlFor="new-date">New Date:</label>
+                      <input type="date" id="new-date" min={new Date().toISOString().split('T')[0]} />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="new-time">New Time:</label>
+                      <select id="new-time">
+                        <option value="">Select a time slot</option>
+                        <option value="09:00">09:00 AM</option>
+                        <option value="10:00">10:00 AM</option>
+                        <option value="11:00">11:00 AM</option>
+                        <option value="02:00">02:00 PM</option>
+                        <option value="03:00">03:00 PM</option>
+                        <option value="04:00">04:00 PM</option>
+                        <option value="05:00">05:00 PM</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="booking-info-section">
+                    <h3>Additional Notes (Optional)</h3>
+                    <textarea 
+                      placeholder="Add any special instructions or notes for rescheduling..."
+                      rows="4"
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontFamily: 'inherit',
+                        fontSize: '14px',
+                        resize: 'vertical'
+                      }}
+                    ></textarea>
+                  </div>
+
+                  <div className="booking-info-section">
+                    <p style={{ fontSize: '13px', color: '#6b7280', margin: '0' }}>
+                      ℹ️ You can reschedule your booking up to 24 hours before the scheduled time. A confirmation email will be sent to {user.email}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="modal-actions">
+                  <button 
+                    className="btn-secondary"
+                    onClick={() => setShowBookingModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    className="btn-primary"
+                    onClick={() => {
+                      alert('Booking rescheduled successfully! Confirmation email will be sent.');
+                      setShowBookingModal(false);
+                    }}
+                  >
+                    Confirm Reschedule
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="modal-title">Cancel Booking</h2>
+                <div className="modal-body">
+                  <div className="booking-info-section">
+                    <h3>Booking Details</h3>
+                    <div className="booking-info-grid">
+                      <div className="info-item">
+                        <span className="info-label">Service:</span>
+                        <span className="info-value">{selectedBooking.service}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">Date:</span>
+                        <span className="info-value">{selectedBooking.date}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">Time:</span>
+                        <span className="info-value">{selectedBooking.time}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">Mechanic:</span>
+                        <span className="info-value">{selectedBooking.mechanic}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="booking-info-section warning-section">
+                    <h3>⚠️ Cancellation Policy</h3>
+                    <ul className="cancellation-policy">
+                      <li><strong>Free Cancellation:</strong> Up to 24 hours before service - Full refund</li>
+                      <li><strong>Partial Refund:</strong> Within 24 hours - 50% refund deducted</li>
+                      <li><strong>No Refund:</strong> Less than 2 hours before service</li>
+                    </ul>
+                  </div>
+
+                  <div className="booking-info-section">
+                    <h3>Cancellation Reason</h3>
+                    <div className="reason-options">
+                      <div className="reason-option">
+                        <input type="radio" id="reason-emergency" name="cancellation-reason" />
+                        <label htmlFor="reason-emergency">Emergency / Urgent work</label>
+                      </div>
+                      <div className="reason-option">
+                        <input type="radio" id="reason-reschedule" name="cancellation-reason" />
+                        <label htmlFor="reason-reschedule">Want to reschedule</label>
+                      </div>
+                      <div className="reason-option">
+                        <input type="radio" id="reason-no-longer" name="cancellation-reason" />
+                        <label htmlFor="reason-no-longer">No longer need service</label>
+                      </div>
+                      <div className="reason-option">
+                        <input type="radio" id="reason-other" name="cancellation-reason" />
+                        <label htmlFor="reason-other">Other</label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="booking-info-section">
+                    <h3>Additional Comments (Optional)</h3>
+                    <textarea 
+                      placeholder="Please share your feedback or reason in detail..."
+                      rows="3"
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontFamily: 'inherit',
+                        fontSize: '14px',
+                        resize: 'vertical'
+                      }}
+                    ></textarea>
+                  </div>
+
+                  <div className="booking-info-section info-box">
+                    <p style={{ margin: '0', color: '#1f2937', fontSize: '13px' }}>
+                      Refund will be processed within 5-7 business days to your original payment method.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="modal-actions">
+                  <button 
+                    className="btn-secondary"
+                    onClick={() => setShowBookingModal(false)}
+                  >
+                    Keep Booking
+                  </button>
+                  <button 
+                    className="btn-danger"
+                    onClick={() => {
+                      alert('Booking cancelled successfully! Refund will be processed soon.');
+                      setShowBookingModal(false);
+                    }}
+                  >
+                    Confirm Cancellation
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
