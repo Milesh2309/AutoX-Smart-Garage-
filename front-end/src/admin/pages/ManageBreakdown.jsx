@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import CommonTable from '../../components/CommonTable';
 
 function ManageBreakdown() {
   const [breakdowns, setBreakdowns] = useState([
@@ -10,8 +11,6 @@ function ManageBreakdown() {
     { id: 6, customer: 'Anjali Verma', location: 'Iscon, Ahmedabad', vehicle: 'Tata Nexon', vehicleNumber: 'DL-03-KL-1234', issue: 'Brake Failure', phone: '9876543225', date: '2025-12-25', time: '10:00 AM', status: 'En Route', mechanic: 'Suresh Patel', amount: '₹2,500' },
   ]);
 
-  const [filterStatus, setFilterStatus] = useState('All');
-  const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     customer: '',
@@ -23,6 +22,21 @@ function ManageBreakdown() {
     mechanic: '',
     amount: ''
   });
+
+  const breakdownColumns = useMemo(() => [
+    { accessorKey: 'id', header: 'ID' },
+    { accessorKey: 'customer', header: 'Customer' },
+    { accessorKey: 'location', header: 'Location' },
+    { accessorKey: 'vehicle', header: 'Vehicle' },
+    { accessorKey: 'vehicleNumber', header: 'Vehicle Number' },
+    { accessorKey: 'issue', header: 'Issue' },
+    { accessorKey: 'phone', header: 'Phone' },
+    { accessorKey: 'date', header: 'Date' },
+    { accessorKey: 'time', header: 'Time' },
+    { accessorKey: 'mechanic', header: 'Mechanic' },
+    { accessorKey: 'amount', header: 'Amount' },
+    { accessorKey: 'status', header: 'Status' },
+  ], []);
 
   const handleAddBreakdown = (e) => {
     e.preventDefault();
@@ -54,19 +68,6 @@ function ManageBreakdown() {
 
   const handleDelete = (id) => {
     setBreakdowns(breakdowns.filter(b => b.id !== id));
-  };
-
-  const filteredBreakdowns = breakdowns.filter(b => {
-    const matchesStatus = filterStatus === 'All' || b.status === filterStatus;
-    const matchesSearch = b.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          b.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          b.issue.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
-
-  const getStatusCount = (status) => {
-    if (status === 'All') return breakdowns.length;
-    return breakdowns.filter(b => b.status === status).length;
   };
 
   return (
@@ -155,82 +156,13 @@ function ManageBreakdown() {
         </div>
       )}
 
-      <div className="controls-bar">
-        <div className="filter-tabs">
-          {['All', 'Pending', 'En Route', 'Reached', 'Completed'].map((status) => (
-            <button
-              key={status}
-              className={`filter-tab ${filterStatus === status ? 'active' : ''}`}
-              onClick={() => setFilterStatus(status)}
-            >
-              {status} <span className="badge-count">{getStatusCount(status)}</span>
-            </button>
-          ))}
-        </div>
-
-        <input
-          type="text"
-          placeholder="Search by customer, issue, or location"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
+      <div style={{ padding: '20px' }}>
+        <CommonTable 
+          columns={breakdownColumns} 
+          data={breakdowns} 
+          fileName="breakdown-data"
+          showSelection={true}
         />
-      </div>
-
-      <div className="bookings-container">
-        {filteredBreakdowns.length > 0 ? (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Customer</th>
-                <th>Location</th>
-                <th>Vehicle</th>
-                <th>Vehicle Number</th>
-                <th>Issue</th>
-                <th>Phone</th>
-                <th>Date & Time</th>
-                <th>Mechanic</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredBreakdowns.map((breakdown) => (
-                <tr key={breakdown.id}>
-                  <td><strong>{breakdown.customer}</strong></td>
-                  <td>{breakdown.location}</td>
-                  <td>{breakdown.vehicle}</td>
-                  <td><strong>{breakdown.vehicleNumber}</strong></td>
-                  <td>{breakdown.issue}</td>
-                  <td><a href={`tel:${breakdown.phone}`}>{breakdown.phone}</a></td>
-                  <td>{breakdown.date} @ {breakdown.time}</td>
-                  <td>{breakdown.mechanic || '-'}</td>
-                  <td><strong>{breakdown.amount || '-'}</strong></td>
-                  <td>
-                    <select
-                      className={`status-select status-${breakdown.status.toLowerCase().replace(' ', '-')}`}
-                      value={breakdown.status}
-                      onChange={(e) => handleStatusChange(breakdown.id, e.target.value)}
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="En Route">En Route</option>
-                      <option value="Reached">Reached</option>
-                      <option value="Completed">Completed</option>
-                    </select>
-                  </td>
-                  <td>
-                    <button className="btn-delete" onClick={() => handleDelete(breakdown.id)}>Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="empty-state">
-            <p>No breakdown requests found</p>
-          </div>
-        )}
       </div>
 
       <div className="booking-stats">

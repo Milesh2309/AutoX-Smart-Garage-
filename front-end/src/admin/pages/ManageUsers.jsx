@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import CommonTable from '../../components/CommonTable';
 
 function ManageUsers() {
   const [users, setUsers] = useState([
@@ -8,6 +9,15 @@ function ManageUsers() {
   ]);
 
   const [selectedUser, setSelectedUser] = useState(null);
+
+  const userColumns = useMemo(() => [
+    { accessorKey: 'id', header: 'ID' },
+    { accessorKey: 'name', header: 'Name' },
+    { accessorKey: 'email', header: 'Email' },
+    { accessorKey: 'phone', header: 'Phone' },
+    { accessorKey: 'vehicleNumber', header: 'Vehicle Number' },
+    { accessorKey: 'joinDate', header: 'Join Date' },
+  ], []);
 
   const handleDeleteUser = (id) => {
     setUsers(users.filter(u => u.id !== id));
@@ -26,33 +36,13 @@ function ManageUsers() {
         <span className="badge">{users.length} Total Users</span>
       </div>
 
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Vehicle Number</th>
-            <th>Join Date</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((user) => (
-            <tr key={user.id}>
-              <td>{user.name}</td>
-              <td>{user.email}</td>
-              <td>{user.phone}</td>
-              <td><strong>{user.vehicleNumber}</strong></td>
-              <td>{user.joinDate}</td>
-              <td>
-                <button className="btn-edit" onClick={() => handleViewProfile(user)}>View Profile</button>
-                <button className="btn-delete" onClick={() => handleDeleteUser(user.id)}>Delete</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="bookings-container">
+        <CommonTable 
+          columns={userColumns}
+          data={users}
+          filename="users"
+        />
+      </div>
 
       {selectedUser && (
         <div className="modal-backdrop" onClick={closeProfile} role="button" tabIndex={0} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && closeProfile()}>

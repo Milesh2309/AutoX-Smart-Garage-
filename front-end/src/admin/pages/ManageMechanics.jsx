@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import CommonTable from '../../components/CommonTable';
 
 function ManageMechanics() {
   const [mechanics, setMechanics] = useState([
@@ -50,23 +51,6 @@ function ManageMechanics() {
     }
   };
 
-  const handleEdit = (mechanic) => {
-    setFormData({
-      name: mechanic.name,
-      expertise: mechanic.expertise,
-      phone: mechanic.phone,
-      experience: mechanic.experience,
-      status: mechanic.status,
-      rating: mechanic.rating
-    });
-    setEditingId(mechanic.id);
-    setShowForm(true);
-  };
-
-  const handleDelete = (id) => {
-    setMechanics(mechanics.filter(m => m.id !== id));
-  };
-
   const handleCancel = () => {
     setShowForm(false);
     setEditingId(null);
@@ -80,25 +64,16 @@ function ManageMechanics() {
     });
   };
 
-  const handleStatusChange = (id, newStatus) => {
-    setMechanics(mechanics.map(m => m.id === id ? { ...m, status: newStatus } : m));
-  };
-
-  const filteredMechanics = mechanics.filter(m => {
-    const matchesStatus = filterStatus === 'All' || m.status === filterStatus;
-    const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          m.expertise.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
-
-  const getStatusCount = (status) => {
-    if (status === 'All') return mechanics.length;
-    return mechanics.filter(m => m.status === status).length;
-  };
-
-  const totalExperience = mechanics.reduce((sum, m) => sum + parseInt(m.experience), 0);
-  const avgRating = (mechanics.reduce((sum, m) => sum + parseFloat(m.rating), 0) / mechanics.length).toFixed(1);
-  const totalAssignedJobs = mechanics.reduce((sum, m) => sum + m.assignedJobs, 0);
+  const mechanicColumns = useMemo(() => [
+    { accessorKey: 'id', header: 'ID' },
+    { accessorKey: 'name', header: 'Name' },
+    { accessorKey: 'expertise', header: 'Expertise' },
+    { accessorKey: 'phone', header: 'Phone' },
+    { accessorKey: 'experience', header: 'Experience' },
+    { accessorKey: 'status', header: 'Status' },
+    { accessorKey: 'assignedJobs', header: 'Assigned Jobs' },
+    { accessorKey: 'rating', header: 'Rating' },
+  ], []);
 
   return (
     <div className="admin-page">
@@ -174,80 +149,13 @@ function ManageMechanics() {
         </div>
       )}
 
-      <div className="controls-bar">
-        <div className="filter-tabs">
-          {['All', 'Available', 'Busy', 'Off'].map((status) => (
-            <button
-              key={status}
-              className={`filter-tab ${filterStatus === status ? 'active' : ''}`}
-              onClick={() => setFilterStatus(status)}
-            >
-              {status} <span className="badge-count">{getStatusCount(status)}</span>
-            </button>
-          ))}
-        </div>
-
-        <input
-          type="text"
-          placeholder="Search by name or expertise"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
+      <div style={{ padding: '20px' }}>
+        <CommonTable 
+          columns={mechanicColumns} 
+          data={mechanics} 
+          fileName="mechanics-data"
+          showSelection={true}
         />
-      </div>
-
-      <div className="bookings-container">
-        {filteredMechanics.length > 0 ? (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Expertise</th>
-                <th>Phone</th>
-                <th>Experience</th>
-                <th>Rating</th>
-                <th>Assigned Jobs</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredMechanics.map((mechanic) => (
-                <tr key={mechanic.id}>
-                  <td><strong>{mechanic.name}</strong></td>
-                  <td>{mechanic.expertise}</td>
-                  <td><a href={`tel:${mechanic.phone}`}>{mechanic.phone}</a></td>
-                  <td>{mechanic.experience}</td>
-                  <td>
-                    <span style={{ color: '#dc2626', fontWeight: 'bold' }}>
-                      ⭐ {mechanic.rating}
-                    </span>
-                  </td>
-                  <td><strong>{mechanic.assignedJobs}</strong></td>
-                  <td>
-                    <select
-                      className={`status-select status-${mechanic.status.toLowerCase()}`}
-                      value={mechanic.status}
-                      onChange={(e) => handleStatusChange(mechanic.id, e.target.value)}
-                    >
-                      <option value="Available">Available</option>
-                      <option value="Busy">Busy</option>
-                      <option value="Off">Off</option>
-                    </select>
-                  </td>
-                  <td>
-                    <button className="btn-edit" onClick={() => handleEdit(mechanic)}>Edit</button>
-                    <button className="btn-delete" onClick={() => handleDelete(mechanic.id)}>Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="empty-state">
-            <p>No mechanics found</p>
-          </div>
-        )}
       </div>
 
       <div className="booking-stats">
@@ -261,11 +169,11 @@ function ManageMechanics() {
         </div>
         <div className="stat-item">
           <label>Average Rating</label>
-          <span>⭐ {avgRating}</span>
+          <span>⭐ {(mechanics.reduce((sum, m) => sum + parseFloat(m.rating), 0) / mechanics.length).toFixed(1)}</span>
         </div>
         <div className="stat-item">
           <label>Total Assigned Jobs</label>
-          <span>{totalAssignedJobs}</span>
+          <span>{mechanics.reduce((sum, m) => sum + m.assignedJobs, 0)}</span>
         </div>
       </div>
     </div>

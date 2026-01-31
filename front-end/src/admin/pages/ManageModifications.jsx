@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import CommonTable from '../../components/CommonTable';
 
 function ManageModifications() {
   const [modifications, setModifications] = useState([
@@ -102,6 +103,20 @@ function ManageModifications() {
     status: 'Pending',
     assignedTo: ''
   });
+
+  const modificationColumns = useMemo(() => [
+    { accessorKey: 'id', header: 'ID' },
+    { accessorKey: 'customer', header: 'Customer' },
+    { accessorKey: 'vehicle', header: 'Vehicle' },
+    { accessorKey: 'modType', header: 'Modification Type' },
+    { accessorKey: 'description', header: 'Description' },
+    { accessorKey: 'estimatedCost', header: 'Est. Cost' },
+    { accessorKey: 'duration', header: 'Duration' },
+    { accessorKey: 'phone', header: 'Phone' },
+    { accessorKey: 'assignedTo', header: 'Assigned To' },
+    { accessorKey: 'status', header: 'Status' },
+    { accessorKey: 'progress', header: 'Progress' },
+  ], []);
 
   const modificationTypes = [
     'Performance Tuning',
@@ -307,75 +322,11 @@ function ManageModifications() {
       </div>
 
       <div className="bookings-container">
-        {filteredModifications.length > 0 ? (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Customer</th>
-                <th>Vehicle</th>
-                <th>Vehicle Number</th>
-                <th>Modification Type</th>
-                <th>Description</th>
-                <th>Cost</th>
-                <th>Duration</th>
-                <th>Assigned To</th>
-                <th>Progress</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredModifications.map((mod) => (
-                <tr key={mod.id}>
-                  <td>
-                    <div>
-                      <strong>{mod.customer}</strong><br/>
-                      <small style={{ color: '#999' }}>{mod.phone}</small>
-                    </div>
-                  </td>
-                  <td><strong>{mod.vehicle.split('(')[0].trim()}</strong></td>
-                  <td><strong>{mod.vehicle.includes('(') ? mod.vehicle.split('(')[1].replace(')', '') : '-'}</strong></td>
-                  <td><span style={{ color: '#dc2626', fontWeight: '500' }}>{mod.modType}</span></td>
-                  <td><small style={{ color: '#666' }}>{mod.description}</small></td>
-                  <td><strong>{mod.estimatedCost || '-'}</strong></td>
-                  <td>{mod.duration || '-'}</td>
-                  <td>{mod.assignedTo || '-'}</td>
-                  <td>
-                    <div className="progress-small">
-                      <div className="progress-bar-small">
-                        <div 
-                          className="progress-fill-small" 
-                          style={{width: `${mod.progress}%`}}
-                        ></div>
-                      </div>
-                      <span style={{ fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                        {mod.progress}%
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <select
-                      className={`status-select status-${mod.status.toLowerCase().replace(' ', '-')}`}
-                      value={mod.status}
-                      onChange={(e) => handleStatusChange(mod.id, e.target.value)}
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="In Progress">In Progress</option>
-                      <option value="Completed">Completed</option>
-                    </select>
-                  </td>
-                  <td>
-                    <button className="btn-delete" onClick={() => handleDelete(mod.id)}>Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="empty-state">
-            <p>No modification requests found</p>
-          </div>
-        )}
+        <CommonTable 
+          columns={modificationColumns}
+          data={filteredModifications}
+          filename="modifications"
+        />
       </div>
 
       <div className="booking-stats">

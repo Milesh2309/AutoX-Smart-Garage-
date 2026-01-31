@@ -26,6 +26,7 @@ import EmergencySOS from "./components/EmergencySOS";
 import EmergencyInfo from "./components/EmergencyInfo";
 import Gallery from "./components/Gallery";
 import LoadingAnimation from "./components/LoadingAnimation";
+import ServiceBooking from "./components/ServiceBooking";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
 // Simple route transition to animate page changes when navigating from the navbar
@@ -98,6 +99,7 @@ function AnimatedRoutes() {
         <Routes location={displayLocation}>
           <Route path="/" element={<Home />} />
           <Route path="/services" element={<Services />} />
+          <Route path="/book-service/:serviceId" element={<ServiceBooking />} />
           <Route path="/service/:id" element={<ServiceDetail />} />
           <Route path="/service-catalog" element={<ServiceCatalog />} />
           <Route path="/mods/explore" element={<ModsExplore />} />

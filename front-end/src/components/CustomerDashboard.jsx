@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import CommonTable from './CommonTable';
 import './CustomerDashboard.css';
 
 function CustomerDashboard() {
@@ -116,6 +117,24 @@ function CustomerDashboard() {
       mechanic: 'Rajesh Patel'
     }
   ];
+
+  const bookingColumns = useMemo(() => [
+    { accessorKey: 'id', header: 'ID' },
+    { accessorKey: 'service', header: 'Service' },
+    { accessorKey: 'date', header: 'Date' },
+    { accessorKey: 'time', header: 'Time' },
+    { accessorKey: 'status', header: 'Status' },
+    { accessorKey: 'mechanic', header: 'Mechanic' },
+  ], []);
+
+  const historyColumns = useMemo(() => [
+    { accessorKey: 'id', header: 'ID' },
+    { accessorKey: 'date', header: 'Date' },
+    { accessorKey: 'service', header: 'Service' },
+    { accessorKey: 'mechanic', header: 'Mechanic' },
+    { accessorKey: 'amount', header: 'Amount' },
+    { accessorKey: 'status', header: 'Status' },
+  ], []);
 
   const navItems = [
     { id: 'overview', label: 'Dashboard', icon: '📊' },
@@ -368,32 +387,12 @@ function CustomerDashboard() {
             </div>
 
             <div className="content-card">
-              <div className="history-table-container">
-                <table className="history-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Service</th>
-                      <th>Mechanic</th>
-                      <th>Amount</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {serviceHistory.map(item => (
-                      <tr key={item.id}>
-                        <td>{item.date}</td>
-                        <td>{item.service}</td>
-                        <td>{item.mechanic}</td>
-                        <td className="amount">{item.amount}</td>
-                        <td>
-                          <span className="status-badge">{item.status}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <CommonTable 
+                columns={historyColumns} 
+                data={serviceHistory} 
+                fileName="service-history"
+                showSelection={false}
+              />
             </div>
           </div>
         )}
@@ -407,59 +406,12 @@ function CustomerDashboard() {
             </div>
 
             <div className="content-card">
-              {upcomingBookings.length > 0 ? (
-                <div className="bookings-list">
-                  {upcomingBookings.map(booking => (
-                    <div key={booking.id} className="booking-card">
-                      <div className="booking-header">
-                        <h3>{booking.service}</h3>
-                        <span className="booking-status">{booking.status}</span>
-                      </div>
-                      <div className="booking-details">
-                        <div className="detail">
-                          <span className="label">📅 Date:</span>
-                          <span className="value">{booking.date}</span>
-                        </div>
-                        <div className="detail">
-                          <span className="label">🕐 Time:</span>
-                          <span className="value">{booking.time}</span>
-                        </div>
-                        <div className="detail">
-                          <span className="label">👨‍🔧 Mechanic:</span>
-                          <span className="value">{booking.mechanic}</span>
-                        </div>
-                      </div>
-                      <div className="booking-actions">
-                        <button 
-                          className="btn-secondary"
-                          onClick={() => {
-                            setSelectedBooking(booking);
-                            setBookingModalType('reschedule');
-                            setShowBookingModal(true);
-                          }}
-                        >
-                          Reschedule
-                        </button>
-                        <button 
-                          className="btn-danger"
-                          onClick={() => {
-                            setSelectedBooking(booking);
-                            setBookingModalType('cancel');
-                            setShowBookingModal(true);
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-state">
-                  <p>No upcoming bookings</p>
-                  <button className="btn-primary">Book a Service</button>
-                </div>
-              )}
+              <CommonTable 
+                columns={bookingColumns} 
+                data={upcomingBookings} 
+                fileName="my-bookings"
+                showSelection={false}
+              />
             </div>
           </div>
         )}

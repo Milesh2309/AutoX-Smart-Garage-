@@ -1,15 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './DataGrid.css';
+import CommonTable from '../../components/CommonTable';
 
 function DataGrid() {
   const [activeTab, setActiveTab] = useState('users');
-  const [data, setData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('id');
-  const [sortOrder, setSortOrder] = useState('asc');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
 
   // Mock data for different views
   const mockData = {
@@ -51,85 +45,66 @@ function DataGrid() {
     ],
   };
 
-  useEffect(() => {
-    // Load data based on active tab
-    const tabData = mockData[activeTab] || [];
-    setData(tabData);
-    setCurrentPage(1);
-    setSearchTerm('');
-  }, [activeTab]);
-
-  useEffect(() => {
-    // Filter and search data
-    let filtered = data.filter(item => {
-      const searchLower = searchTerm.toLowerCase();
-      return Object.values(item).some(value =>
-        String(value).toLowerCase().includes(searchLower)
-      );
-    });
-
-    // Sort data
-    filtered.sort((a, b) => {
-      const aValue = a[sortBy];
-      const bValue = b[sortBy];
-
-      if (typeof aValue === 'string') {
-        return sortOrder === 'asc'
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
-      return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
-    });
-
-    setFilteredData(filtered);
-  }, [data, searchTerm, sortBy, sortOrder]);
-
-  // Pagination
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-
-  const getColumns = () => {
+  // Define columns for each tab
+  const getTableColumns = () => {
     switch (activeTab) {
       case 'users':
-        return ['id', 'name', 'email', 'phone', 'joinDate', 'status', 'bookings'];
+        return [
+          { accessorKey: 'id', header: 'ID' },
+          { accessorKey: 'name', header: 'Name' },
+          { accessorKey: 'email', header: 'Email' },
+          { accessorKey: 'phone', header: 'Phone' },
+          { accessorKey: 'joinDate', header: 'Join Date' },
+          { accessorKey: 'status', header: 'Status' },
+          { accessorKey: 'bookings', header: 'Bookings' },
+        ];
       case 'mechanics':
-        return ['id', 'name', 'specialty', 'experience', 'phone', 'status', 'rating'];
+        return [
+          { accessorKey: 'id', header: 'ID' },
+          { accessorKey: 'name', header: 'Name' },
+          { accessorKey: 'specialty', header: 'Specialty' },
+          { accessorKey: 'experience', header: 'Experience' },
+          { accessorKey: 'phone', header: 'Phone' },
+          { accessorKey: 'status', header: 'Status' },
+          { accessorKey: 'rating', header: 'Rating' },
+        ];
       case 'vehicles':
-        return ['id', 'owner', 'registrationNo', 'model', 'year', 'type', 'status'];
+        return [
+          { accessorKey: 'id', header: 'ID' },
+          { accessorKey: 'owner', header: 'Owner' },
+          { accessorKey: 'registrationNo', header: 'Registration No' },
+          { accessorKey: 'model', header: 'Model' },
+          { accessorKey: 'year', header: 'Year' },
+          { accessorKey: 'type', header: 'Type' },
+          { accessorKey: 'status', header: 'Status' },
+        ];
       case 'bookings':
-        return ['id', 'customer', 'service', 'date', 'amount', 'status', 'mechanic'];
+        return [
+          { accessorKey: 'id', header: 'ID' },
+          { accessorKey: 'customer', header: 'Customer' },
+          { accessorKey: 'service', header: 'Service' },
+          { accessorKey: 'date', header: 'Date' },
+          { accessorKey: 'amount', header: 'Amount' },
+          { accessorKey: 'status', header: 'Status' },
+          { accessorKey: 'mechanic', header: 'Mechanic' },
+        ];
       case 'parts':
-        return ['id', 'name', 'partNo', 'quantity', 'unitPrice', 'category', 'supplier'];
+        return [
+          { accessorKey: 'id', header: 'ID' },
+          { accessorKey: 'name', header: 'Part Name' },
+          { accessorKey: 'partNo', header: 'Part No' },
+          { accessorKey: 'quantity', header: 'Quantity' },
+          { accessorKey: 'unitPrice', header: 'Unit Price' },
+          { accessorKey: 'category', header: 'Category' },
+          { accessorKey: 'supplier', header: 'Supplier' },
+        ];
       default:
         return [];
     }
   };
 
-  const getStatusBadgeColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'active':
-      case 'available':
-      case 'completed':
-        return '#10b981';
-      case 'pending':
-      case 'busy':
-        return '#f59e0b';
-      case 'inactive':
-      case 'in progress':
-        return '#ef4444';
-      default:
-        return '#6b7280';
-    }
-  };
-
-  const formatHeaderName = (key) => {
-    return key
-      .replace(/([A-Z])/g, ' $1')
-      .replace(/^./, str => str.toUpperCase())
-      .trim();
-  };
+  const columns = useMemo(() => getTableColumns(), [activeTab]);
+  const data = mockData[activeTab] || [];
 
   return (
     <div className="datagrid-container">
@@ -150,110 +125,13 @@ function DataGrid() {
         ))}
       </div>
 
-      <div className="datagrid-controls">
-        <input
-          type="text"
-          placeholder="Search..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
+      <div style={{ padding: '20px' }}>
+        <CommonTable 
+          columns={columns} 
+          data={data} 
+          fileName={`${activeTab}-data`}
+          showSelection={true}
         />
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          className="sort-select"
-        >
-          <option value="id">Sort by ID</option>
-          {activeTab === 'users' && (
-            <>
-              <option value="name">Sort by Name</option>
-              <option value="joinDate">Sort by Join Date</option>
-            </>
-          )}
-          {activeTab === 'mechanics' && (
-            <>
-              <option value="name">Sort by Name</option>
-              <option value="rating">Sort by Rating</option>
-            </>
-          )}
-          {activeTab === 'bookings' && (
-            <>
-              <option value="customer">Sort by Customer</option>
-              <option value="date">Sort by Date</option>
-            </>
-          )}
-        </select>
-        <button
-          className="sort-order-btn"
-          onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-        >
-          {sortOrder === 'asc' ? '↑ ASC' : '↓ DESC'}
-        </button>
-      </div>
-
-      <div className="datagrid-wrapper">
-        <table className="datagrid-table">
-          <thead>
-            <tr>
-              {getColumns().map(col => (
-                <th key={col}>{formatHeaderName(col)}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {currentItems.length > 0 ? (
-              currentItems.map((item, idx) => (
-                <tr key={idx}>
-                  {getColumns().map(col => (
-                    <td key={`${idx}-${col}`}>
-                      {col.includes('status') ? (
-                        <span
-                          className="status-badge"
-                          style={{ backgroundColor: getStatusBadgeColor(item[col]) }}
-                        >
-                          {item[col]}
-                        </span>
-                      ) : (
-                        item[col]
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={getColumns().length} className="no-data">
-                  No data found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="datagrid-pagination">
-        <div className="pagination-info">
-          Showing {Math.min(indexOfFirstItem + 1, filteredData.length)} to {Math.min(indexOfLastItem, filteredData.length)} of {filteredData.length} entries
-        </div>
-        <div className="pagination-controls">
-          <button
-            className="pagination-btn"
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(currentPage - 1)}
-          >
-            ← Previous
-          </button>
-          <span className="pagination-info">
-            Page {currentPage} of {totalPages || 1}
-          </span>
-          <button
-            className="pagination-btn"
-            disabled={currentPage === totalPages || totalPages === 0}
-            onClick={() => setCurrentPage(currentPage + 1)}
-          >
-            Next →
-          </button>
-        </div>
       </div>
     </div>
   );

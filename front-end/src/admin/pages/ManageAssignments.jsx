@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import CommonTable from '../../components/CommonTable';
 
 function ManageAssignments() {
   const [assignments, setAssignments] = useState([
@@ -105,6 +106,20 @@ function ManageAssignments() {
 
   const mechanics = ['Suresh Patel', 'Rajesh Kumar', 'Ramesh Gupta', 'Vikram Singh', 'Ashok Sharma', 'Deepak Verma'];
   const services = ['Smart Garage Services', 'Car & Bike Repair', 'Emergency Roadside Help', 'Vehicle Detailing', 'Pre-Purchase Inspection', 'Tire & Wheel Services', 'Vehicle Modification', 'Vehicle Breakdown Assistance'];
+
+  const assignmentColumns = useMemo(() => [
+    { accessorKey: 'id', header: 'ID' },
+    { accessorKey: 'mechanic', header: 'Mechanic' },
+    { accessorKey: 'customer', header: 'Customer' },
+    { accessorKey: 'vehicle', header: 'Vehicle' },
+    { accessorKey: 'service', header: 'Service' },
+    { accessorKey: 'job', header: 'Job' },
+    { accessorKey: 'startDate', header: 'Start Date' },
+    { accessorKey: 'startTime', header: 'Start Time' },
+    { accessorKey: 'estimatedDuration', header: 'Duration' },
+    { accessorKey: 'status', header: 'Status' },
+    { accessorKey: 'progress', header: 'Progress' },
+  ], []);
 
   const handleAddAssignment = (e) => {
     e.preventDefault();
@@ -302,79 +317,13 @@ function ManageAssignments() {
         />
       </div>
 
-      <div className="bookings-container">
-        {filteredAssignments.length > 0 ? (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Mechanic</th>
-                <th>Customer</th>
-                <th>Vehicle</th>
-                <th>Vehicle Number</th>
-                <th>Service / Job</th>
-                <th>Start Date & Time</th>
-                <th>Duration</th>
-                <th>Progress</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAssignments.map((assignment) => (
-                <tr key={assignment.id}>
-                  <td><strong>{assignment.mechanic}</strong></td>
-                  <td>
-                    <div>
-                      <strong>{assignment.customer}</strong><br/>
-                      <small style={{ color: '#999' }}>{assignment.phone}</small>
-                    </div>
-                  </td>
-                  <td><strong>{assignment.vehicle.split('(')[0].trim()}</strong></td>
-                  <td><strong>{assignment.vehicle.includes('(') ? assignment.vehicle.split('(')[1].replace(')', '') : '-'}</strong></td>
-                  <td>
-                    <div>
-                      <strong>{assignment.service}</strong><br/>
-                      <small style={{ color: '#666' }}>{assignment.job}</small>
-                    </div>
-                  </td>
-                  <td>{assignment.startDate}<br/>{assignment.startTime}</td>
-                  <td>{assignment.estimatedDuration}</td>
-                  <td>
-                    <div className="progress-small">
-                      <div className="progress-bar-small">
-                        <div 
-                          className="progress-fill-small" 
-                          style={{width: `${assignment.progress}%`}}
-                        ></div>
-                      </div>
-                      <span style={{ fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                        {assignment.progress}%
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <select
-                      className={`status-select status-${assignment.status.toLowerCase().replace(' ', '-')}`}
-                      value={assignment.status}
-                      onChange={(e) => handleStatusChange(assignment.id, e.target.value)}
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="In Progress">In Progress</option>
-                      <option value="Completed">Completed</option>
-                    </select>
-                  </td>
-                  <td>
-                    <button className="btn-delete" onClick={() => handleDelete(assignment.id)}>Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="empty-state">
-            <p>No assignments found</p>
-          </div>
-        )}
+      <div style={{ padding: '20px' }}>
+        <CommonTable 
+          columns={assignmentColumns} 
+          data={assignments} 
+          fileName="assignments-data"
+          showSelection={true}
+        />
       </div>
 
       <div className="booking-stats">

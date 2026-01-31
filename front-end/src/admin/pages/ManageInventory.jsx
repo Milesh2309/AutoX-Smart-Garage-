@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import CommonTable from '../../components/CommonTable';
 
 function ManageInventory() {
   const [inventory, setInventory] = useState([
@@ -110,6 +111,19 @@ function ManageInventory() {
   });
 
   const categories = useMemo(() => ['All', ...new Set(inventory.map((item) => item.category))], [inventory]);
+
+  const inventoryColumns = useMemo(() => [
+    { accessorKey: 'id', header: 'ID' },
+    { accessorKey: 'name', header: 'Part Name' },
+    { accessorKey: 'sku', header: 'SKU' },
+    { accessorKey: 'category', header: 'Category' },
+    { accessorKey: 'stock', header: 'Stock' },
+    { accessorKey: 'reorderLevel', header: 'Reorder Level' },
+    { accessorKey: 'price', header: 'Price' },
+    { accessorKey: 'supplier', header: 'Supplier' },
+    { accessorKey: 'location', header: 'Location' },
+    { accessorKey: 'status', header: 'Status' },
+  ], []);
 
   const totalSkus = inventory.length;
   const lowStockCount = inventory.filter((item) => item.status === 'Low Stock').length;
@@ -239,87 +253,39 @@ function ManageInventory() {
         </div>
       </div>
 
-      <div className="bookings-container">
-        {filteredInventory.length > 0 ? (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Part</th>
-                <th>SKU</th>
-                <th>Category</th>
-                <th>Stock</th>
-                <th>Reorder @</th>
-                <th>Price</th>
-                <th>Supplier</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredInventory.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    <strong>{item.name}</strong>
-                    <div className="header-subtitle">{item.location || 'Location pending'}</div>
-                  </td>
-                  <td>{item.sku}</td>
-                  <td>{item.category}</td>
-                  <td>
-                    <strong>{item.stock}</strong> units
-                  </td>
-                  <td>{item.reorderLevel}</td>
-                  <td>₹{Number(item.price || 0).toLocaleString('en-IN')}</td>
-                  <td>{item.supplier}</td>
-                  <td>
-                    <select
-                      className={`status-select status-${item.status.toLowerCase().replace(/\s+/g, '-')}`}
-                      value={item.status}
-                      onChange={(e) => handleStatusChange(item.id, e.target.value)}
-                    >
-                      <option value="In Stock">In Stock</option>
-                      <option value="Low Stock">Low Stock</option>
-                      <option value="Out of Stock">Out of Stock</option>
-                    </select>
-                  </td>
-                  <td>
-                    <button className="btn-edit" onClick={() => handleEdit(item)}>Edit</button>
-                    <button className="btn-delete" onClick={() => handleDelete(item.id)}>Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="empty-state">
-            <p>No parts found. Try a different filter or add a new item.</p>
-          </div>
-        )}
+      <div style={{ padding: '20px' }}>
+        <CommonTable 
+          columns={inventoryColumns} 
+          data={inventory} 
+          fileName="inventory-data"
+          showSelection={true}
+        />
       </div>
 
       <div className="booking-stats">
         <div className="stat-item">
           <label>Total SKUs</label>
-          <span>{totalSkus}</span>
+          <span>{inventory.length}</span>
         </div>
         <div className="stat-item">
           <label>Low Stock</label>
-          <span>{lowStockCount}</span>
+          <span>{inventory.filter((item) => item.status === 'Low Stock').length}</span>
         </div>
         <div className="stat-item">
           <label>Out of Stock</label>
-          <span>{outOfStockCount}</span>
+          <span>{inventory.filter((item) => item.status === 'Out of Stock').length}</span>
         </div>
         <div className="stat-item">
           <label>Inventory Value</label>
-          <span>₹{totalValue.toLocaleString('en-IN')}</span>
+          <span>₹{inventory.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.stock) || 0), 0).toLocaleString('en-IN')}</span>
         </div>
       </div>
 
-      {reorderQueue.length > 0 && (
+      {inventory.filter((item) => item.stock <= item.reorderLevel).length > 0 && (
         <div className="dashboard-section" style={{ marginTop: '24px' }}>
           <h2>🚚 Reorder Queue</h2>
           <div className="activity-list">
-            {reorderQueue.map((item) => (
+            {inventory.filter((item) => item.stock <= item.reorderLevel).map((item) => (
               <div key={item.id} className="activity-item">
                 <span className="activity-icon">⚠️</span>
                 <div className="activity-info">
