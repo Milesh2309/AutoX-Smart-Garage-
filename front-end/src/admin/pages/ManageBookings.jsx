@@ -1,21 +1,25 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import CommonTable from '../../components/CommonTable';
 
 function ManageBookings() {
-  const [bookings] = useState([
-    { id: 1, customer: 'John Doe', service: 'Smart Garage Services', vehicleNumber: 'MH-04-AB-1234', phone: '9876543210', date: '2025-12-30', time: '10:00 AM', status: 'Pending', amount: '₹2,499' },
-    { id: 2, customer: 'Sarah Smith', service: 'Car & Bike Repair', vehicleNumber: 'DL-01-CD-5678', phone: '9876543211', date: '2025-12-29', time: '2:30 PM', status: 'Completed', amount: '₹4,500' },
-    { id: 3, customer: 'Mike Johnson', service: 'Vehicle Modification', vehicleNumber: 'GJ-05-EF-9012', phone: '9876543212', date: '2025-12-28', time: '11:15 AM', status: 'In Progress', amount: '₹8,999' },
-    { id: 4, customer: 'Priya Gupta', service: 'Vehicle Detailing', vehicleNumber: 'MH-02-GH-3456', phone: '9876543213', date: '2025-12-27', time: '3:00 PM', status: 'Completed', amount: '₹3,999' },
-    { id: 5, customer: 'Raj Patel', service: 'Emergency Roadside Help', vehicleNumber: 'GJ-06-IJ-7890', phone: '9876543214', date: '2025-12-26', time: '9:45 PM', status: 'Completed', amount: '₹500' },
-    { id: 6, customer: 'Asha Kumar', service: 'Pre-Purchase Inspection', vehicleNumber: 'DL-03-KL-1234', phone: '9876543215', date: '2025-12-25', time: '1:00 PM', status: 'In Progress', amount: '₹2,499' },
-  ]);
+  const [bookings, setBookings] = useState([]);
+
+  // Load bookings from localStorage
+  useEffect(() => {
+    const allBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+    // Add default mechanic if not set
+    const processedBookings = allBookings.map(b => ({
+      ...b,
+      mechanic: b.mechanic || 'Not Assigned'
+    }));
+    setBookings(processedBookings);
+  }, []);
 
   const bookingColumns = useMemo(() => [
     { accessorKey: 'id', header: 'ID' },
     { accessorKey: 'customer', header: 'Customer' },
     { accessorKey: 'service', header: 'Service' },
-    { accessorKey: 'vehicleNumber', header: 'Vehicle Number' },
+    { accessorKey: 'vehicleNumber', header: 'Vehicle' },
     { accessorKey: 'phone', header: 'Phone' },
     { accessorKey: 'date', header: 'Date' },
     { accessorKey: 'time', header: 'Time' },

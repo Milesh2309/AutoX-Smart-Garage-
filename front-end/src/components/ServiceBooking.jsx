@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from '../context/AuthContext';
 import './BookService.css';
 
 function ServiceBooking() {
   const { serviceId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+    name: user?.name || '',
+    email: user?.email || '',
     phone: '',
     vehicle: '',
     preferredDate: '',
@@ -133,8 +135,34 @@ function ServiceBooking() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Here you would typically send the form data to your backend
-    console.log('Booking submitted:', { ...formData, serviceId });
+    
+    // Create booking object
+    const booking = {
+      id: Date.now(),
+      customer: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      service: selectedService.title,
+      vehicleNumber: formData.vehicle,
+      date: formData.preferredDate,
+      time: formData.preferredTime,
+      message: formData.message,
+      status: 'Pending',
+      amount: '₹2,499',
+      serviceId: parseInt(serviceId),
+      createdAt: new Date().toISOString()
+    };
+
+    // Get existing bookings from localStorage
+    const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+    
+    // Add new booking
+    existingBookings.push(booking);
+    
+    // Save to localStorage
+    localStorage.setItem('bookings', JSON.stringify(existingBookings));
+    
+    console.log('Booking submitted:', booking);
     setSubmitted(true);
     setTimeout(() => {
       navigate('/services');

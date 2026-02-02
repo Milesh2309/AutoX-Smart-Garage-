@@ -396,9 +396,15 @@ function AdminLogin() {
               <p><strong>📧 {tempCustomerEmail}</strong></p>
             </div>
 
+            {/* Debug Info - Shows OTP for testing */}
+            <div style={{ background: '#e3f2fd', padding: '15px', borderRadius: '8px', marginBottom: '20px', fontSize: '13px', border: '1px solid #90caf9' }}>
+              <p style={{ color: '#1565c0', fontWeight: 'bold', marginBottom: '8px' }}>🔍 Demo - Use OTP Below:</p>
+              <p style={{ margin: '5px 0', color: '#1565c0' }}>📧 Email OTP: <code style={{ background: '#fff', padding: '2px 8px', borderRadius: '3px', fontWeight: 'bold', fontSize: '16px' }}>{generatedOtp}</code></p>
+            </div>
+
             {otpError && (
               <div className="error-banner" style={{ marginBottom: '15px' }}>
-                {otpError}
+                ⚠️ {otpError}
               </div>
             )}
 
@@ -409,22 +415,42 @@ function AdminLogin() {
                   type="text"
                   id="userOtp"
                   value={userOtp}
-                  onChange={(e) => setUserOtp(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setUserOtp(value);
+                  }}
                   placeholder="Enter 6-digit OTP"
                   maxLength="6"
                   className={otpError ? 'error' : ''}
                   style={{ textAlign: 'center', fontSize: '18px', letterSpacing: '2px' }}
                 />
-                <small style={{ color: '#999', display: 'block', textAlign: 'center', marginTop: '8px' }}>
-                  Check your email for the OTP code
-                </small>
+                {userOtp && userOtp === generatedOtp && (
+                  <small style={{ color: '#4caf50', display: 'block', textAlign: 'center', marginTop: '8px', fontWeight: 'bold' }}>
+                    ✓ OTP Verified!
+                  </small>
+                )}
+                {userOtp && userOtp !== generatedOtp && userOtp.length === 6 && (
+                  <small style={{ color: '#f44336', display: 'block', textAlign: 'center', marginTop: '8px' }}>
+                    ✗ Incorrect OTP
+                  </small>
+                )}
+                {(!userOtp || userOtp.length < 6) && (
+                  <small style={{ color: '#999', display: 'block', textAlign: 'center', marginTop: '8px' }}>
+                    Check your email for the OTP code
+                  </small>
+                )}
               </div>
 
               <button 
                 type="submit" 
                 className="submit-btn forgot-submit-btn"
+                disabled={userOtp !== generatedOtp}
+                style={{
+                  opacity: userOtp !== generatedOtp ? 0.5 : 1,
+                  cursor: userOtp !== generatedOtp ? 'not-allowed' : 'pointer'
+                }}
               >
-                Verify & Login
+                {userOtp === generatedOtp ? '✓ Verify & Login' : 'Enter OTP to Continue'}
               </button>
 
               <div style={{ textAlign: 'center', marginTop: '15px' }}>
