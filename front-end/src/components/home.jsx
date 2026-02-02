@@ -464,29 +464,29 @@ function Home() {
           <div className="overview-section services-showcase">
             <h2>🚗 Our Complete Service Range</h2>
             <div className="services-grid">
-              <div className="service-showcase-card" onClick={() => navigate('/services')}>
+              <div className="service-showcase-card">
                 <div className="showcase-icon">🔧</div>
                 <h3>Smart Garage Services</h3>
                 <p>Periodic maintenance, engine diagnostics, oil change, brake service, AC repair, battery replacement, and more</p>
-                <button className="learn-more-btn">Learn More →</button>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
               </div>
-              <div className="service-showcase-card" onClick={() => navigate('/breakdown')}>
+              <div className="service-showcase-card">
                 <div className="showcase-icon">🛠️</div>
                 <h3>Breakdown Assistance</h3>
                 <p>24/7 on-road support, tire change, fuel delivery, battery jumpstart, towing, and emergency repairs</p>
-                <button className="learn-more-btn">Learn More →</button>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
               </div>
-              <div className="service-showcase-card" onClick={() => navigate('/mods')}>
+              <div className="service-showcase-card">
                 <div className="showcase-icon">⚙️</div>
                 <h3>Vehicle Modifications</h3>
                 <p>Custom body kits, performance upgrades, aesthetic enhancements, audio systems, and interior makeovers</p>
-                <button className="learn-more-btn">Learn More →</button>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
               </div>
-              <div className="service-showcase-card" onClick={() => navigate('/repair')}>
+              <div className="service-showcase-card">
                 <div className="showcase-icon">🔨</div>
                 <h3>Repair Services</h3>
                 <p>Engine repairs, transmission fixes, suspension work, electrical repairs, and collision body work</p>
-                <button className="learn-more-btn">Learn More →</button>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
               </div>
             </div>
           </div>

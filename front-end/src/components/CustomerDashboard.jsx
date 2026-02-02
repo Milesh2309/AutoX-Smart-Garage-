@@ -7,6 +7,26 @@ import './CustomerDashboard.css';
 function CustomerDashboard() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  
+  // Booking table columns - defined before conditional rendering
+  const bookingColumns = useMemo(() => [
+    { accessorKey: 'id', header: 'ID' },
+    { accessorKey: 'service', header: 'Service' },
+    { accessorKey: 'date', header: 'Date' },
+    { accessorKey: 'time', header: 'Time' },
+    { accessorKey: 'status', header: 'Status' },
+    { accessorKey: 'mechanic', header: 'Mechanic' },
+  ], []);
+
+  const historyColumns = useMemo(() => [
+    { accessorKey: 'id', header: 'ID' },
+    { accessorKey: 'date', header: 'Date' },
+    { accessorKey: 'service', header: 'Service' },
+    { accessorKey: 'mechanic', header: 'Mechanic' },
+    { accessorKey: 'amount', header: 'Amount' },
+    { accessorKey: 'status', header: 'Status' },
+  ], []);
+  
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -17,7 +37,7 @@ function CustomerDashboard() {
   
   // Profile states
   const [profilePhoto, setProfilePhoto] = useState(null);
-  const [profileName, setProfileName] = useState(user.email.split('@')[0].toUpperCase());
+  const [profileName, setProfileName] = useState(user?.email?.split('@')[0]?.toUpperCase() || 'User');
   const [isEditingName, setIsEditingName] = useState(false);
   
   // Profile form data
@@ -117,24 +137,6 @@ function CustomerDashboard() {
       mechanic: 'Rajesh Patel'
     }
   ];
-
-  const bookingColumns = useMemo(() => [
-    { accessorKey: 'id', header: 'ID' },
-    { accessorKey: 'service', header: 'Service' },
-    { accessorKey: 'date', header: 'Date' },
-    { accessorKey: 'time', header: 'Time' },
-    { accessorKey: 'status', header: 'Status' },
-    { accessorKey: 'mechanic', header: 'Mechanic' },
-  ], []);
-
-  const historyColumns = useMemo(() => [
-    { accessorKey: 'id', header: 'ID' },
-    { accessorKey: 'date', header: 'Date' },
-    { accessorKey: 'service', header: 'Service' },
-    { accessorKey: 'mechanic', header: 'Mechanic' },
-    { accessorKey: 'amount', header: 'Amount' },
-    { accessorKey: 'status', header: 'Status' },
-  ], []);
 
   const navItems = [
     { id: 'overview', label: 'Dashboard', icon: '📊' },
