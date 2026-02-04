@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import CommonTable from '../../components/CommonTable';
+import CommonTable from '../../components/CommonTable.jsx';
 
 function ManageBookings() {
   const [bookings, setBookings] = useState([]);

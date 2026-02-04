@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './DataGrid.css';
-import CommonTable from '../../components/CommonTable';
+import CommonTable from '../../components/CommonTable.jsx';
 
 function DataGrid() {
   const [activeTab, setActiveTab] = useState('users');

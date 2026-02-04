@@ -142,7 +142,7 @@ function Home() {
       navigate('/view-packages');
     }
     if (serviceId === 1 && action === 'Book Service') {
-      navigate('/book-service');
+      navigate('/book-service/1');
     }
     
     // Vehicle Breakdown Assistance actions (service id: 2)

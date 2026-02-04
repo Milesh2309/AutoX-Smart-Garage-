@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
+import PaymentGateway from './PaymentGateway';
 import './BookService.css';
 
 function ServiceBooking() {
@@ -17,6 +18,8 @@ function ServiceBooking() {
     message: ''
   });
   const [submitted, setSubmitted] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
+  const [bookingData, setBookingData] = useState(null);
 
   // Service list matching the one in services.jsx
   const services = [
@@ -24,38 +27,49 @@ function ServiceBooking() {
       id: 1,
       title: "Smart Garage Services",
       icon: "🚗",
+      price: 2499,
+      gst: 450,
       description: "Complete vehicle diagnostics, maintenance, and scheduled servicing by certified technicians.",
       features: [
-        "Full vehicle inspection",
-        "Oil change & filter replacement",
-        "Brake system check",
-        "Battery health check",
-        "Tire rotation & alignment"
+        "Multi-point vehicle inspection report",
+        "Engine oil change & filter replacement",
+        "Brake pads, discs & fluid check",
+        "Battery health & charging system check",
+        "Wheel alignment & tire rotation",
+        "Fluid top-up (coolant, brake, washer)",
+        "Exterior wash & basic interior vacuum"
       ]
     },
     {
       id: 2,
       title: "Vehicle Breakdown Assistance",
       icon: "🛠",
+      price: 1999,
+      gst: 360,
       description: "24/7 roadside support for breakdowns, tire changes, fuel delivery, and quick fixes.",
       features: [
-        "24/7 Emergency support",
-        "On-spot tire change",
+        "24/7 emergency helpline",
+        "On-spot minor repairs",
+        "Flat tire change & puncture assistance",
         "Battery jump-start",
-        "Fuel delivery service",
-        "Towing assistance"
+        "Fuel delivery up to 5L",
+        "Towing assistance (up to 10 km)"
       ]
     },
     {
       id: 3,
       title: "Vehicle Modification",
       icon: "⚙",
+      price: 4999,
+      gst: 900,
       description: "Expert custom modifications, upgrades, and tuning to enhance performance and aesthetics.",
       features: [
-        "Performance tuning",
-        "Custom body kits",
+        "Performance tuning & ECU remap",
+        "Custom body kits & wrap options",
         "Exhaust upgrades",
-        "Lighting modifications",
+        "Suspension & brake upgrades",
+        "Lighting upgrades (LED/Projector)",
+        "Alloy wheels & tire fitment",
         "Interior customization"
       ]
     },
@@ -63,12 +77,15 @@ function ServiceBooking() {
       id: 4,
       title: "Car & Bike Repair",
       icon: "🔧",
+      price: 3499,
+      gst: 629,
       description: "Comprehensive repair services for all vehicle types with genuine parts and warranty.",
       features: [
-        "Engine repair & overhaul",
-        "Transmission services",
-        "AC repair & service",
-        "Electrical diagnostics",
+        "Engine diagnostics & repair",
+        "Transmission & clutch services",
+        "Brake & suspension repair",
+        "AC repair & gas refill",
+        "Electrical & wiring diagnostics",
         "Body repair & painting"
       ]
     },
@@ -76,12 +93,15 @@ function ServiceBooking() {
       id: 5,
       title: "Emergency Roadside Help",
       icon: "🚘",
+      price: 1499,
+      gst: 270,
       description: "Immediate assistance for accidents, mechanical failures, and emergency towing services.",
       features: [
         "Instant emergency response",
-        "Accident support",
+        "Accident support & coordination",
         "Emergency towing",
         "Lockout assistance",
+        "Battery jump-start",
         "Flat tire replacement"
       ]
     },
@@ -89,39 +109,48 @@ function ServiceBooking() {
       id: 6,
       title: "Vehicle Detailing",
       icon: "✨",
+      price: 1999,
+      gst: 360,
       description: "Professional cleaning, polishing, and detailing to make your vehicle look brand new.",
       features: [
-        "Interior deep cleaning",
-        "Exterior polishing & wax",
+        "Interior deep cleaning & shampoo",
+        "Exterior wash, polish & wax",
         "Paint protection coating",
         "Ceramic coating",
-        "Odor removal treatment"
+        "Odor removal treatment",
+        "Glass & trim restoration"
       ]
     },
     {
       id: 7,
       title: "Pre-Purchase Inspection",
       icon: "🔍",
+      price: 2999,
+      gst: 540,
       description: "Detailed inspection report before buying a used vehicle to ensure quality and safety.",
       features: [
         "Complete vehicle assessment",
-        "Mechanical inspection",
+        "Mechanical & electrical inspection",
         "Body & paint check",
-        "Documentation verification",
-        "Test drive evaluation"
+        "OBD diagnostics scan",
+        "Test drive evaluation",
+        "Inspection report with recommendations"
       ]
     },
     {
       id: 8,
       title: "Tire & Wheel Services",
       icon: "⚪",
+      price: 1799,
+      gst: 324,
       description: "Complete tire solutions including replacement, alignment, balancing, and wheel care.",
       features: [
-        "Tire replacement",
+        "Tire replacement & fitment",
         "Wheel alignment",
         "Wheel balancing",
         "Puncture repair",
-        "Tire rotation"
+        "Tire rotation",
+        "Alloy wheel care & cleaning"
       ]
     }
   ];
@@ -147,26 +176,45 @@ function ServiceBooking() {
       date: formData.preferredDate,
       time: formData.preferredTime,
       message: formData.message,
-      status: 'Pending',
-      amount: '₹2,499',
+      status: 'Pending Payment',
+      amount: String(selectedService.price + selectedService.gst),
+      servicePrice: selectedService.price,
+      gst: selectedService.gst,
       serviceId: parseInt(serviceId),
       createdAt: new Date().toISOString()
     };
 
-    // Get existing bookings from localStorage
-    const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-    
-    // Add new booking
-    existingBookings.push(booking);
-    
-    // Save to localStorage
-    localStorage.setItem('bookings', JSON.stringify(existingBookings));
-    
-    console.log('Booking submitted:', booking);
-    setSubmitted(true);
-    setTimeout(() => {
-      navigate('/services');
-    }, 2000);
+    setBookingData(booking);
+    setShowPayment(true);
+  };
+
+  const handlePaymentComplete = (paymentDetails) => {
+    if (bookingData) {
+      // Update booking status
+      const updatedBooking = {
+        ...bookingData,
+        status: 'Confirmed',
+        paymentMethod: paymentDetails.method,
+        paymentDate: new Date().toISOString(),
+        transactionId: `TXN${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+      };
+
+      // Get existing bookings from localStorage
+      const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+      
+      // Add new booking
+      existingBookings.push(updatedBooking);
+      
+      // Save to localStorage
+      localStorage.setItem('bookings', JSON.stringify(existingBookings));
+      
+      console.log('Booking confirmed with payment:', updatedBooking);
+      setShowPayment(false);
+      setSubmitted(true);
+      setTimeout(() => {
+        navigate('/services');
+      }, 3000);
+    }
   };
 
   if (!selectedService) {
@@ -187,8 +235,9 @@ function ServiceBooking() {
         <div className="success-message">
           <div className="success-icon">✓</div>
           <h2>Booking Confirmed! 🎉</h2>
-          <p>Thank you for booking {selectedService.title} with AUTOX. We've received your request and will contact you shortly.</p>
+          <p>Thank you for booking {selectedService.title} with AUTOX. Payment of ₹{(selectedService.price + selectedService.gst).toLocaleString()} has been processed successfully.</p>
           <p className="confirmation-ref">Confirmation email sent to: {formData.email}</p>
+          <p className="confirmation-ref">Your booking has been confirmed and our team will contact you shortly to finalize details.</p>
           <button className="btn-primary" onClick={() => navigate('/services')}>Back to Services</button>
         </div>
       </div>
@@ -329,6 +378,25 @@ function ServiceBooking() {
             </div>
           </div>
 
+          <div className="price-summary-section">
+            <h3>Payment Summary</h3>
+            <div className="price-summary">
+              <div className="summary-row">
+                <span>Service Charge:</span>
+                <span>₹{selectedService.price.toLocaleString()}</span>
+              </div>
+              <div className="summary-row">
+                <span>GST (18%):</span>
+                <span>₹{selectedService.gst.toLocaleString()}</span>
+              </div>
+              <div className="summary-row total">
+                <span>Total Amount:</span>
+                <span>₹{(selectedService.price + selectedService.gst).toLocaleString()}</span>
+              </div>
+            </div>
+            <p className="payment-note">Payment will be processed securely in the next step</p>
+          </div>
+
           <div className="booking-info-box">
             <p>📞 <strong>Need immediate assistance?</strong></p>
             <p>Call us at <a href="tel:9328764024">9328764024</a> or WhatsApp at <a href="https://wa.me/919328764024" target="_blank" rel="noreferrer">+91 9328764024</a></p>
@@ -346,11 +414,20 @@ function ServiceBooking() {
               type="submit"
               className="btn-primary"
             >
-              Confirm Booking
+              Proceed to Payment
             </button>
           </div>
         </form>
       </div>
+
+      {/* Payment Gateway Modal */}
+      <PaymentGateway 
+        amount={selectedService.price + selectedService.gst}
+        serviceName={selectedService.title}
+        isOpen={showPayment}
+        onPaymentComplete={handlePaymentComplete}
+        onCancel={() => setShowPayment(false)}
+      />
     </div>
   );
 }

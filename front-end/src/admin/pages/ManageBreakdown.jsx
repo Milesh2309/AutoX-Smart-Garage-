@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import CommonTable from '../../components/CommonTable';
+import CommonTable from '../../components/CommonTable.jsx';
 
 function ManageBreakdown() {
   const [breakdowns, setBreakdowns] = useState([

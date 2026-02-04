@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import CommonTable from './CommonTable';
+import CommonTable from './CommonTable.jsx';
+import PaymentGateway from './PaymentGateway';
 import './CustomerDashboard.css';
 
 function CustomerDashboard() {
@@ -34,6 +35,8 @@ function CustomerDashboard() {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [bookingModalType, setBookingModalType] = useState('reschedule'); // 'reschedule' or 'cancel'
+  const [showPayment, setShowPayment] = useState(false);
+  const [paymentData, setPaymentData] = useState(null);
   
   // Profile states
   const [profilePhoto, setProfilePhoto] = useState(null);
@@ -701,24 +704,6 @@ function CustomerDashboard() {
                       </div>
                     </div>
                   </div>
-
-                  <div className="renewal-section">
-                    <h3>Payment Method</h3>
-                    <div className="payment-options">
-                      <div className="payment-option">
-                        <input type="radio" id="pay-online" name="payment" defaultChecked />
-                        <label htmlFor="pay-online">Pay Online</label>
-                      </div>
-                      <div className="payment-option">
-                        <input type="radio" id="pay-upi" name="payment" />
-                        <label htmlFor="pay-upi">UPI/Digital Wallet</label>
-                      </div>
-                      <div className="payment-option">
-                        <input type="radio" id="pay-cash" name="payment" />
-                        <label htmlFor="pay-cash">Pay at Service Center</label>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 <div className="modal-actions">
@@ -731,11 +716,15 @@ function CustomerDashboard() {
                   <button 
                     className="btn-primary"
                     onClick={() => {
-                      alert(`Package renewed successfully! Confirmation email will be sent to ${user.email}`);
+                      setPaymentData({
+                        packageName: selectedPackage.name,
+                        amount: 500
+                      });
+                      setShowPayment(true);
                       setShowModal(false);
                     }}
                   >
-                    Proceed with Renewal
+                    Proceed to Payment
                   </button>
                 </div>
               </>
@@ -942,6 +931,22 @@ function CustomerDashboard() {
           </div>
         </div>
       )}
+
+      {/* Payment Gateway Modal */}
+      <PaymentGateway 
+        amount={paymentData?.amount || 0}
+        serviceName={paymentData?.packageName || 'Package Renewal'}
+        isOpen={showPayment}
+        onPaymentComplete={(paymentDetails) => {
+          alert(`Payment of ₹${paymentData.amount} received successfully for ${paymentData.packageName}! Thank you for renewing your package.`);
+          setShowPayment(false);
+          setPaymentData(null);
+        }}
+        onCancel={() => {
+          setShowPayment(false);
+          setPaymentData(null);
+        }}
+      />
     </div>
   );
 }

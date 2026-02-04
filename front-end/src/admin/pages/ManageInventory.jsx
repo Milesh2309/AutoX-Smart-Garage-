@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import CommonTable from '../../components/CommonTable';
+import CommonTable from '../../components/CommonTable.jsx';
 
 function ManageInventory() {
   const [inventory, setInventory] = useState([
