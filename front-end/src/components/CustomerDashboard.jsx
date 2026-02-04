@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import CommonTable from './CommonTable.jsx';
 import PaymentGateway from './PaymentGateway';
+import CustomerBillingHistory from './CustomerBillingHistory';
 import './CustomerDashboard.css';
 
 function CustomerDashboard() {
@@ -146,6 +147,7 @@ function CustomerDashboard() {
     { id: 'packages', label: 'My Packages', icon: '📦' },
     { id: 'history', label: 'Service History', icon: '✓' },
     { id: 'bookings', label: 'My Bookings', icon: '📅' },
+    { id: 'billing', label: 'Billing', icon: '🧾' },
     { id: 'profile', label: 'Profile', icon: '👤' },
   ];
 
@@ -418,6 +420,18 @@ function CustomerDashboard() {
                 showSelection={false}
               />
             </div>
+          </div>
+        )}
+
+        {/* Billing Tab */}
+        {activeTab === 'billing' && (
+          <div className="content-section">
+            <div className="section-header">
+              <h1>Billing & Invoices</h1>
+              <p>View and download your invoices</p>
+            </div>
+
+            <CustomerBillingHistory />
           </div>
         )}
 

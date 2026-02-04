@@ -28,6 +28,7 @@ import Gallery from "./components/Gallery";
 import LoadingAnimation from "./components/LoadingAnimation";
 import ServiceBooking from "./components/ServiceBooking";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { BillingProvider } from "./context/BillingContext";
 
 // Simple route transition to animate page changes when navigating from the navbar
 function ProtectedAdminRoute({ children }) {
@@ -144,19 +145,21 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        {showLoading && <LoadingAnimation onComplete={handleLoadingComplete} />}
-        <div className="app">
-          {/* Navbar - Always visible */}
-          <Navbar />
+        <BillingProvider>
+          {showLoading && <LoadingAnimation onComplete={handleLoadingComplete} />}
+          <div className="app">
+            {/* Navbar - Always visible */}
+            <Navbar />
 
-          {/* Main content - Changes based on route */}
-          <main className="main">
-            <AnimatedRoutes />
-          </main>
+            {/* Main content - Changes based on route */}
+            <main className="main">
+              <AnimatedRoutes />
+            </main>
 
-          {/* Footer - Always visible */}
-          <Footer />
-        </div>
+            {/* Footer - Always visible */}
+            <Footer />
+          </div>
+        </BillingProvider>
       </AuthProvider>
     </Router>
   );

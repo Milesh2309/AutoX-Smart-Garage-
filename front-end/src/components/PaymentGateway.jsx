@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
+import { useBilling } from '../context/BillingContext';
+import { useAuth } from '../context/AuthContext';
+import InvoiceGenerator from './InvoiceGenerator';
 import './PaymentGateway.css';
 
-function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOpen }) {
+function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOpen, bookingId }) {
+  const { createBillingRecord } = useBilling();
+  const { user } = useAuth();
   const [paymentMethod, setPaymentMethod] = useState('credit_card');
   const [paymentOption, setPaymentOption] = useState('online');
   const [processedPayment, setProcessedPayment] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showInvoice, setShowInvoice] = useState(false);
+  const [paymentDetails, setPaymentDetails] = useState(null);
 
   // Payment form states
   const [cardDetails, setCardDetails] = useState({
@@ -174,20 +181,23 @@ function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOp
     setIsProcessing(true);
 
     // Simulate payment processing
-    setTimeout(() => {
+    setTimeout(async () => {
       setIsProcessing(false);
       setProcessedPayment(true);
       
-      const paymentDetails = {
+      const paymentData = {
         method: paymentMethod,
         amount: amount,
         serviceName: serviceName,
         timestamp: new Date().toLocaleString()
       };
 
+      setPaymentDetails(paymentData);
+      setShowInvoice(true);
+
       // Call success callback
       if (onPaymentComplete) {
-        onPaymentComplete(paymentDetails);
+        onPaymentComplete(paymentData);
       }
     }, 2000);
   };
@@ -480,43 +490,57 @@ function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOp
           </>
         ) : (
           <>
-            {/* Success Message */}
-            <div className="payment-success">
-              <div className="success-icon">✅</div>
-              <h2>Payment Successful!</h2>
-              <p className="success-message">
-                Your payment of <strong>₹{amount}</strong> has been processed successfully.
-              </p>
+            {showInvoice ? (
+              <InvoiceGenerator 
+                paymentData={paymentDetails}
+                bookingId={bookingId}
+                onClose={onCancel}
+                onSuccess={(billingRecord) => {
+                  // Handle successful invoice generation
+                  console.log('Billing record created:', billingRecord);
+                }}
+              />
+            ) : (
+              <>
+                {/* Success Message */}
+                <div className="payment-success">
+                  <div className="success-icon">✅</div>
+                  <h2>Payment Successful!</h2>
+                  <p className="success-message">
+                    Your payment of <strong>₹{amount}</strong> has been processed successfully.
+                  </p>
 
-              <div className="success-details">
-                <div className="detail-item">
-                  <span className="label">Service:</span>
-                  <span className="value">{serviceName}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="label">Amount:</span>
-                  <span className="value">₹{amount}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="label">Payment Method:</span>
-                  <span className="value">
-                    {paymentMethods.find(m => m.id === paymentMethod)?.name}
-                  </span>
-                </div>
-                <div className="detail-item">
-                  <span className="label">Transaction ID:</span>
-                  <span className="value">TXN{Math.random().toString(36).substr(2, 9).toUpperCase()}</span>
-                </div>
-              </div>
+                  <div className="success-details">
+                    <div className="detail-item">
+                      <span className="label">Service:</span>
+                      <span className="value">{serviceName}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Amount:</span>
+                      <span className="value">₹{amount}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Payment Method:</span>
+                      <span className="value">
+                        {paymentMethods.find(m => m.id === paymentMethod)?.name}
+                      </span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Transaction ID:</span>
+                      <span className="value">TXN{Math.random().toString(36).substr(2, 9).toUpperCase()}</span>
+                    </div>
+                  </div>
 
-              <p className="confirmation-text">
-                A confirmation email with receipt has been sent to your registered email address.
-              </p>
+                  <p className="confirmation-text">
+                    A confirmation email with receipt has been sent to your registered email address.
+                  </p>
 
-              <button className="btn-done" onClick={onCancel}>
-                Done
-              </button>
-            </div>
+                  <button className="btn-done" onClick={onCancel}>
+                    Done
+                  </button>
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
