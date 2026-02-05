@@ -27,8 +27,10 @@ import EmergencyInfo from "./components/EmergencyInfo";
 import Gallery from "./components/Gallery";
 import LoadingAnimation from "./components/LoadingAnimation";
 import ServiceBooking from "./components/ServiceBooking";
+import PDFInvoiceGenerator from "./components/PDFInvoiceGenerator";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { BillingProvider } from "./context/BillingContext";
+import { NotificationProvider } from "./context/NotificationContext";
 
 // Simple route transition to animate page changes when navigating from the navbar
 function ProtectedAdminRoute({ children }) {
@@ -129,6 +131,11 @@ function AnimatedRoutes() {
               <AdminDashboard />
             </ProtectedAdminRoute>
           } />
+          <Route path="/invoice-generator" element={
+            <ProtectedCustomerRoute>
+              <PDFInvoiceGenerator />
+            </ProtectedCustomerRoute>
+          } />
         </Routes>
       </div>
     </>
@@ -145,21 +152,23 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <BillingProvider>
-          {showLoading && <LoadingAnimation onComplete={handleLoadingComplete} />}
-          <div className="app">
-            {/* Navbar - Always visible */}
-            <Navbar />
+        <NotificationProvider>
+          <BillingProvider>
+            {showLoading && <LoadingAnimation onComplete={handleLoadingComplete} />}
+            <div className="app">
+              {/* Navbar - Always visible */}
+              <Navbar />
 
-            {/* Main content - Changes based on route */}
-            <main className="main">
-              <AnimatedRoutes />
-            </main>
+              {/* Main content - Changes based on route */}
+              <main className="main">
+                <AnimatedRoutes />
+              </main>
 
-            {/* Footer - Always visible */}
-            <Footer />
-          </div>
-        </BillingProvider>
+              {/* Footer - Always visible */}
+              <Footer />
+            </div>
+          </BillingProvider>
+        </NotificationProvider>
       </AuthProvider>
     </Router>
   );

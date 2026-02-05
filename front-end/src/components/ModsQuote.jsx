@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useNotifications } from '../context/NotificationContext';
 import "./Mods.css";
 
 function ModsQuote() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { addNotification } = useNotifications();
   const preselectedCategory = location.state?.category || "";
 
   const [form, setForm] = useState({
@@ -19,6 +21,8 @@ function ModsQuote() {
     notes: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [showPaymentOptions, setShowPaymentOptions] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
 
   const allMods = [
     "Body Kit",
@@ -50,6 +54,15 @@ function ModsQuote() {
     { value: ">150000", label: "Above ₹1,50,000" },
   ];
 
+  const paymentMethods = [
+    { id: "credit_card", name: "Credit Card", icon: "💳", description: "Secure card payment" },
+    { id: "debit_card", name: "Debit Card", icon: "🏦", description: "Direct debit payment" },
+    { id: "upi", name: "UPI/Digital Wallet", icon: "📱", description: "UPI, PayTM, Google Pay" },
+    { id: "netbanking", name: "Net Banking", icon: "🏧", description: "Direct bank transfer" },
+    { id: "wallet", name: "Digital Wallet", icon: "💰", description: "Saved wallet balance" },
+    { id: "cod", name: "Pay at Center", icon: "💵", description: "Cash on service completion" },
+  ];
+
   const onChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -65,11 +78,109 @@ function ModsQuote() {
   const onSubmit = (e) => {
     e.preventDefault();
     console.log("Mods quote submitted:", form);
+    
+    // Add notification for quote request
+    addNotification({
+      type: 'booking',
+      title: 'Quote Request Submitted',
+      message: `Your modification quote for ${form.vehicle} has been submitted successfully`,
+      icon: '🎨',
+    });
+    
     setSubmitted(true);
-    setTimeout(() => navigate("/"), 2000);
+    // Show payment options instead of redirecting
+    setShowPaymentOptions(true);
   };
 
   if (submitted) {
+    if (showPaymentOptions) {
+      return (
+        <div className="mods-container">
+          <div className="payment-section">
+            <div className="payment-header">
+              <h2>Quote Request Received ✓</h2>
+              <p>Select a payment method to proceed with your quote request</p>
+            </div>
+
+            <div className="quote-summary">
+              <h3>Quote Summary</h3>
+              <div className="summary-item">
+                <span>Vehicle:</span>
+                <strong>{form.vehicle}</strong>
+              </div>
+              <div className="summary-item">
+                <span>Selected Modifications:</span>
+                <strong>{form.mods.length > 0 ? form.mods.join(", ") : "Not specified"}</strong>
+              </div>
+              <div className="summary-item">
+                <span>Budget Range:</span>
+                <strong>{form.budget}</strong>
+              </div>
+            </div>
+
+            <div className="payment-methods-container">
+              <h3>Choose Payment Method</h3>
+              <div className="payment-grid">
+                {paymentMethods.map((method) => (
+                  <div
+                    key={method.id}
+                    className={`payment-card ${selectedPaymentMethod === method.id ? "active" : ""}`}
+                    onClick={() => setSelectedPaymentMethod(method.id)}
+                  >
+                    <div className="payment-icon">{method.icon}</div>
+                    <h4>{method.name}</h4>
+                    <p>{method.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="payment-actions">
+              <button
+                className="btn-secondary"
+                onClick={() => {
+                  setSubmitted(false);
+                  setShowPaymentOptions(false);
+                }}
+              >
+                Back to Form
+              </button>
+              <button
+                className="btn-primary"
+                disabled={!selectedPaymentMethod}
+                onClick={() => {
+                  // Add payment notification
+                  addNotification({
+                    type: 'payment',
+                    title: 'Payment Processing',
+                    message: `Processing payment via ${selectedPaymentMethod}. Quote request will be confirmed.`,
+                    icon: '💳',
+                  });
+                  
+                  setTimeout(() => {
+                    // Add confirmation notification
+                    addNotification({
+                      type: 'booking',
+                      title: 'Quote Request Confirmed',
+                      message: 'Your modification quote request has been confirmed. We will contact you within 24 hours.',
+                      icon: '✅',
+                    });
+                    navigate("/");
+                  }, 1500);
+                }}
+              >
+                Proceed with Payment
+              </button>
+            </div>
+
+            <div className="payment-info">
+              <p>💡 <strong>Note:</strong> You'll receive a quote within 24 hours. Payment secures your quote priority.</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="mods-container">
         <div className="success-message">

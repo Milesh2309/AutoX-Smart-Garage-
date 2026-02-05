@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import './admin.css';
 import AdminNav from './AdminNav';
 import Dashboard from './pages/Dashboard';
+import Analytics from './pages/Analytics';
 import ManageServices from './pages/ManageServices';
 import ManageBookings from './pages/ManageBookings';
 import ManageBreakdown from './pages/ManageBreakdown';
@@ -38,6 +39,7 @@ function AdminDashboard() {
       
       <div className="admin-content">
         {currentPage === 'dashboard' && <Dashboard onNavigate={setCurrentPage} />}
+        {currentPage === 'analytics' && <Analytics />}
         {currentPage === 'reports' && <Reports />}
         {currentPage === 'billing' && <ManageBilling />}
         {currentPage === 'datagrid' && <DataGrid />}

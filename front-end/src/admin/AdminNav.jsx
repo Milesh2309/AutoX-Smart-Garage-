@@ -3,7 +3,8 @@ import React from 'react';
 function AdminNav({ currentPage, setCurrentPage, adminUsername, onLogout }) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'reports', label: 'Reports', icon: '📈' },
+    { id: 'analytics', label: 'Analytics', icon: '📈' },
+    { id: 'reports', label: 'Reports', icon: '📊' },
     { id: 'billing', label: 'Billing', icon: '💳' },
     { id: 'datagrid', label: 'Data Grid', icon: '📋' },
     { id: 'services', label: 'Services', icon: '🚗' },

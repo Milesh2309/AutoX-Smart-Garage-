@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useNotifications } from "../context/NotificationContext";
 import "./Breakdown.css";
 
 function BreakdownRequest() {
   const navigate = useNavigate();
+  const { addNotification } = useNotifications();
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -23,6 +25,15 @@ function BreakdownRequest() {
     e.preventDefault();
     // Send to backend here
     console.log("Breakdown request:", form);
+    
+    // Add notification for breakdown request
+    addNotification({
+      type: 'service',
+      title: 'Breakdown Request Received',
+      message: `Emergency assistance requested for ${form.vehicle} at ${form.location}. Help is on the way!`,
+      icon: '🚨',
+    });
+    
     setSubmitted(true);
     setTimeout(() => navigate("/"), 2000);
   };

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 import PaymentGateway from './PaymentGateway';
 import './BookService.css';
 
@@ -8,6 +9,7 @@ function ServiceBooking() {
   const { serviceId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -186,6 +188,14 @@ function ServiceBooking() {
 
     setBookingData(booking);
     setShowPayment(true);
+    
+    // Add notification for booking initiation
+    addNotification({
+      type: 'booking',
+      title: 'Booking Initiated',
+      message: `${selectedService.title} booking created. Please complete payment.`,
+      icon: '📋',
+    });
   };
 
   const handlePaymentComplete = (paymentDetails) => {
@@ -207,6 +217,21 @@ function ServiceBooking() {
       
       // Save to localStorage
       localStorage.setItem('bookings', JSON.stringify(existingBookings));
+      
+      // Add notifications for successful booking and payment
+      addNotification({
+        type: 'payment',
+        title: 'Payment Successful',
+        message: `Payment of ₹${updatedBooking.amount} processed successfully`,
+        icon: '💳',
+      });
+      
+      addNotification({
+        type: 'booking',
+        title: 'Booking Confirmed',
+        message: `Your ${selectedService.title} is scheduled for ${formData.preferredDate} at ${formData.preferredTime}`,
+        icon: '✅',
+      });
       
       console.log('Booking confirmed with payment:', updatedBooking);
       setShowPayment(false);

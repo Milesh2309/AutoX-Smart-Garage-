@@ -3,14 +3,17 @@ import { Link, useLocation } from 'react-router-dom';
 import logo from '../logo.jpeg';
 import './Navbar.css';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 
 function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false);
   const [aboutDropdownOpen, setAboutDropdownOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const location = useLocation();
   const { isAuthenticated, role, logout } = useAuth();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useNotifications();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -26,6 +29,25 @@ function Navbar() {
 
   const closeMobile = () => {
     setIsMobileOpen(false);
+  };
+
+  const toggleNotifications = () => {
+    setNotificationsOpen(!notificationsOpen);
+  };
+
+  const handleMarkAsRead = (notificationId) => {
+    markAsRead(notificationId);
+  };
+
+  const getTimeAgo = (timestamp) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diff = Math.floor((now - time) / 1000); // seconds
+
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
   };
 
   const toggleServicesDropdown = (e) => {
@@ -185,6 +207,76 @@ function Navbar() {
 
           {/* Auth Buttons */}
           <div className="navbar-auth">
+            {/* Notification Bell - Only show when authenticated */}
+            {isAuthenticated && (
+              <div className="notification-wrapper">
+                <button 
+                  className="notification-bell"
+                  onClick={toggleNotifications}
+                  aria-label="Notifications"
+                >
+                  🔔
+                  {unreadCount > 0 && (
+                    <span className="notification-badge">{unreadCount}</span>
+                  )}
+                </button>
+
+                {/* Notification Dropdown */}
+                {notificationsOpen && (
+                  <div className="notification-dropdown">
+                    <div className="notification-header">
+                      <h3>Notifications</h3>
+                      <div className="notification-actions">
+                        {unreadCount > 0 && (
+                          <button 
+                            className="mark-all-read"
+                            onClick={markAllAsRead}
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                        {notifications.length > 0 && (
+                          <button 
+                            className="clear-all"
+                            onClick={clearNotifications}
+                          >
+                            Clear all
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="notification-list">
+                      {notifications.length === 0 ? (
+                        <div className="notification-empty">
+                          <p>No notifications yet</p>
+                        </div>
+                      ) : (
+                        notifications.map((notification) => (
+                          <div
+                            key={notification.id}
+                            className={`notification-item ${notification.read ? 'read' : 'unread'}`}
+                            onClick={() => handleMarkAsRead(notification.id)}
+                          >
+                            <div className="notification-icon">{notification.icon}</div>
+                            <div className="notification-content">
+                              <h4>{notification.title}</h4>
+                              <p>{notification.message}</p>
+                              <span className="notification-time">
+                                {getTimeAgo(notification.timestamp)}
+                              </span>
+                            </div>
+                            {!notification.read && (
+                              <div className="notification-dot"></div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {isAuthenticated && role === 'admin' ? (
               <>
                 <Link 

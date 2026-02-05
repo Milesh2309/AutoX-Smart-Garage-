@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 import './BookService.css';
 
 function BookService() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -61,6 +63,14 @@ function BookService() {
     
     // Save to localStorage
     localStorage.setItem('bookings', JSON.stringify(existingBookings));
+    
+    // Add notification for new booking
+    addNotification({
+      type: 'booking',
+      title: 'Booking Confirmed',
+      message: `Your ${serviceTypes.find(st => st.value === formData.serviceType)?.label} is scheduled for ${formData.preferredDate}`,
+      icon: '✅',
+    });
     
     console.log('Booking submitted:', booking);
     setSubmitted(true);
