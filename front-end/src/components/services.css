@@ -46,7 +46,7 @@
 
 .services-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 24px;
   margin-bottom: 40px;
 }
@@ -92,7 +92,7 @@
 }
 
 .service-image {
-  height: 200px;
+  height: 240px;
   overflow: hidden;
   position: relative;
 }
@@ -376,7 +376,7 @@
   }
 
   .service-image {
-    height: 160px;
+    height: 200px;
   }
 
   .services-cta {

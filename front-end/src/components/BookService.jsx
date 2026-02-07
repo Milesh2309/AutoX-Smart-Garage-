@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from '../context/AuthContext';
+import { useAuth, useBookings } from '../context';
 import { useNotifications } from '../context/NotificationContext';
 import './BookService.css';
 
 function BookService() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { createBooking } = useBookings();
   const { addNotification } = useNotifications();
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -36,47 +37,45 @@ function BookService() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     // Create booking object
-    const booking = {
-      id: Date.now(),
-      customer: formData.name,
+    const bookingData = {
+      customerId: user?.id || Date.now(),
+      customerName: formData.name,
       email: formData.email,
       phone: formData.phone,
-      service: serviceTypes.find(st => st.value === formData.serviceType)?.label || formData.serviceType,
+      serviceId: formData.serviceType,
+      serviceName: serviceTypes.find(st => st.value === formData.serviceType)?.label || formData.serviceType,
       vehicleNumber: formData.vehicle,
       date: formData.preferredDate,
-      time: formData.preferredTime,
-      message: formData.message,
-      status: 'Pending',
-      amount: '₹500',
-      createdAt: new Date().toISOString()
+      timeSlot: formData.preferredTime,
+      notes: formData.message,
+      status: 'pending',
+      amount: 500
     };
 
-    // Get existing bookings from localStorage
-    const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+    // Use BookingContext to create booking
+    const result = await createBooking(bookingData);
     
-    // Add new booking
-    existingBookings.push(booking);
-    
-    // Save to localStorage
-    localStorage.setItem('bookings', JSON.stringify(existingBookings));
-    
-    // Add notification for new booking
-    addNotification({
-      type: 'booking',
-      title: 'Booking Confirmed',
-      message: `Your ${serviceTypes.find(st => st.value === formData.serviceType)?.label} is scheduled for ${formData.preferredDate}`,
-      icon: '✅',
-    });
-    
-    console.log('Booking submitted:', booking);
-    setSubmitted(true);
-    setTimeout(() => {
-      navigate('/');
-    }, 2000);
+    if (result.success) {
+      // Add notification for new booking
+      addNotification({
+        type: 'booking',
+        title: 'Booking Confirmed',
+        message: `Your ${bookingData.serviceName} is scheduled for ${formData.preferredDate}`,
+        icon: '✅',
+      });
+      
+      console.log('Booking submitted:', result.data);
+      setSubmitted(true);
+      setTimeout(() => {
+        navigate(user ? '/customer/dashboard' : '/');
+      }, 2000);
+    } else {
+      alert('Booking failed: ' + result.error);
+    }
   };
 
   if (submitted) {

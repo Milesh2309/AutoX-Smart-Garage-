@@ -1,19 +1,30 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect } from 'react';
+import { useBookings } from '../../context';
 import CommonTable from '../../components/CommonTable.jsx';
 
 function ManageBookings() {
-  const [bookings, setBookings] = useState([]);
+  const { bookings, loadBookings, stats, loadStats } = useBookings();
 
-  // Load bookings from localStorage
+  // Load bookings and stats on mount
   useEffect(() => {
-    const allBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-    // Add default mechanic if not set
-    const processedBookings = allBookings.map(b => ({
-      ...b,
-      mechanic: b.mechanic || 'Not Assigned'
-    }));
-    setBookings(processedBookings);
+    loadBookings();
+    loadStats();
   }, []);
+
+  // Format bookings data for table display
+  const formattedBookings = useMemo(() => {
+    return bookings.map(booking => ({
+      id: booking.id,
+      customer: booking.customerName || booking.customer || 'N/A',
+      service: booking.serviceName || booking.service || 'N/A',
+      vehicleNumber: booking.vehicleNumber || 'N/A',
+      phone: booking.phone || 'N/A',
+      date: booking.date || 'N/A',
+      time: booking.timeSlot || booking.time || 'N/A',
+      amount: typeof booking.amount === 'number' ? `₹${booking.amount}` : booking.amount,
+      status: booking.status || 'pending',
+    }));
+  }, [bookings]);
 
   const bookingColumns = useMemo(() => [
     { accessorKey: 'id', header: 'ID' },
@@ -39,7 +50,7 @@ function ManageBookings() {
       <div style={{ padding: '20px' }}>
         <CommonTable 
           columns={bookingColumns} 
-          data={bookings} 
+          data={formattedBookings} 
           fileName="bookings-data"
           showSelection={true}
         />
@@ -47,16 +58,20 @@ function ManageBookings() {
 
       <div className="booking-stats">
         <div className="stat-item">
-          <label>Total Revenue (All)</label>
-          <span>₹{bookings.reduce((sum, b) => sum + parseInt(b.amount.replace(/[₹,]/g, '')), 0).toLocaleString('en-IN')}</span>
+          <label>Total Revenue</label>
+          <span>₹{stats?.totalRevenue?.toLocaleString('en-IN') || 0}</span>
         </div>
         <div className="stat-item">
           <label>Completed Bookings</label>
-          <span>{bookings.filter(b => b.status === 'Completed').length}</span>
+          <span>{stats?.completed || 0}</span>
         </div>
         <div className="stat-item">
           <label>Pending Bookings</label>
-          <span>{bookings.filter(b => b.status === 'Pending').length}</span>
+          <span>{stats?.pending || 0}</span>
+        </div>
+        <div className="stat-item">
+          <label>Confirmed Bookings</label>
+          <span>{stats?.confirmed || 0}</span>
         </div>
       </div>
     </div>

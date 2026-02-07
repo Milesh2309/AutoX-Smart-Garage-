@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import CommonTable from './CommonTable.jsx';
 import PaymentGateway from './PaymentGateway';
 import CustomerBillingHistory from './CustomerBillingHistory';
+import BookingWizard from './BookingWizard';
 import './CustomerDashboard.css';
 
 function CustomerDashboard() {
@@ -38,6 +39,7 @@ function CustomerDashboard() {
   const [bookingModalType, setBookingModalType] = useState('reschedule'); // 'reschedule' or 'cancel'
   const [showPayment, setShowPayment] = useState(false);
   const [paymentData, setPaymentData] = useState(null);
+  const [activeBrowseService, setActiveBrowseService] = useState(null);
   
   // Profile states
   const [profilePhoto, setProfilePhoto] = useState(null);
@@ -65,6 +67,122 @@ function CustomerDashboard() {
     navigate('/login', { replace: true });
     return null;
   }
+
+  // All available services matching the main services page
+  const allServices = [
+    {
+      id: 1,
+      title: "Smart Garage Services",
+      icon: "🚗",
+      description: "Complete vehicle diagnostics, maintenance, and scheduled servicing by certified technicians.",
+      features: [
+        "Full vehicle inspection",
+        "Oil change & filter replacement",
+        "Brake system check",
+        "Battery health check",
+        "Tire rotation & alignment"
+      ],
+      image: "/img/web images/regular services/pexels-19x14-8478233.jpg"
+    },
+    {
+      id: 2,
+      title: "Vehicle Breakdown Assistance",
+      icon: "🛠",
+      description: "24/7 roadside support for breakdowns, tire changes, fuel delivery, and quick fixes.",
+      features: [
+        "24/7 Emergency support",
+        "On-spot tire change",
+        "Battery jump-start",
+        "Fuel delivery service",
+        "Towing assistance"
+      ],
+      image: "/img/web images/break dwon/pexels-edurawpro-21831855.jpg"
+    },
+    {
+      id: 3,
+      title: "Vehicle Modification",
+      icon: "⚙",
+      description: "Expert custom modifications, upgrades, and tuning to enhance performance and aesthetics.",
+      features: [
+        "Performance tuning",
+        "Custom body kits",
+        "Exhaust upgrades",
+        "Lighting modifications",
+        "Interior customization"
+      ],
+      image: "/img/web images/modificasoin/pexels-bylukemiller-32725702.jpg"
+    },
+    {
+      id: 4,
+      title: "Car & Bike Repair",
+      icon: "🔧",
+      description: "Comprehensive repair services for all vehicle types with genuine parts and warranty.",
+      features: [
+        "Engine repair & overhaul",
+        "Transmission services",
+        "AC repair & service",
+        "Electrical diagnostics",
+        "Body repair & painting"
+      ],
+      image: "/img/web images/regular services/pexels-tami-19499386.jpg"
+    },
+    {
+      id: 5,
+      title: "Emergency Roadside Help",
+      icon: "🚘",
+      description: "Immediate assistance for accidents, mechanical failures, and emergency towing services.",
+      features: [
+        "Instant emergency response",
+        "Accident support",
+        "Emergency towing",
+        "Lockout assistance",
+        "Flat tire replacement"
+      ],
+      image: "/img/web images/break dwon/pexels-a-q-91521018-18863497.jpg"
+    },
+    {
+      id: 6,
+      title: "Vehicle Detailing",
+      icon: "✨",
+      description: "Professional cleaning, polishing, and detailing to make your vehicle look brand new.",
+      features: [
+        "Interior deep cleaning",
+        "Exterior polishing & wax",
+        "Paint protection coating",
+        "Ceramic coating",
+        "Odor removal treatment"
+      ],
+      image: "/img/web images/regular services/pexels-artempodrez-8986139.jpg"
+    },
+    {
+      id: 7,
+      title: "Pre-Purchase Inspection",
+      icon: "🔍",
+      description: "Detailed inspection report before buying a used vehicle to ensure quality and safety.",
+      features: [
+        "Complete vehicle assessment",
+        "Mechanical inspection",
+        "Body & paint check",
+        "Documentation verification",
+        "Test drive evaluation"
+      ],
+      image: "/img/web images/break dwon/pexels-jonathan-reynaga-861774-17429096.jpg"
+    },
+    {
+      id: 8,
+      title: "Tire & Wheel Services",
+      icon: "⚪",
+      description: "Complete tire solutions including replacement, alignment, balancing, and wheel care.",
+      features: [
+        "Tire replacement",
+        "Wheel alignment",
+        "Wheel balancing",
+        "Puncture repair",
+        "Tire rotation"
+      ],
+      image: "/img/web images/break dwon/pexels-mikebirdy-943930.jpg"
+    }
+  ];
 
   // Mock data for service packages
   const servicePackages = [
@@ -144,9 +262,11 @@ function CustomerDashboard() {
 
   const navItems = [
     { id: 'overview', label: 'Dashboard', icon: '📊' },
+    { id: 'browse-services', label: 'Browse Services', icon: '🛠' },
     { id: 'packages', label: 'My Packages', icon: '📦' },
     { id: 'history', label: 'Service History', icon: '✓' },
     { id: 'bookings', label: 'My Bookings', icon: '📅' },
+    { id: 'new-booking', label: 'New Booking', icon: '🔧' },
     { id: 'billing', label: 'Billing', icon: '🧾' },
     { id: 'profile', label: 'Profile', icon: '👤' },
   ];
@@ -318,6 +438,67 @@ function CustomerDashboard() {
           </div>
         )}
 
+
+        {/* Browse Services Tab */}
+        {activeTab === 'browse-services' && (
+          <div className="content-section">
+            <div className="section-header">
+              <h1>Browse All Services</h1>
+              <p>Explore our comprehensive range of automotive services</p>
+            </div>
+
+            <div className="content-card">
+              <div className="services-grid dash">
+                {allServices.map((service) => (
+                  <div
+                    key={service.id}
+                    className={`service-card ${activeBrowseService === service.id ? 'active' : ''}`}
+                    onClick={() => setActiveBrowseService(activeBrowseService === service.id ? null : service.id)}
+                  >
+                    <div className="service-image">
+                      <img src={service.image} alt={service.title} />
+                      <div className="service-overlay"></div>
+                    </div>
+                    <div className="service-content">
+                      <h3>{service.title}</h3>
+                      <p className="service-description">{service.description}</p>
+                      
+                      {activeBrowseService === service.id && (
+                        <div className="service-features">
+                          <h4>What's Included:</h4>
+                          <ul>
+                            {service.features.map((feature, index) => (
+                              <li key={index}>
+                                <span className="check-icon">✓</span> {feature}
+                              </li>
+                            ))}
+                          </ul>
+                          <div className="service-actions">
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/book-service/${service.id}`);
+                              }}
+                            >
+                              Book Now
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {activeBrowseService !== service.id && (
+                        <button className="btn-expand">View Details →</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Packages Tab */}
         {activeTab === 'packages' && (
           <div className="content-section">
@@ -420,6 +601,13 @@ function CustomerDashboard() {
                 showSelection={false}
               />
             </div>
+          </div>
+        )}
+
+        {/* New Booking Tab */}
+        {activeTab === 'new-booking' && (
+          <div className="content-section new-booking-section">
+            <BookingWizard />
           </div>
         )}
 

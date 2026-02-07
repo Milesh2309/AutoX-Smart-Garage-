@@ -127,11 +127,21 @@ export function NotificationProvider({ children }) {
   };
 
   const addNotification = (notification) => {
+    let icon = notification.icon;
+    if (!icon) {
+      if (notification.type === 'booking') icon = '📅';
+      else if (notification.type === 'payment') icon = '💰';
+      else if (notification.type === 'service') icon = '✅';
+      else if (notification.type === 'mechanic') icon = '🔧';
+      else icon = '📋';
+    }
+    
     const newNotification = {
       id: Date.now(),
       timestamp: new Date().toISOString(),
       read: false,
       ...notification,
+      icon,
     };
     setNotifications((prev) => [newNotification, ...prev]);
   };

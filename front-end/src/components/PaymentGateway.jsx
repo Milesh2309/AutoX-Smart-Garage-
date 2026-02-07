@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useBilling } from '../context/BillingContext';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, usePayments } from '../context';
 import InvoiceGenerator from './InvoiceGenerator';
 import './PaymentGateway.css';
 
 function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOpen, bookingId }) {
   const { createBillingRecord } = useBilling();
+  const { makePayment } = usePayments();
   const { user } = useAuth();
   const [paymentMethod, setPaymentMethod] = useState('credit_card');
   const [paymentOption, setPaymentOption] = useState('online');
@@ -182,22 +183,40 @@ function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOp
 
     // Simulate payment processing
     setTimeout(async () => {
-      setIsProcessing(false);
-      setProcessedPayment(true);
-      
+      // Create payment record using PaymentContext
       const paymentData = {
-        method: paymentMethod,
+        bookingId: bookingId,
+        customerId: user?.id,
+        customerName: user?.name || cardDetails.cardName || cashDetails.fullName,
         amount: amount,
-        serviceName: serviceName,
-        timestamp: new Date().toLocaleString()
+        method: paymentMethod,
+        status: 'completed'
       };
 
-      setPaymentDetails(paymentData);
-      setShowInvoice(true);
+      const result = await makePayment(paymentData);
+      
+      setIsProcessing(false);
+      
+      if (result.success) {
+        setProcessedPayment(true);
+        
+        const completePaymentData = {
+          ...result.data,
+          method: paymentMethods.find(m => m.id === paymentMethod)?.name || paymentMethod,
+          serviceName: serviceName,
+          timestamp: new Date().toLocaleString(),
+          transactionId: result.transactionId
+        };
 
-      // Call success callback
-      if (onPaymentComplete) {
-        onPaymentComplete(paymentData);
+        setPaymentDetails(completePaymentData);
+        setShowInvoice(true);
+
+        // Call success callback
+        if (onPaymentComplete) {
+          onPaymentComplete(completePaymentData);
+        }
+      } else {
+        alert('Payment failed: ' + result.error);
       }
     }, 2000);
   };
