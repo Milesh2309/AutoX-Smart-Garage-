@@ -21,7 +21,7 @@ import { useAuth } from '../context/AuthContext';
 function AdminDashboard() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState('analytics');
 
   const handleLogout = () => {
     logout();

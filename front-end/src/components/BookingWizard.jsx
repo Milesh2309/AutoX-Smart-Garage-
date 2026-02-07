@@ -38,14 +38,80 @@ const BookingWizard = () => {
     { number: 5, title: 'Confirmation', icon: '✓' },
   ];
 
-  // Available services
+  // Available services - matching main services page
   const services = [
-    { id: 'oil-change', name: 'Oil Change', price: 1500, duration: '1 hour' },
-    { id: 'brake-service', name: 'Brake Service', price: 2500, duration: '2 hours' },
-    { id: 'engine-repair', name: 'Engine Repair', price: 5000, duration: '4 hours' },
-    { id: 'tire-rotation', name: 'Tire Rotation', price: 1000, duration: '30 mins' },
-    { id: 'ac-service', name: 'AC Service', price: 2000, duration: '1.5 hours' },
-    { id: 'full-service', name: 'Full Service', price: 8000, duration: '1 day' },
+    {
+      id: 1,
+      name: 'Smart Garage Services',
+      icon: '🚗',
+      price: 2499,
+      duration: '2-3 hours',
+      description: 'Complete vehicle diagnostics and maintenance',
+      features: ['Full inspection', 'Oil change', 'Brake check', 'Battery test']
+    },
+    {
+      id: 2,
+      name: 'Vehicle Breakdown Assistance',
+      icon: '🛠',
+      price: 1499,
+      duration: '1-2 hours',
+      description: '24/7 roadside support and quick fixes',
+      features: ['Emergency support', 'Tire change', 'Jump-start', 'Towing']
+    },
+    {
+      id: 3,
+      name: 'Vehicle Modification',
+      icon: '⚙',
+      price: 8999,
+      duration: '1-2 days',
+      description: 'Custom modifications and performance upgrades',
+      features: ['Performance tuning', 'Body kits', 'Exhaust upgrades', 'Custom work']
+    },
+    {
+      id: 4,
+      name: 'Car & Bike Repair',
+      icon: '🔧',
+      price: 3499,
+      duration: '3-4 hours',
+      description: 'Comprehensive repair with genuine parts',
+      features: ['Engine repair', 'Transmission', 'AC repair', 'Electrical work']
+    },
+    {
+      id: 5,
+      name: 'Emergency Roadside Help',
+      icon: '🚘',
+      price: 999,
+      duration: '30-60 mins',
+      description: 'Immediate assistance for emergencies',
+      features: ['Quick response', 'Accident support', 'Towing', 'Lockout help']
+    },
+    {
+      id: 6,
+      name: 'Vehicle Detailing',
+      icon: '✨',
+      price: 1999,
+      duration: '2-3 hours',
+      description: 'Professional cleaning and detailing',
+      features: ['Deep cleaning', 'Polishing', 'Ceramic coating', 'Odor removal']
+    },
+    {
+      id: 7,
+      name: 'Pre-Purchase Inspection',
+      icon: '🔍',
+      price: 1299,
+      duration: '1-2 hours',
+      description: 'Detailed inspection before buying',
+      features: ['Full assessment', 'Mechanical check', 'Body inspection', 'Test drive']
+    },
+    {
+      id: 8,
+      name: 'Tire & Wheel Services',
+      icon: '⚪',
+      price: 1799,
+      duration: '1 hour',
+      description: 'Complete tire solutions and wheel care',
+      features: ['Tire replacement', 'Alignment', 'Balancing', 'Puncture repair']
+    }
   ];
 
   const vehicleTypes = ['Car', 'SUV', 'Bike', 'Truck', 'Van'];
@@ -195,17 +261,35 @@ const BookingWizard = () => {
             <h2>Select a Service</h2>
             <p className="step-description">Choose the service you need for your vehicle</p>
             
-            <div className="services-grid">
+            <div className="services-grid-booking">
               {services.map(service => (
                 <div
                   key={service.id}
-                  className={`service-card ${bookingData.serviceId === service.id ? 'selected' : ''}`}
+                  className={`service-card-booking ${bookingData.serviceId === service.id ? 'selected' : ''}`}
                   onClick={() => handleServiceSelect(service)}
                 >
-                  <div className="service-icon">🔧</div>
-                  <h3>{service.name}</h3>
-                  <p className="service-price">₹{service.price}</p>
-                  <p className="service-duration">{service.duration}</p>
+                  <div className="service-card-header">
+                    <div className="service-icon-large">{service.icon}</div>
+                    {bookingData.serviceId === service.id && (
+                      <div className="selected-badge">Selected ✓</div>
+                    )}
+                  </div>
+                  <div className="service-card-body">
+                    <h3>{service.name}</h3>
+                    <p className="service-desc">{service.description}</p>
+                    <div className="service-features-list">
+                      {service.features.slice(0, 2).map((feature, idx) => (
+                        <span key={idx} className="feature-tag">✓ {feature}</span>
+                      ))}
+                    </div>
+                    <div className="service-meta">
+                      <div className="service-price-large">₹{service.price}</div>
+                      <div className="service-duration-badge">
+                        <span className="duration-icon">⏱</span>
+                        {service.duration}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

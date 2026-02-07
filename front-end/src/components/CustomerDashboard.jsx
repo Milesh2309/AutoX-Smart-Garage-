@@ -188,27 +188,48 @@ function CustomerDashboard() {
   const servicePackages = [
     {
       id: 1,
-      name: 'Basic Service',
-      price: '₹500',
+      name: 'Basic Service Package',
+      icon: '🔧',
+      price: '₹2,499',
+      originalPrice: '₹3,500',
       status: 'Active',
+      validity: '6 Months',
       nextDue: '2026-02-15',
-      services: ['Oil Change', 'Filter Change', 'Car Wash']
+      servicesUsed: 2,
+      totalServices: 5,
+      description: 'Essential maintenance for optimal vehicle performance',
+      services: ['Oil Change & Filter Replacement', 'Brake System Inspection', 'Tire Rotation', 'Battery Health Check', 'Car Wash & Vacuum'],
+      color: '#0EA5E9'
     },
     {
       id: 2,
-      name: 'Premium Service',
-      price: '₹1500',
+      name: 'Premium Care Package',
+      icon: '⭐',
+      price: '₹5,999',
+      originalPrice: '₹8,500',
       status: 'Active',
+      validity: '12 Months',
       nextDue: '2026-03-20',
-      services: ['Complete Checkup', 'Maintenance', 'Detailing']
+      servicesUsed: 1,
+      totalServices: 8,
+      description: 'Comprehensive care with priority support and detailing',
+      services: ['Complete Vehicle Diagnostics', 'Oil & Filter Service', 'Brake Service', 'AC Service & Gas Refill', 'Tire Care Package', 'Interior & Exterior Detailing', 'Battery Replacement (if needed)', 'Priority 24/7 Support'],
+      color: '#F59E0B'
     },
     {
       id: 3,
-      name: 'Breakdown Assistance',
-      price: '₹300/month',
+      name: '24/7 Breakdown Assistance',
+      icon: '🚨',
+      price: '₹299/month',
+      originalPrice: '₹499',
       status: 'Active',
-      nextDue: 'Always Available',
-      services: ['24/7 Support', 'Towing', 'Emergency Service']
+      validity: 'Monthly Subscription',
+      nextDue: 'Active',
+      servicesUsed: 0,
+      totalServices: 'Unlimited',
+      description: 'Round-the-clock emergency support for peace of mind',
+      services: ['24/7 Emergency Helpline', 'On-Spot Repairs', 'Free Towing (up to 50km)', 'Battery Jump Start', 'Flat Tire Assistance', 'Fuel Delivery', 'Lockout Service'],
+      color: '#DC2626'
     }
   ];
 
@@ -399,21 +420,33 @@ function CustomerDashboard() {
             {/* Active Packages */}
             <div className="content-card">
               <h2>Your Active Packages</h2>
-              <div className="packages-grid">
+              <div className="packages-grid-overview">
                 {servicePackages.map(pkg => (
-                  <div key={pkg.id} className="package-card">
-                    <div className="package-header">
+                  <div key={pkg.id} className="overview-package-card" style={{ borderLeftColor: pkg.color }}>
+                    <div className="overview-package-icon" style={{ background: `${pkg.color}15` }}>
+                      <span>{pkg.icon}</span>
+                    </div>
+                    <div className="overview-package-content">
                       <h3>{pkg.name}</h3>
-                      <span className="package-status">{pkg.status}</span>
+                      <div className="overview-package-price">{pkg.price}</div>
+                      <div className="overview-package-meta">
+                        <span className="meta-item">
+                          <span className="meta-icon">📅</span>
+                          {pkg.nextDue}
+                        </span>
+                        <span className="meta-item">
+                          <span className="meta-icon">✓</span>
+                          {pkg.servicesUsed}/{pkg.totalServices} Used
+                        </span>
+                      </div>
+                      <button 
+                        className="overview-view-btn" 
+                        style={{ background: `linear-gradient(135deg, ${pkg.color} 0%, ${pkg.color}dd 100%)` }}
+                        onClick={() => setActiveTab('packages')}
+                      >
+                        View Details →
+                      </button>
                     </div>
-                    <div className="package-price">{pkg.price}</div>
-                    <div className="package-next">Next Due: {pkg.nextDue}</div>
-                    <div className="package-services">
-                      {pkg.services.slice(0, 2).map((s, i) => (
-                        <span key={i} className="service-badge">{s}</span>
-                      ))}
-                    </div>
-                    <button className="view-details-btn">View Details</button>
                   </div>
                 ))}
               </div>
@@ -504,64 +537,99 @@ function CustomerDashboard() {
           <div className="content-section">
             <div className="section-header">
               <h1>My Service Packages</h1>
-              <p>Manage your active packages</p>
+              <p>Manage and monitor your active service packages</p>
             </div>
 
-            <div className="content-card">
-              <div className="packages-grid full-width">
-                {servicePackages.map(pkg => (
-                  <div key={pkg.id} className="package-card large">
-                    <div className="package-header">
+            <div className="packages-container">
+              {servicePackages.map(pkg => (
+                <div key={pkg.id} className="premium-package-card" style={{ borderTopColor: pkg.color }}>
+                  <div className="package-card-header">
+                    <div className="package-icon" style={{ background: `linear-gradient(135deg, ${pkg.color}15 0%, ${pkg.color}05 100%)` }}>
+                      <span style={{ fontSize: '32px' }}>{pkg.icon}</span>
+                    </div>
+                    <div className="package-title-section">
                       <h3>{pkg.name}</h3>
-                      <span className="package-status">{pkg.status}</span>
+                      <p className="package-description">{pkg.description}</p>
                     </div>
-                    <div className="package-details">
-                      <div className="detail-row">
-                        <span className="label">Price:</span>
-                        <span className="value">{pkg.price}</span>
-                      </div>
-                      <div className="detail-row">
-                        <span className="label">Status:</span>
-                        <span className="value">{pkg.status}</span>
-                      </div>
-                      <div className="detail-row">
-                        <span className="label">Next Due:</span>
-                        <span className="value">{pkg.nextDue}</span>
-                      </div>
+                    <span className="premium-status-badge" style={{ background: `${pkg.color}15`, color: pkg.color }}>
+                      {pkg.status}
+                    </span>
+                  </div>
+
+                  <div className="package-pricing-section">
+                    <div className="price-display">
+                      <span className="current-price">{pkg.price}</span>
+                      <span className="original-price">{pkg.originalPrice}</span>
+                      <span className="savings-badge">Save ₹{parseInt(pkg.originalPrice.replace(/[^0-9]/g, '')) - parseInt(pkg.price.replace(/[^0-9]/g, ''))}</span>
                     </div>
-                    <div className="services-section">
-                      <h4>Included Services:</h4>
-                      <ul className="services-list">
-                        {pkg.services.map((s, i) => (
-                          <li key={i}>✓ {s}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="package-actions">
-                      <button 
-                        className="btn-primary" 
-                        onClick={() => {
-                          setSelectedPackage(pkg);
-                          setModalType('renew');
-                          setShowModal(true);
-                        }}
-                      >
-                        Renew Package
-                      </button>
-                      <button 
-                        className="btn-secondary" 
-                        onClick={() => {
-                          setSelectedPackage(pkg);
-                          setModalType('details');
-                          setShowModal(true);
-                        }}
-                      >
-                        View Details
-                      </button>
+                    <div className="validity-badge">
+                      <span className="validity-icon">⏰</span>
+                      <span>{pkg.validity}</span>
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  <div className="package-usage-section">
+                    <div className="usage-header">
+                      <span className="usage-label">Services Used</span>
+                      <span className="usage-count">{pkg.servicesUsed} / {pkg.totalServices}</span>
+                    </div>
+                    <div className="usage-progress-bar">
+                      <div 
+                        className="usage-progress-fill" 
+                        style={{ 
+                          width: `${pkg.totalServices === 'Unlimited' ? 0 : (pkg.servicesUsed / pkg.totalServices) * 100}%`,
+                          background: `linear-gradient(90deg, ${pkg.color} 0%, ${pkg.color}dd 100%)`
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  <div className="package-next-due">
+                    <span className="due-icon">📅</span>
+                    <span className="due-label">Next Service Due:</span>
+                    <span className="due-date">{pkg.nextDue}</span>
+                  </div>
+
+                  <div className="package-services-grid">
+                    <h4 className="services-title">Included Services:</h4>
+                    <div className="services-grid-items">
+                      {pkg.services.map((service, idx) => (
+                        <div key={idx} className="service-item-badge">
+                          <span className="service-check" style={{ color: pkg.color }}>✓</span>
+                          <span className="service-text">{service}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="package-action-buttons">
+                    <button 
+                      className="btn-package-action primary" 
+                      style={{ background: `linear-gradient(135deg, ${pkg.color} 0%, ${pkg.color}dd 100%)` }}
+                      onClick={() => {
+                        setSelectedPackage(pkg);
+                        setModalType('renew');
+                        setShowModal(true);
+                      }}
+                    >
+                      <span className="btn-icon">🔄</span>
+                      Renew Package
+                    </button>
+                    <button 
+                      className="btn-package-action secondary" 
+                      style={{ borderColor: pkg.color, color: pkg.color }}
+                      onClick={() => {
+                        setSelectedPackage(pkg);
+                        setModalType('details');
+                        setShowModal(true);
+                      }}
+                    >
+                      <span className="btn-icon">📋</span>
+                      View Details
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -812,111 +880,215 @@ function CustomerDashboard() {
       {/* Modal for Package Details and Renewal */}
       {showModal && selectedPackage && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content package-modal" onClick={(e) => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
 
             {modalType === 'details' ? (
               <>
-                <h2 className="modal-title">{selectedPackage.name}</h2>
-                <div className="modal-body">
-                  <div className="detail-section">
-                    <h3>Package Information</h3>
-                    <div className="info-grid">
-                      <div className="info-item">
-                        <span className="info-label">Price:</span>
-                        <span className="info-value">{selectedPackage.price}</span>
+                <div className="package-modal-header" style={{ background: `linear-gradient(135deg, ${selectedPackage.color} 0%, ${selectedPackage.color}dd 100%)` }}>
+                  <div className="modal-header-icon">{selectedPackage.icon}</div>
+                  <div className="modal-header-content">
+                    <h2 className="modal-title">{selectedPackage.name}</h2>
+                    <p className="modal-subtitle">{selectedPackage.description}</p>
+                  </div>
+                </div>
+
+                <div className="modal-body package-modal-body">
+                  <div className="modal-info-grid">
+                    <div className="modal-info-card">
+                      <div className="modal-info-icon" style={{ background: `${selectedPackage.color}15`, color: selectedPackage.color }}>💰</div>
+                      <div className="modal-info-content">
+                        <span className="modal-info-label">Package Price</span>
+                        <span className="modal-info-value">{selectedPackage.price}</span>
                       </div>
-                      <div className="info-item">
-                        <span className="info-label">Status:</span>
-                        <span className="info-value status-active">{selectedPackage.status}</span>
+                    </div>
+                    <div className="modal-info-card">
+                      <div className="modal-info-icon" style={{ background: `${selectedPackage.color}15`, color: selectedPackage.color }}>⏰</div>
+                      <div className="modal-info-content">
+                        <span className="modal-info-label">Validity</span>
+                        <span className="modal-info-value">{selectedPackage.validity}</span>
                       </div>
-                      <div className="info-item">
-                        <span className="info-label">Next Due:</span>
-                        <span className="info-value">{selectedPackage.nextDue}</span>
+                    </div>
+                    <div className="modal-info-card">
+                      <div className="modal-info-icon" style={{ background: `${selectedPackage.color}15`, color: selectedPackage.color }}>✅</div>
+                      <div className="modal-info-content">
+                        <span className="modal-info-label">Status</span>
+                        <span className="modal-info-value" style={{ color: selectedPackage.color }}>{selectedPackage.status}</span>
+                      </div>
+                    </div>
+                    <div className="modal-info-card">
+                      <div className="modal-info-icon" style={{ background: `${selectedPackage.color}15`, color: selectedPackage.color }}>📅</div>
+                      <div className="modal-info-content">
+                        <span className="modal-info-label">Next Due</span>
+                        <span className="modal-info-value">{selectedPackage.nextDue}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="detail-section">
-                    <h3>Included Services</h3>
-                    <ul className="services-list modal-services">
+                  <div className="detail-section premium">
+                    <h3 className="section-heading" style={{ color: selectedPackage.color }}>
+                      <span className="section-icon">🛠️</span>
+                      Included Services
+                    </h3>
+                    <div className="modal-services-grid">
                       {selectedPackage.services.map((service, idx) => (
-                        <li key={idx}>
-                          <span className="service-icon">✓</span>
-                          <span>{service}</span>
-                        </li>
+                        <div key={idx} className="modal-service-item" style={{ borderLeftColor: selectedPackage.color }}>
+                          <span className="modal-service-check" style={{ color: selectedPackage.color }}>✓</span>
+                          <span className="modal-service-text">{service}</span>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </div>
 
-                  <div className="detail-section">
-                    <h3>How to Use</h3>
-                    <p className="info-text">
-                      To book a service under this package, go to the "Book Service" section and select this package. Our mechanics will contact you within 2 hours to confirm the appointment.
-                    </p>
+                  <div className="detail-section premium">
+                    <h3 className="section-heading" style={{ color: selectedPackage.color }}>
+                      <span className="section-icon">📋</span>
+                      How to Use This Package
+                    </h3>
+                    <div className="usage-steps">
+                      <div className="usage-step">
+                        <div className="step-number" style={{ background: `${selectedPackage.color}15`, color: selectedPackage.color }}>1</div>
+                        <div className="step-content">
+                          <h4>Book Your Service</h4>
+                          <p>Navigate to "New Booking" and select this package</p>
+                        </div>
+                      </div>
+                      <div className="usage-step">
+                        <div className="step-number" style={{ background: `${selectedPackage.color}15`, color: selectedPackage.color }}>2</div>
+                        <div className="step-content">
+                          <h4>Choose Date & Time</h4>
+                          <p>Select a convenient slot and confirm your booking</p>
+                        </div>
+                      </div>
+                      <div className="usage-step">
+                        <div className="step-number" style={{ background: `${selectedPackage.color}15`, color: selectedPackage.color }}>3</div>
+                        <div className="step-content">
+                          <h4>Service Confirmation</h4>
+                          <p>Our mechanic will contact you within 2 hours</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="detail-section">
-                    <h3>Benefits</h3>
-                    <ul className="benefits-list">
-                      <li>✓ Free cancellation up to 24 hours before service</li>
-                      <li>✓ Priority booking with flexible scheduling</li>
-                      <li>✓ 30-day warranty on all services</li>
-                      <li>✓ Dedicated customer support</li>
-                    </ul>
+                  <div className="detail-section premium benefits-section" style={{ background: `${selectedPackage.color}08` }}>
+                    <h3 className="section-heading" style={{ color: selectedPackage.color }}>
+                      <span className="section-icon">⭐</span>
+                      Package Benefits
+                    </h3>
+                    <div className="benefits-grid">
+                      <div className="benefit-item">
+                        <span className="benefit-icon">🔄</span>
+                        <span>Free cancellation up to 24 hours</span>
+                      </div>
+                      <div className="benefit-item">
+                        <span className="benefit-icon">⚡</span>
+                        <span>Priority booking & scheduling</span>
+                      </div>
+                      <div className="benefit-item">
+                        <span className="benefit-icon">🛡️</span>
+                        <span>30-day warranty on services</span>
+                      </div>
+                      <div className="benefit-item">
+                        <span className="benefit-icon">🎯</span>
+                        <span>Dedicated customer support</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="modal-actions">
+                <div className="modal-actions premium-actions">
                   <button 
-                    className="btn-primary"
+                    className="btn-modal-action primary"
+                    style={{ background: `linear-gradient(135deg, ${selectedPackage.color} 0%, ${selectedPackage.color}dd 100%)` }}
                     onClick={() => setShowModal(false)}
                   >
-                    Close
+                    <span>Got it, Thanks!</span>
                   </button>
                 </div>
               </>
             ) : (
               <>
-                <h2 className="modal-title">Renew {selectedPackage.name}</h2>
-                <div className="modal-body">
-                  <div className="renewal-section">
-                    <h3>Renewal Details</h3>
-                    <div className="renewal-info">
-                      <p><strong>Current Package:</strong> {selectedPackage.name}</p>
-                      <p><strong>Current Price:</strong> {selectedPackage.price}</p>
-                      <p><strong>Renewal Date:</strong> {selectedPackage.nextDue}</p>
+                <div className="package-modal-header" style={{ background: `linear-gradient(135deg, ${selectedPackage.color} 0%, ${selectedPackage.color}dd 100%)` }}>
+                  <div className="modal-header-icon">{selectedPackage.icon}</div>
+                  <div className="modal-header-content">
+                    <h2 className="modal-title">Renew {selectedPackage.name}</h2>
+                    <p className="modal-subtitle">Continue enjoying premium services</p>
+                  </div>
+                </div>
+
+                <div className="modal-body package-modal-body">
+                  <div className="renewal-section premium">
+                    <h3 className="section-heading" style={{ color: selectedPackage.color }}>
+                      <span className="section-icon">📊</span>
+                      Current Package Details
+                    </h3>
+                    <div className="renewal-info-grid">
+                      <div className="renewal-info-item">
+                        <span className="renewal-label">Package Name</span>
+                        <span className="renewal-value">{selectedPackage.name}</span>
+                      </div>
+                      <div className="renewal-info-item">
+                        <span className="renewal-label">Current Price</span>
+                        <span className="renewal-value" style={{ color: selectedPackage.color }}>{selectedPackage.price}</span>
+                      </div>
+                      <div className="renewal-info-item">
+                        <span className="renewal-label">Validity Period</span>
+                        <span className="renewal-value">{selectedPackage.validity}</span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="renewal-section">
-                    <h3>Renewal Options</h3>
-                    <div className="renewal-options">
-                      <div className="option">
+                  <div className="renewal-section premium">
+                    <h3 className="section-heading" style={{ color: selectedPackage.color }}>
+                      <span className="section-icon">🎁</span>
+                      Choose Renewal Plan
+                    </h3>
+                    <div className="renewal-options-grid">
+                      <div className="renewal-option-card" style={{ borderColor: `${selectedPackage.color}50` }}>
                         <input type="radio" id="renew-1month" name="renewal" defaultChecked />
-                        <label htmlFor="renew-1month">Renew for 1 Month - {selectedPackage.price}</label>
+                        <label htmlFor="renew-1month">
+                          <div className="option-header">
+                            <span className="option-period">1 Month</span>
+                            <span className="option-price">{selectedPackage.price}</span>
+                          </div>
+                          <span className="option-desc">Standard renewal plan</span>
+                        </label>
                       </div>
-                      <div className="option">
+                      <div className="renewal-option-card recommended" style={{ borderColor: selectedPackage.color, background: `${selectedPackage.color}05` }}>
+                        <div className="recommended-badge" style={{ background: selectedPackage.color }}>Most Popular</div>
                         <input type="radio" id="renew-3months" name="renewal" />
-                        <label htmlFor="renew-3months">Renew for 3 Months - {selectedPackage.price} x 3 (Get 10% off)</label>
+                        <label htmlFor="renew-3months">
+                          <div className="option-header">
+                            <span className="option-period">3 Months</span>
+                            <span className="option-price">{selectedPackage.price} × 3</span>
+                          </div>
+                          <span className="option-desc">Save 10% • Get 1 extra service</span>
+                        </label>
                       </div>
-                      <div className="option">
+                      <div className="renewal-option-card" style={{ borderColor: `${selectedPackage.color}50` }}>
                         <input type="radio" id="renew-6months" name="renewal" />
-                        <label htmlFor="renew-6months">Renew for 6 Months - {selectedPackage.price} x 6 (Get 20% off)</label>
+                        <label htmlFor="renew-6months">
+                          <div className="option-header">
+                            <span className="option-period">6 Months</span>
+                            <span className="option-price">{selectedPackage.price} × 6</span>
+                          </div>
+                          <span className="option-desc">Save 20% • Get 2 extra services</span>
+                        </label>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="modal-actions">
+                <div className="modal-actions premium-actions">
                   <button 
-                    className="btn-secondary"
+                    className="btn-modal-action secondary"
                     onClick={() => setShowModal(false)}
                   >
-                    Cancel
+                    <span>Cancel</span>
                   </button>
                   <button 
-                    className="btn-primary"
+                    className="btn-modal-action primary"
+                    style={{ background: `linear-gradient(135deg, ${selectedPackage.color} 0%, ${selectedPackage.color}dd 100%)` }}
                     onClick={() => {
                       setPaymentData({
                         packageName: selectedPackage.name,
@@ -926,7 +1098,7 @@ function CustomerDashboard() {
                       setShowModal(false);
                     }}
                   >
-                    Proceed to Payment
+                    <span>Proceed to Payment →</span>
                   </button>
                 </div>
               </>

@@ -109,6 +109,21 @@ function Analytics() {
   // Filter state for daily bookings
   const [bookingFilter, setBookingFilter] = useState('all'); // all, completed, pending
 
+  const renderCategoryTick = ({ x, y, payload }) => {
+    const rawValue = String(payload.value || '');
+    const lines = rawValue.includes('/') ? rawValue.split('/') : [rawValue];
+
+    return (
+      <text x={x} y={y} textAnchor="end" fill="#6b7280" fontSize={12}>
+        {lines.map((line, index) => (
+          <tspan key={`${line}-${index}`} x={x} dy={index === 0 ? 0 : 14}>
+            {line}
+          </tspan>
+        ))}
+      </text>
+    );
+  };
+
   const getFilteredBookingsData = () => {
     if (bookingFilter === 'completed') {
       return dailyBookingsData.map(d => ({ day: d.day, bookings: d.completed }));
@@ -276,7 +291,13 @@ function Analytics() {
             <BarChart data={serviceCategoryData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis type="number" stroke="#6b7280" />
-              <YAxis dataKey="category" type="category" stroke="#6b7280" width={120} />
+              <YAxis
+                dataKey="category"
+                type="category"
+                stroke="#6b7280"
+                width={140}
+                tick={renderCategoryTick}
+              />
               <Tooltip
                 contentStyle={{
                   backgroundColor: 'rgba(255, 255, 255, 0.95)',
