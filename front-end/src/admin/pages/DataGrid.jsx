@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import './DataGrid.css';
 import CommonTable from '../../components/CommonTable.jsx';
 
@@ -46,7 +46,7 @@ function DataGrid() {
   };
 
   // Define columns for each tab
-  const getTableColumns = () => {
+  const columns = useMemo(() => {
     switch (activeTab) {
       case 'users':
         return [
@@ -101,9 +101,7 @@ function DataGrid() {
       default:
         return [];
     }
-  };
-
-  const columns = useMemo(() => getTableColumns(), [activeTab]);
+  }, [activeTab]);
   const data = mockData[activeTab] || [];
 
   return (

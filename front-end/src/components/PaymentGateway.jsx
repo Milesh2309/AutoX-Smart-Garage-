@@ -5,11 +5,9 @@ import InvoiceGenerator from './InvoiceGenerator';
 import './PaymentGateway.css';
 
 function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOpen, bookingId }) {
-  const { createBillingRecord } = useBilling();
   const { makePayment } = usePayments();
   const { user } = useAuth();
   const [paymentMethod, setPaymentMethod] = useState('credit_card');
-  const [paymentOption, setPaymentOption] = useState('online');
   const [processedPayment, setProcessedPayment] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);

@@ -79,37 +79,6 @@ function ManageInventory() {
     setShowForm(false);
   };
 
-  const handleEdit = (item) => {
-    setFormData({
-      name: item.name,
-      sku: item.sku,
-      category: item.category,
-      stock: item.stock,
-      reorderLevel: item.reorderLevel,
-      price: item.price,
-      supplier: item.supplier,
-      location: item.location
-    });
-    setEditingId(item.id);
-    setShowForm(true);
-  };
-
-  const handleDelete = (id) => {
-    setInventory((items) => items.filter((item) => item.id !== id));
-  };
-
-  const handleStatusChange = (id, status) => {
-    setInventory((items) => items.map((item) => (item.id === id ? { ...item, status } : item)));
-  };
-
-  const filteredInventory = inventory.filter((item) => {
-    const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
-    const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
-    const term = searchTerm.toLowerCase();
-    const matchesSearch = item.name.toLowerCase().includes(term) || item.sku.toLowerCase().includes(term);
-    return matchesStatus && matchesCategory && matchesSearch;
-  });
-
   const categories = useMemo(() => ['All', ...new Set(inventory.map((item) => item.category))], [inventory]);
 
   const inventoryColumns = useMemo(() => [
@@ -124,12 +93,6 @@ function ManageInventory() {
     { accessorKey: 'location', header: 'Location' },
     { accessorKey: 'status', header: 'Status' },
   ], []);
-
-  const totalSkus = inventory.length;
-  const lowStockCount = inventory.filter((item) => item.status === 'Low Stock').length;
-  const outOfStockCount = inventory.filter((item) => item.status === 'Out of Stock').length;
-  const totalValue = inventory.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.stock) || 0), 0);
-  const reorderQueue = inventory.filter((item) => item.stock <= item.reorderLevel);
 
   return (
     <div className="admin-page">

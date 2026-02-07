@@ -35,6 +35,7 @@ function ManageBilling() {
 
   useEffect(() => {
     fetchAllBillingRecords();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const billingColumns = useMemo(

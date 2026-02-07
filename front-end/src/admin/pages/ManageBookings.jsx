@@ -9,6 +9,7 @@ function ManageBookings() {
   useEffect(() => {
     loadBookings();
     loadStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Format bookings data for table display

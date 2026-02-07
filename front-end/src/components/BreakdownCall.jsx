@@ -23,6 +23,7 @@ function BreakdownCall() {
   useEffect(() => {
     // Fetch GPS location when component mounts
     fetchGPSLocation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchGPSLocation = () => {
@@ -113,22 +114,9 @@ function BreakdownCall() {
     
     const customerLat = location.latitude;
     const customerLng = location.longitude;
-    const mechanicLat = mechanicAssigned.location.latitude;
-    const mechanicLng = mechanicAssigned.location.longitude;
     
-    // Google Maps Static API URL with markers
-    // Red marker for customer, Blue marker for mechanic
-    const mapUrl = `https://www.google.com/maps/embed/v1/directions?key=YOUR_API_KEY&origin=${customerLat},${customerLng}&destination=${mechanicLat},${mechanicLng}&mode=driving`;
-    
-    // Alternative: Simple map view with both locations
-    const centerLat = (customerLat + mechanicLat) / 2;
-    const centerLng = (customerLng + mechanicLng) / 2;
-    
+    // Simple map view with customer location
     return `https://maps.google.com/maps?q=${customerLat},${customerLng}&t=&z=13&ie=UTF8&iwloc=&output=embed`;
-  };
-
-  const initiateCall = () => {
-    window.location.href = `tel:${supportNumber}`;
   };
 
   const generateMechanicName = () => {

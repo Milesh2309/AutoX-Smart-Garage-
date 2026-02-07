@@ -62,14 +62,6 @@ function ManageBreakdown() {
     }
   };
 
-  const handleStatusChange = (id, newStatus) => {
-    setBreakdowns(breakdowns.map(b => b.id === id ? { ...b, status: newStatus } : b));
-  };
-
-  const handleDelete = (id) => {
-    setBreakdowns(breakdowns.filter(b => b.id !== id));
-  };
-
   return (
     <div className="admin-page">
       <div className="page-header">

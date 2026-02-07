@@ -9,7 +9,6 @@ import ServiceDetail from "./components/ServiceDetail";
 import ServiceCatalog from "./components/ServiceCatalog";
 import About from "./components/about";
 import Contact from "./components/contact";
-import Login from "./components/Login";
 import AdminLogin from "./components/AdminLogin";
 import Register from "./components/Register";
 import BookService from "./components/BookService";

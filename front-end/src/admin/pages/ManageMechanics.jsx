@@ -11,8 +11,6 @@ function ManageMechanics() {
     { id: 6, name: 'Deepak Verma', expertise: 'Tire & Wheel Services', phone: '9876543255', experience: '4 years', status: 'Busy', assignedJobs: 6, rating: 4.4 },
   ]);
 
-  const [filterStatus, setFilterStatus] = useState('All');
-  const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({

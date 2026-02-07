@@ -17,6 +17,7 @@ function InvoiceGenerator({ paymentData, bookingId, onClose, onSuccess }) {
     if (paymentData && !billingRecord) {
       generateInvoice();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentData]);
 
   const generateInvoice = async () => {

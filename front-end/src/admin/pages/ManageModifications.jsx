@@ -158,20 +158,6 @@ function ManageModifications() {
     }
   };
 
-  const handleStatusChange = (id, newStatus) => {
-    setModifications(modifications.map(m => 
-      m.id === id ? { 
-        ...m, 
-        status: newStatus,
-        progress: newStatus === 'Completed' ? 100 : newStatus === 'In Progress' ? 50 : 0
-      } : m
-    ));
-  };
-
-  const handleDelete = (id) => {
-    setModifications(modifications.filter(m => m.id !== id));
-  };
-
   const handleCancel = () => {
     setShowForm(false);
     setFormData({

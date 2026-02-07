@@ -146,29 +146,6 @@ function ManageAssignments() {
     }
   };
 
-  const handleStatusChange = (id, newStatus) => {
-    setAssignments(assignments.map(a => 
-      a.id === id ? { 
-        ...a, 
-        status: newStatus,
-        progress: newStatus === 'Completed' ? 100 : newStatus === 'In Progress' ? 50 : 0
-      } : a
-    ));
-  };
-
-  const handleDelete = (id) => {
-    setAssignments(assignments.filter(a => a.id !== id));
-  };
-
-  const filteredAssignments = assignments.filter(a => {
-    const matchesStatus = filterStatus === 'All' || a.status === filterStatus;
-    const matchesMechanic = filterMechanic === 'All' || a.mechanic === filterMechanic;
-    const matchesSearch = a.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          a.vehicle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          a.job.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesMechanic && matchesSearch;
-  });
-
   const getStatusCount = (status) => {
     if (status === 'All') return assignments.length;
     return assignments.filter(a => a.status === status).length;

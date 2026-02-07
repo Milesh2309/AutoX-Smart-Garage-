@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   BarChart,
   Bar,
-  LineChart,
   Line,
   PieChart,
   Pie,

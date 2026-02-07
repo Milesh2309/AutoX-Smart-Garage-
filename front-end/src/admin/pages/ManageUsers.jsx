@@ -19,14 +19,6 @@ function ManageUsers() {
     { accessorKey: 'joinDate', header: 'Join Date' },
   ], []);
 
-  const handleDeleteUser = (id) => {
-    setUsers(users.filter(u => u.id !== id));
-  };
-
-  const handleViewProfile = (user) => {
-    setSelectedUser(user);
-  };
-
   const closeProfile = () => setSelectedUser(null);
 
   return (

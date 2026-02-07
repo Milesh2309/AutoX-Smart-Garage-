@@ -11,11 +11,9 @@ function PDFInvoiceGenerator() {
   // Load bookings from localStorage
   useEffect(() => {
     const storedBookings = localStorage.getItem('bookings');
-    const storedCustomers = localStorage.getItem('customers');
     
-    if (storedBookings && storedCustomers) {
+    if (storedBookings) {
       const parsedBookings = JSON.parse(storedBookings);
-      const parsedCustomers = JSON.parse(storedCustomers);
       
       // Filter completed bookings
       const completedBookings = parsedBookings.filter(b => 
