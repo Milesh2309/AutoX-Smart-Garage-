@@ -23,6 +23,17 @@ function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationsOpen && !event.target.closest('.notification-wrapper')) {
+        setNotificationsOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [notificationsOpen]);
+
   const isActive = (path) => {
     return location.pathname === path;
   };
@@ -207,75 +218,90 @@ function Navbar() {
 
           {/* Auth Buttons */}
           <div className="navbar-auth">
-            {/* Notification Bell - Only show when authenticated */}
-            {isAuthenticated && (
-              <div className="notification-wrapper">
-                <button 
-                  className="notification-bell"
-                  onClick={toggleNotifications}
-                  aria-label="Notifications"
+            {/* Notification Bell - Visible always for testing */}
+            <div className="notification-wrapper">
+              <button 
+                className="notification-bell"
+                onClick={toggleNotifications}
+                aria-label="Notifications"
+              >
+                <svg 
+                  className="bell-icon"
+                  xmlns="http://www.w3.org/2000/svg" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                  style={{ display: 'block' }}
                 >
-                  🔔
-                  {unreadCount > 0 && (
-                    <span className="notification-badge">{unreadCount}</span>
-                  )}
-                </button>
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                {isAuthenticated && unreadCount > 0 && (
+                  <span className="notification-badge">{unreadCount}</span>
+                )}
+              </button>
 
-                {/* Notification Dropdown */}
-                {notificationsOpen && (
-                  <div className="notification-dropdown">
-                    <div className="notification-header">
-                      <h3>Notifications</h3>
-                      <div className="notification-actions">
-                        {unreadCount > 0 && (
-                          <button 
-                            className="mark-all-read"
-                            onClick={markAllAsRead}
-                          >
-                            Mark all read
-                          </button>
-                        )}
-                        {notifications.length > 0 && (
-                          <button 
-                            className="clear-all"
-                            onClick={clearNotifications}
-                          >
-                            Clear all
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="notification-list">
-                      {notifications.length === 0 ? (
-                        <div className="notification-empty">
-                          <p>No notifications yet</p>
-                        </div>
-                      ) : (
-                        notifications.map((notification) => (
-                          <div
-                            key={notification.id}
-                            className={`notification-item ${notification.read ? 'read' : 'unread'}`}
-                            onClick={() => handleMarkAsRead(notification.id)}
-                          >
-                            <div className="notification-icon">{notification.icon}</div>
-                            <div className="notification-content">
-                              <h4>{notification.title}</h4>
-                              <p>{notification.message}</p>
-                              <span className="notification-time">
-                                {getTimeAgo(notification.timestamp)}
-                              </span>
-                            </div>
-                            {!notification.read && (
-                              <div className="notification-dot"></div>
-                            )}
-                          </div>
-                        ))
+              {/* Notification Dropdown */}
+              {notificationsOpen && (
+                <div className="notification-dropdown">
+                  <div className="notification-header">
+                    <h3>Notifications</h3>
+                    <div className="notification-actions">
+                      {isAuthenticated && unreadCount > 0 && (
+                        <button 
+                          className="mark-all-read"
+                          onClick={markAllAsRead}
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                      {isAuthenticated && notifications && notifications.length > 0 && (
+                        <button 
+                          className="clear-all"
+                          onClick={clearNotifications}
+                        >
+                          Clear all
+                        </button>
                       )}
                     </div>
                   </div>
-                )}
-              </div>
-            )}
+                  <div className="notification-list">
+                    {!isAuthenticated ? (
+                      <div className="notification-empty">
+                        <p>Please login to view notifications</p>
+                      </div>
+                    ) : (!notifications || notifications.length === 0) ? (
+                      <div className="notification-empty">
+                        <p>No notifications yet</p>
+                      </div>
+                    ) : (
+                      notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          className={`notification-item ${notification.read ? 'read' : 'unread'}`}
+                          onClick={() => handleMarkAsRead(notification.id)}
+                        >
+                          <div className="notification-icon">{notification.icon}</div>
+                          <div className="notification-content">
+                            <h4>{notification.title}</h4>
+                            <p>{notification.message}</p>
+                            <span className="notification-time">
+                              {getTimeAgo(notification.timestamp)}
+                            </span>
+                          </div>
+                          {!notification.read && (
+                            <div className="notification-dot"></div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {isAuthenticated && role === 'admin' ? (
               <>

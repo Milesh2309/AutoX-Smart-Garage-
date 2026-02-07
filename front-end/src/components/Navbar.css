@@ -249,6 +249,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.notification-bell svg,
+.notification-bell .bell-icon {
+  width: 20px !important;
+  height: 20px !important;
+  stroke: white !important;
+  fill: none !important;
+  display: block !important;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.notification-bell svg path {
+  stroke: white !important;
+  fill: none !important;
 }
 
 .notification-bell:hover {
@@ -288,7 +306,7 @@
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   overflow-y: auto;
-  z-index: 1000;
+  z-index: 9999;
   animation: slideDown 0.3s ease;
 }
 
@@ -674,6 +692,12 @@
   .notification-bell {
     width: 100%;
     justify-content: center;
+  }
+
+  .notification-bell svg,
+  .notification-bell .bell-icon {
+    width: 20px !important;
+    height: 20px !important;
   }
 
   .notification-dropdown {
