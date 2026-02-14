@@ -87,6 +87,11 @@ function Navbar() {
     }
   };
 
+  // Hide public nav menu when on admin or customer dashboard
+  const shouldHidePublicNav = 
+    (isAuthenticated && role === 'user' && location.pathname === '/customer/dashboard') ||
+    (isAuthenticated && role === 'admin' && location.pathname === '/admin');
+
   return (
     <>
       {/* Mobile Toggle */}
@@ -108,8 +113,9 @@ function Navbar() {
           {/* Tagline */}
           <div className="navbar-tagline">SMART GARAGE · BREAKDOWN · MODIFICATION</div>
 
-          {/* Nav Links */}
-          <ul className="navbar-links">
+          {/* Nav Links - Hidden when user is on dashboard */}
+          {!shouldHidePublicNav && (
+            <ul className="navbar-links">
             <li>
               <Link 
                 to="/" 
@@ -214,7 +220,8 @@ function Navbar() {
                 Contact
               </Link>
             </li>
-          </ul>
+            </ul>
+          )}
 
           {/* Auth Buttons */}
           <div className="navbar-auth">
