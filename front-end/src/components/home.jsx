@@ -496,25 +496,21 @@ function Home() {
             <h2>📋 How It Works</h2>
             <div className="steps-container">
               <div className="step-card">
-                <div className="step-number">1</div>
                 <h3>Choose Service</h3>
                 <p>Select from our comprehensive range of automotive services</p>
               </div>
               <div className="step-arrow">→</div>
               <div className="step-card">
-                <div className="step-number">2</div>
                 <h3>Book Online</h3>
                 <p>Schedule your appointment with date, time, and location</p>
               </div>
               <div className="step-arrow">→</div>
               <div className="step-card">
-                <div className="step-number">3</div>
                 <h3>Expert Service</h3>
                 <p>Our certified technicians handle your vehicle with care</p>
               </div>
               <div className="step-arrow">→</div>
               <div className="step-card">
-                <div className="step-number">4</div>
                 <h3>Get Back on Road</h3>
                 <p>Drive away confident with quality service and warranty</p>
               </div>

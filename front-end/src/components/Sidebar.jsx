@@ -9,7 +9,7 @@ function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false);
-  const [aboutDropdownOpen, setAboutDropdownOpen] = useState(false);
+  // about dropdown removed per request
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const location = useLocation();
   const { isAuthenticated, role, logout } = useAuth();
@@ -74,18 +74,6 @@ function Navbar() {
     }
   };
 
-  const toggleAboutDropdown = (e) => {
-    if (window.innerWidth <= 768) {
-      if (aboutDropdownOpen) {
-        // If dropdown is already open, allow navigation
-        closeMobile();
-      } else {
-        // If dropdown is closed, prevent navigation and open dropdown
-        e.preventDefault();
-        setAboutDropdownOpen(true);
-      }
-    }
-  };
 
   // Hide public nav menu when on admin or customer dashboard
   const shouldHidePublicNav = 
@@ -170,46 +158,23 @@ function Navbar() {
                 </ul>
               )}
             </li>
-            <li 
-              className={`nav-dropdown ${aboutDropdownOpen ? 'sticky-open' : ''}`}
-              onMouseEnter={() => setAboutDropdownOpen(true)}
-              onMouseLeave={() => setAboutDropdownOpen(false)}
-            >
-              <div className="nav-link-wrapper">
-                <Link 
-                  to="/about" 
-                  className={`nav-link ${isActive('/about') || isActive('/gallery') ? 'active' : ''}`}
-                  onClick={(e) => {
-                    if (window.innerWidth > 768) {
-                      // Desktop: allow direct navigation
-                      closeMobile();
-                    } else {
-                      // Mobile: toggle dropdown
-                      toggleAboutDropdown(e);
-                    }
-                  }}
-                >
-                  About
-                  <span className="dropdown-arrow">▼</span>
-                </Link>
-              </div>
-              {aboutDropdownOpen && (
-                <ul className="dropdown-menu">
-                  <li>
-                    <Link 
-                      to="/gallery" 
-                      className="dropdown-item"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        closeMobile();
-                        setAboutDropdownOpen(false);
-                      }}
-                    >
-                      GALLERY
-                    </Link>
-                  </li>
-                </ul>
-              )}
+            <li>
+              <Link 
+                to="/about" 
+                className={`nav-link ${isActive('/about') ? 'active' : ''}`}
+                onClick={closeMobile}
+              >
+                About
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/gallery" 
+                className={`nav-link ${isActive('/gallery') ? 'active' : ''}`}
+                onClick={closeMobile}
+              >
+                Gallery
+              </Link>
             </li>
             <li>
               <Link 
