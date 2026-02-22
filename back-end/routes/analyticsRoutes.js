@@ -1,0 +1,80 @@
+const express = require('express');
+const { body } = require('express-validator');
+const router = express.Router();
+const analyticsController = require('../controllers/analyticsController');
+const validate = require('../middleware/validationMiddleware');
+
+/**
+ * @swagger
+ * tags:
+ *   name: Analytics
+ *   description: Business analytics and reporting
+ */
+
+/**
+ * @swagger
+ * /api/analytics/dashboard:
+ *   get:
+ *     summary: Get dashboard metrics
+ *     tags: [Analytics]
+ */
+router.get('/api/analytics/dashboard', analyticsController.getDashboardMetrics);
+
+/**
+ * @swagger
+ * /api/analytics/revenue:
+ *   get:
+ *     summary: Get revenue analytics
+ *     tags: [Analytics]
+ */
+router.get('/api/analytics/revenue', analyticsController.getRevenueAnalytics);
+
+/**
+ * @swagger
+ * /api/analytics/bookings:
+ *   get:
+ *     summary: Get booking trends
+ *     tags: [Analytics]
+ */
+router.get('/api/analytics/bookings', analyticsController.getBookingTrends);
+
+/**
+ * @swagger
+ * /api/analytics/customer-satisfaction:
+ *   get:
+ *     summary: Get customer satisfaction metrics
+ *     tags: [Analytics]
+ */
+router.get('/api/analytics/customer-satisfaction', analyticsController.getCustomerSatisfaction);
+
+/**
+ * @swagger
+ * /api/reports/generate:
+ *   post:
+ *     summary: Generate custom report
+ *     tags: [Analytics]
+ */
+router.post(
+  '/api/reports/generate',
+  body('reportType').notEmpty().withMessage('reportType is required'),
+  validate,
+  analyticsController.generateReport
+);
+
+/**
+ * @swagger
+ * /api/reports/schedule:
+ *   post:
+ *     summary: Schedule report generation
+ *     tags: [Analytics]
+ */
+router.post(
+  '/api/reports/schedule',
+  body('reportType').notEmpty().withMessage('reportType is required'),
+  body('frequency').notEmpty().withMessage('frequency is required'),
+  body('email').isEmail().withMessage('email must be valid'),
+  validate,
+  analyticsController.scheduleReport
+);
+
+module.exports = router;
