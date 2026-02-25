@@ -17,6 +17,9 @@ const validate = require('../middleware/validationMiddleware');
  *   get:
  *     summary: Get dashboard metrics
  *     tags: [Analytics]
+ *     responses:
+ *       200:
+ *         description: Dashboard metrics
  */
 router.get('/api/analytics/dashboard', analyticsController.getDashboardMetrics);
 
@@ -26,6 +29,9 @@ router.get('/api/analytics/dashboard', analyticsController.getDashboardMetrics);
  *   get:
  *     summary: Get revenue analytics
  *     tags: [Analytics]
+ *     responses:
+ *       200:
+ *         description: Revenue analytics
  */
 router.get('/api/analytics/revenue', analyticsController.getRevenueAnalytics);
 
@@ -35,6 +41,9 @@ router.get('/api/analytics/revenue', analyticsController.getRevenueAnalytics);
  *   get:
  *     summary: Get booking trends
  *     tags: [Analytics]
+ *     responses:
+ *       200:
+ *         description: Booking trends
  */
 router.get('/api/analytics/bookings', analyticsController.getBookingTrends);
 
@@ -44,6 +53,9 @@ router.get('/api/analytics/bookings', analyticsController.getBookingTrends);
  *   get:
  *     summary: Get customer satisfaction metrics
  *     tags: [Analytics]
+ *     responses:
+ *       200:
+ *         description: Customer satisfaction metrics
  */
 router.get('/api/analytics/customer-satisfaction', analyticsController.getCustomerSatisfaction);
 
@@ -53,6 +65,20 @@ router.get('/api/analytics/customer-satisfaction', analyticsController.getCustom
  *   post:
  *     summary: Generate custom report
  *     tags: [Analytics]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [reportType]
+ *             properties:
+ *               reportType:
+ *                 type: string
+ *                 example: revenue
+ *     responses:
+ *       200:
+ *         description: Report generated
  */
 router.post(
   '/api/reports/generate',
@@ -67,6 +93,25 @@ router.post(
  *   post:
  *     summary: Schedule report generation
  *     tags: [Analytics]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [reportType, frequency, email]
+ *             properties:
+ *               reportType:
+ *                 type: string
+ *               frequency:
+ *                 type: string
+ *                 example: weekly
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Report schedule created
  */
 router.post(
   '/api/reports/schedule',

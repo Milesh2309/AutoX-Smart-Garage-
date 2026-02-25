@@ -23,6 +23,17 @@ exports.getNotifications = async (req, res, next) => {
   }
 };
 
+exports.getMyNotifications = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const userId = Number(req.user.id);
+    const records = await db.collection('notifications').find({ userId }).sort({ id: -1 }).toArray();
+    return res.json({ success: true, data: records, count: records.length });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 exports.sendNotification = async (req, res, next) => {
   try {
     const db = getDB();
@@ -69,6 +80,28 @@ exports.markAsRead = async (req, res, next) => {
 
     const notification = await db.collection('notifications').findOne({ id });
     return res.json(notification);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.markAllAsRead = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const userId = Number(req.user.id);
+
+    await db.collection('notifications').updateMany(
+      { userId, read: false },
+      {
+        $set: {
+          read: true,
+          readAt: new Date().toISOString()
+        }
+      }
+    );
+
+    const records = await db.collection('notifications').find({ userId }).sort({ id: -1 }).toArray();
+    return res.json({ success: true, message: 'All notifications marked as read', data: records });
   } catch (error) {
     return next(error);
   }

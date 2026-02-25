@@ -17,6 +17,9 @@ const validate = require('../middleware/validationMiddleware');
  *   get:
  *     summary: Get system settings
  *     tags: [Settings]
+ *     responses:
+ *       200:
+ *         description: System settings
  */
 router.get('/api/settings', settingsController.getSettings);
 
@@ -26,6 +29,21 @@ router.get('/api/settings', settingsController.getSettings);
  *   put:
  *     summary: Update system settings
  *     tags: [Settings]
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               businessName:
+ *                 type: string
+ *               supportEmail:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Settings updated
  */
 router.put(
   '/api/settings',
@@ -40,6 +58,9 @@ router.put(
  *   get:
  *     summary: Get company information
  *     tags: [Settings]
+ *     responses:
+ *       200:
+ *         description: Company info
  */
 router.get('/api/company-info', settingsController.getCompanyInfo);
 
@@ -49,6 +70,9 @@ router.get('/api/company-info', settingsController.getCompanyInfo);
  *   get:
  *     summary: Get all locations
  *     tags: [Settings]
+ *     responses:
+ *       200:
+ *         description: Locations list
  */
 router.get('/api/locations', settingsController.getLocations);
 
@@ -58,6 +82,21 @@ router.get('/api/locations', settingsController.getLocations);
  *   post:
  *     summary: Create new location
  *     tags: [Settings]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, address]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               address:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Location created
  */
 router.post(
   '/api/locations',
@@ -73,6 +112,26 @@ router.post(
  *   put:
  *     summary: Update location
  *     tags: [Settings]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               address:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Location updated
  */
 router.put(
   '/api/locations/:id',
@@ -87,6 +146,9 @@ router.put(
  *   get:
  *     summary: Get service rates
  *     tags: [Settings]
+ *     responses:
+ *       200:
+ *         description: Service rates
  */
 router.get('/api/rates', settingsController.getServiceRates);
 
@@ -96,6 +158,21 @@ router.get('/api/rates', settingsController.getServiceRates);
  *   post:
  *     summary: Update service rates
  *     tags: [Settings]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [serviceRateUpdates]
+ *             properties:
+ *               serviceRateUpdates:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200:
+ *         description: Rates updated
  */
 router.post(
   '/api/rates',

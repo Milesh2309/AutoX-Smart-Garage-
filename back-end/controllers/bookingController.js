@@ -26,6 +26,16 @@ const getBookings = async (req, res, next) => {
   }
 };
 
+const getAllBookings = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const records = await db.collection('bookings').find().sort({ id: -1 }).toArray();
+    return res.status(200).json({ success: true, data: records, count: records.length });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 const createBooking = async (req, res, next) => {
   try {
     const { serviceId, scheduledAt, notes } = req.body;
@@ -51,6 +61,49 @@ const createBooking = async (req, res, next) => {
     return next(error);
   }
 };
+
+const createBookingPublic = async (req, res, next) => {
+  try {
+    const {
+      userId,
+      serviceId,
+      serviceName,
+      customerName,
+      email,
+      phone,
+      vehicleNumber,
+      date,
+      timeSlot,
+      notes,
+      amount
+    } = req.body;
+
+    const db = getDB();
+    const booking = {
+      id: await getNextBookingId(db),
+      userId: userId ? Number(userId) : null,
+      serviceId: serviceId ? Number(serviceId) : null,
+      serviceName,
+      customerName,
+      email,
+      phone,
+      vehicleNumber,
+      date,
+      timeSlot,
+      notes,
+      amount: amount ? Number(amount) : 0,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+
+    await db.collection('bookings').insertOne(booking);
+    return res.status(201).json({ success: true, message: 'Booking created', data: booking });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getMyBookings = async (req, res, next) => getBookings(req, res, next);
 
 const getBookingById = async (req, res, next) => {
   try {
@@ -295,7 +348,10 @@ const rescheduleBooking = async (req, res, next) => {
 
 module.exports = {
   getBookings,
+  getAllBookings,
+  getMyBookings,
   createBooking,
+  createBookingPublic,
   getBookingById,
   cancelBooking,
   deleteBooking,

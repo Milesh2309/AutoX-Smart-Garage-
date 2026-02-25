@@ -17,6 +17,22 @@ const validate = require('../middleware/validationMiddleware');
  *   post:
  *     summary: Request breakdown assistance
  *     tags: [Breakdown]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [userId, location]
+ *             properties:
+ *               userId:
+ *                 type: integer
+ *               location:
+ *                 type: string
+ *                 example: Ahmedabad Ring Road
+ *     responses:
+ *       201:
+ *         description: Breakdown request created
  */
 router.post(
   '/api/breakdown-calls',
@@ -32,6 +48,9 @@ router.post(
  *   get:
  *     summary: List breakdown requests
  *     tags: [Breakdown]
+ *     responses:
+ *       200:
+ *         description: Breakdown requests list
  */
 router.get('/api/breakdown-calls', breakdownController.listBreakdownCalls);
 
@@ -41,6 +60,15 @@ router.get('/api/breakdown-calls', breakdownController.listBreakdownCalls);
  *   get:
  *     summary: Get breakdown request details
  *     tags: [Breakdown]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Breakdown details
  */
 router.get(
   '/api/breakdown-calls/:id',
@@ -55,6 +83,25 @@ router.get(
  *   put:
  *     summary: Update breakdown status
  *     tags: [Breakdown]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 example: assigned
+ *     responses:
+ *       200:
+ *         description: Breakdown status updated
  */
 router.put(
   '/api/breakdown-calls/:id',
@@ -69,6 +116,9 @@ router.put(
  *   get:
  *     summary: Find nearest mechanic
  *     tags: [Breakdown]
+ *     responses:
+ *       200:
+ *         description: Nearby mechanic details
  */
 router.get('/api/breakdown-calls/nearby', breakdownController.findNearestMechanic);
 

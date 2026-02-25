@@ -17,6 +17,29 @@ const validate = require('../middleware/validationMiddleware');
  *   post:
  *     summary: Submit contact form
  *     tags: [Contact]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, email, message]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Rahul Patel
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: rahul@example.com
+ *               message:
+ *                 type: string
+ *                 example: Need quote for full service
+ *     responses:
+ *       201:
+ *         description: Contact request submitted
+ *       400:
+ *         description: Validation error
  */
 router.post(
   '/api/contact',
@@ -26,5 +49,17 @@ router.post(
   validate,
   contactController.submitContactForm
 );
+
+/**
+ * @swagger
+ * /api/contact:
+ *   get:
+ *     summary: List contact form submissions
+ *     tags: [Contact]
+ *     responses:
+ *       200:
+ *         description: Contact submissions list
+ */
+router.get('/api/contact', contactController.listContactSubmissions);
 
 module.exports = router;

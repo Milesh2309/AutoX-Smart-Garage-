@@ -18,8 +18,16 @@ const authMiddleware = require('../middleware/authMiddleware');
  *   get:
  *     summary: List logged-in user's vehicles
  *     tags: [Vehicles]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Vehicle list
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/vehicles', authMiddleware, vehicleController.getVehicles);
+router.get('/api/vehicles/me', authMiddleware, vehicleController.getVehicles);
 
 /**
  * @swagger
@@ -27,6 +35,33 @@ router.get('/vehicles', authMiddleware, vehicleController.getVehicles);
  *   post:
  *     summary: Add a new car to the user's profile
  *     tags: [Vehicles]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [make, model, year, plate]
+ *             properties:
+ *               make:
+ *                 type: string
+ *                 example: Honda
+ *               model:
+ *                 type: string
+ *                 example: City
+ *               year:
+ *                 type: integer
+ *                 example: 2022
+ *               plate:
+ *                 type: string
+ *                 example: GJ01AB1234
+ *     responses:
+ *       201:
+ *         description: Vehicle added
+ *       400:
+ *         description: Validation error
  */
 router.post(
   '/vehicles',
@@ -45,6 +80,21 @@ router.post(
  *   get:
  *     summary: Get a vehicle by ID
  *     tags: [Vehicles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Vehicle details
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Vehicle not found
  */
 router.get(
   '/vehicles/:id',
@@ -60,6 +110,34 @@ router.get(
  *   put:
  *     summary: Update a vehicle
  *     tags: [Vehicles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               make:
+ *                 type: string
+ *               model:
+ *                 type: string
+ *               year:
+ *                 type: integer
+ *               plate:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Vehicle updated
+ *       400:
+ *         description: Validation error
  */
 router.put(
   '/vehicles/:id',
@@ -79,6 +157,19 @@ router.put(
  *   delete:
  *     summary: Remove a car from the profile
  *     tags: [Vehicles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Vehicle deleted
+ *       401:
+ *         description: Unauthorized
  */
 router.delete(
   '/vehicles/:id',

@@ -27,6 +27,22 @@ const submitContactForm = async (req, res, next) => {
   }
 };
 
+const listContactSubmissions = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const records = await db.collection('contact_submissions').find().sort({ createdAt: -1 }).toArray();
+
+    return res.status(200).json({
+      success: true,
+      count: records.length,
+      data: records
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
-  submitContactForm
+  submitContactForm,
+  listContactSubmissions
 };

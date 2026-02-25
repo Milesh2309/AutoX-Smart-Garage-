@@ -17,8 +17,12 @@ const validate = require('../middleware/validationMiddleware');
  *   get:
  *     summary: List all services
  *     tags: [Services]
+ *     responses:
+ *       200:
+ *         description: Services list
  */
 router.get('/services', servicesController.getServices);
+router.get('/api/services', servicesController.getServices);
 
 /**
  * @swagger
@@ -26,6 +30,17 @@ router.get('/services', servicesController.getServices);
  *   get:
  *     summary: Get service by ID
  *     tags: [Services]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Service details
+ *       404:
+ *         description: Service not found
  */
 router.get(
   '/services/:id',
@@ -33,6 +48,7 @@ router.get(
   validate,
   servicesController.getServiceById
 );
+router.get('/api/services/:id', servicesController.getServiceById);
 
 /**
  * @swagger
@@ -40,6 +56,28 @@ router.get(
  *   post:
  *     summary: Create a service
  *     tags: [Services]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, price, description]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Engine Oil Change
+ *               price:
+ *                 type: number
+ *                 example: 1499
+ *               description:
+ *                 type: string
+ *                 example: Complete synthetic oil replacement
+ *     responses:
+ *       201:
+ *         description: Service created
+ *       400:
+ *         description: Validation error
  */
 router.post(
   '/services',
@@ -56,6 +94,30 @@ router.post(
  *   put:
  *     summary: Update a service
  *     tags: [Services]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *               description:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Service updated
+ *       400:
+ *         description: Validation error
  */
 router.put(
   '/services/:id',
@@ -71,6 +133,15 @@ router.put(
  *   delete:
  *     summary: Delete a service
  *     tags: [Services]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Service deleted
  */
 router.delete(
   '/services/:id',
@@ -85,6 +156,16 @@ router.delete(
  *   get:
  *     summary: Search services
  *     tags: [Services]
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Search keyword
+ *     responses:
+ *       200:
+ *         description: Matching services
  */
 router.get('/services/search', servicesController.searchServices);
 
@@ -94,6 +175,15 @@ router.get('/services/search', servicesController.searchServices);
  *   get:
  *     summary: Get services by category
  *     tags: [Services]
+ *     parameters:
+ *       - in: path
+ *         name: category
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Services by category
  */
 router.get(
   '/services/category/:category',

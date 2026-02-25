@@ -17,6 +17,9 @@ const validate = require('../middleware/validationMiddleware');
  *   get:
  *     summary: List available modifications
  *     tags: [Modifications]
+ *     responses:
+ *       200:
+ *         description: Modifications list
  */
 router.get('/api/modifications', modificationController.listModifications);
 
@@ -26,6 +29,15 @@ router.get('/api/modifications', modificationController.listModifications);
  *   get:
  *     summary: Get modification details
  *     tags: [Modifications]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Modification details
  */
 router.get(
   '/api/modifications/:id',
@@ -40,6 +52,21 @@ router.get(
  *   post:
  *     summary: Create modification quote
  *     tags: [Modifications]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [userId, modId]
+ *             properties:
+ *               userId:
+ *                 type: integer
+ *               modId:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: Quote created
  */
 router.post(
   '/api/mod-quotes',
@@ -55,6 +82,9 @@ router.post(
  *   get:
  *     summary: List modification quotes
  *     tags: [Modifications]
+ *     responses:
+ *       200:
+ *         description: Quote list
  */
 router.get('/api/mod-quotes', modificationController.listModQuotes);
 
@@ -64,6 +94,24 @@ router.get('/api/mod-quotes', modificationController.listModQuotes);
  *   put:
  *     summary: Update quote status
  *     tags: [Modifications]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Quote updated
  */
 router.put(
   '/api/mod-quotes/:id',
@@ -78,6 +126,19 @@ router.put(
  *   post:
  *     summary: Create modification order
  *     tags: [Modifications]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [modQuoteId]
+ *             properties:
+ *               modQuoteId:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: Order created
  */
 router.post(
   '/api/mod-orders',

@@ -18,8 +18,19 @@ const authMiddleware = require('../middleware/authMiddleware');
  *   get:
  *     summary: View user's appointment history
  *     tags: [Bookings]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User booking list
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/bookings', authMiddleware, bookingController.getBookings);
+
+router.get('/api/bookings', bookingController.getAllBookings);
+
+router.get('/api/bookings/me', authMiddleware, bookingController.getMyBookings);
 
 /**
  * @swagger
@@ -27,6 +38,21 @@ router.get('/bookings', authMiddleware, bookingController.getBookings);
  *   get:
  *     summary: Get booking by ID
  *     tags: [Bookings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Booking details
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Booking not found
  */
 router.get(
   '/bookings/:id',
@@ -42,6 +68,30 @@ router.get(
  *   post:
  *     summary: Schedule a new service appointment
  *     tags: [Bookings]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [serviceId, scheduledAt]
+ *             properties:
+ *               serviceId:
+ *                 type: integer
+ *                 example: 2
+ *               scheduledAt:
+ *                 type: string
+ *                 format: date-time
+ *                 example: 2026-03-02T10:00:00.000Z
+ *     responses:
+ *       201:
+ *         description: Booking created
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
  */
 router.post(
   '/bookings',
@@ -52,12 +102,27 @@ router.post(
   bookingController.createBooking
 );
 
+router.post('/api/bookings', bookingController.createBookingPublic);
+
 /**
  * @swagger
  * /bookings/{id}/cancel:
  *   put:
  *     summary: Cancel an existing appointment
  *     tags: [Bookings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Booking canceled
+ *       401:
+ *         description: Unauthorized
  */
 router.put(
   '/bookings/:id/cancel',
@@ -67,12 +132,27 @@ router.put(
   bookingController.cancelBooking
 );
 
+router.put('/api/bookings/:id/cancel', authMiddleware, bookingController.cancelBooking);
+
 /**
  * @swagger
  * /bookings/{id}:
  *   delete:
  *     summary: Delete a booking
  *     tags: [Bookings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Booking deleted
+ *       401:
+ *         description: Unauthorized
  */
 router.delete(
   '/bookings/:id',
@@ -88,6 +168,9 @@ router.delete(
  *   get:
  *     summary: Get booking statistics (admin)
  *     tags: [Bookings]
+ *     responses:
+ *       200:
+ *         description: Booking stats
  */
 router.get('/bookings/stats', bookingController.getBookingStats);
 
@@ -97,6 +180,28 @@ router.get('/bookings/stats', bookingController.getBookingStats);
  *   put:
  *     summary: Update booking status
  *     tags: [Bookings]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 example: completed
+ *     responses:
+ *       200:
+ *         description: Booking status updated
+ *       400:
+ *         description: Validation error
  */
 router.put(
   '/bookings/:id/status',
@@ -112,6 +217,9 @@ router.put(
  *   get:
  *     summary: Get available time slots
  *     tags: [Bookings]
+ *     responses:
+ *       200:
+ *         description: Available slots
  */
 router.get('/bookings/slots', bookingController.getAvailableSlots);
 
@@ -121,6 +229,33 @@ router.get('/bookings/slots', bookingController.getAvailableSlots);
  *   post:
  *     summary: Reschedule booking
  *     tags: [Bookings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [newScheduledAt]
+ *             properties:
+ *               newScheduledAt:
+ *                 type: string
+ *                 format: date-time
+ *                 example: 2026-03-05T11:30:00.000Z
+ *     responses:
+ *       200:
+ *         description: Booking rescheduled
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
  */
 router.post(
   '/bookings/:id/reschedule',
@@ -130,5 +265,7 @@ router.post(
   validate,
   bookingController.rescheduleBooking
 );
+
+router.post('/api/bookings/:id/reschedule', authMiddleware, bookingController.rescheduleBooking);
 
 module.exports = router;

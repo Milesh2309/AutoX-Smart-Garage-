@@ -17,6 +17,9 @@ const validate = require('../middleware/validationMiddleware');
  *   get:
  *     summary: List all parts
  *     tags: [Inventory]
+ *     responses:
+ *       200:
+ *         description: Inventory parts list
  */
 router.get('/api/inventory', inventoryController.listInventory);
 
@@ -26,6 +29,23 @@ router.get('/api/inventory', inventoryController.listInventory);
  *   post:
  *     summary: Add new part
  *     tags: [Inventory]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, price, stock]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *               stock:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: Part added
  */
 router.post(
   '/api/inventory',
@@ -42,6 +62,24 @@ router.post(
  *   put:
  *     summary: Update part stock
  *     tags: [Inventory]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               stock:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: Part stock updated
  */
 router.put(
   '/api/inventory/:id',
@@ -56,6 +94,15 @@ router.put(
  *   delete:
  *     summary: Delete part
  *     tags: [Inventory]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Part deleted
  */
 router.delete(
   '/api/inventory/:id',
@@ -70,6 +117,9 @@ router.delete(
  *   get:
  *     summary: Get low stock alerts
  *     tags: [Inventory]
+ *     responses:
+ *       200:
+ *         description: Low stock items
  */
 router.get('/api/inventory/low-stock', inventoryController.getLowStockAlerts);
 
@@ -79,6 +129,23 @@ router.get('/api/inventory/low-stock', inventoryController.getLowStockAlerts);
  *   post:
  *     summary: Create parts order
  *     tags: [Inventory]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [partId, quantity, supplier]
+ *             properties:
+ *               partId:
+ *                 type: integer
+ *               quantity:
+ *                 type: integer
+ *               supplier:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Parts order created
  */
 router.post(
   '/api/inventory/orders',

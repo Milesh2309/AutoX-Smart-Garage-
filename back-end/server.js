@@ -24,6 +24,10 @@ const modificationRoutes = require('./routes/modificationRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
+const repairRoutes = require('./routes/repairRoutes');
+const packageRoutes = require('./routes/packageRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
+const mechanicRoutes = require('./routes/mechanicRoutes');
 
 app.use('/', userRoutes);
 app.use('/', billingRoutes);
@@ -39,6 +43,10 @@ app.use('/', modificationRoutes);
 app.use('/', analyticsRoutes);
 app.use('/', notificationRoutes);
 app.use('/', settingsRoutes);
+app.use('/', repairRoutes);
+app.use('/', packageRoutes);
+app.use('/', uploadRoutes);
+app.use('/', mechanicRoutes);
 
 // Swagger Setup
 const options = {
@@ -48,6 +56,15 @@ const options = {
       title: "User API",
       version: "1.0.0",
       description: "Express API with Routes and Controller"
+    },
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT"
+        }
+      }
     },
     servers: [
       {

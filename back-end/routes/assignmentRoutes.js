@@ -17,6 +17,21 @@ const validate = require('../middleware/validationMiddleware');
  *   post:
  *     summary: Assign mechanic to booking
  *     tags: [Assignments]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [bookingId, mechanicId]
+ *             properties:
+ *               bookingId:
+ *                 type: integer
+ *               mechanicId:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: Assignment created
  */
 router.post(
   '/api/assignments',
@@ -32,6 +47,15 @@ router.post(
  *   get:
  *     summary: Get assignment details
  *     tags: [Assignments]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Assignment details
  */
 router.get(
   '/api/assignments/:id',
@@ -46,6 +70,25 @@ router.get(
  *   put:
  *     summary: Update assignment status
  *     tags: [Assignments]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 example: in-progress
+ *     responses:
+ *       200:
+ *         description: Assignment updated
  */
 router.put(
   '/api/assignments/:id',
@@ -60,6 +103,15 @@ router.put(
  *   delete:
  *     summary: Remove assignment
  *     tags: [Assignments]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Assignment removed
  */
 router.delete(
   '/api/assignments/:id',
@@ -74,6 +126,15 @@ router.delete(
  *   get:
  *     summary: Get mechanic assignments
  *     tags: [Assignments]
+ *     parameters:
+ *       - in: path
+ *         name: mechanicId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Mechanic assignment list
  */
 router.get(
   '/api/assignments/mechanic/:mechanicId',
@@ -88,6 +149,15 @@ router.get(
  *   get:
  *     summary: Get job progress
  *     tags: [Assignments]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Progress details
  */
 router.get(
   '/api/assignments/:id/progress',
