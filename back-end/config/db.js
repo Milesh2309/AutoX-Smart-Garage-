@@ -17,6 +17,8 @@ const connectDB = async () => {
       deprecationErrors: true,
     },
     serverSelectionTimeoutMS: 10000,
+    tls: true,
+    tlsAllowInvalidCertificates: true,
   });
 
   await client.connect();

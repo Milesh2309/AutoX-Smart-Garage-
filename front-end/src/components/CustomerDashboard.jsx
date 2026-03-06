@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import CommonTable from './CommonTable.jsx';
 import PaymentGateway from './PaymentGateway';
 import CustomerBillingHistory from './CustomerBillingHistory';
 import BookingWizard from './BookingWizard';
+import { servicesApi, packagesApi, bookingApi, authApi, uploadApi } from '../utils/apiService';
 import './CustomerDashboard.css';
 
 function CustomerDashboard() {
@@ -63,223 +64,106 @@ function CustomerDashboard() {
     registration: ''
   });
 
+  // API-driven state
+  const [allServices, setAllServices] = useState([]);
+  const [servicePackages, setServicePackages] = useState([]);
+  const [serviceHistory, setServiceHistory] = useState([]);
+  const [upcomingBookings, setUpcomingBookings] = useState([]);
+  const [memberSince, setMemberSince] = useState('');
+  const [userRating, setUserRating] = useState('—');
+
+  // Load data from APIs
+  const loadDashboardData = useCallback(async () => {
+    try {
+      const svcRes = await servicesApi.list();
+      const svcList = svcRes?.data || svcRes || [];
+      // Preserve local images/icons as fallback
+      const defaultImages = [
+        '/img/web images/regular services/pexels-19x14-8478233.jpg',
+        '/img/web images/break dwon/pexels-edurawpro-21831855.jpg',
+        '/img/web images/modificasoin/pexels-bylukemiller-32725702.jpg',
+        '/img/web images/regular services/pexels-tami-19499386.jpg',
+        '/img/web images/break dwon/pexels-a-q-91521018-18863497.jpg',
+        '/img/web images/regular services/pexels-artempodrez-8986139.jpg',
+        '/img/web images/break dwon/pexels-jonathan-reynaga-861774-17429096.jpg',
+        '/img/web images/break dwon/pexels-mikebirdy-943930.jpg',
+      ];
+      setAllServices(svcList.map((s, i) => ({
+        id: s._id || s.id || i + 1,
+        title: s.title || s.name || 'Service',
+        icon: s.icon || '🚗',
+        description: s.description || '',
+        features: s.features || [],
+        image: s.image || defaultImages[i % defaultImages.length],
+      })));
+    } catch { /* keep empty on failure */ }
+
+    try {
+      const pkgRes = await packagesApi.getMyPackages();
+      const pkgs = pkgRes?.data || pkgRes || [];
+      const colors = ['#0EA5E9', '#F59E0B', '#DC2626'];
+      setServicePackages(pkgs.map((p, i) => ({
+        ...p,
+        id: p._id || p.id || p.packageId || i,
+        color: p.color || colors[i % colors.length],
+        services: p.services || p.features || [],
+        servicesUsed: p.servicesUsed || 0,
+        totalServices: p.totalServices || p.services?.length || 5,
+        nextDue: p.nextDue || '—',
+        status: p.status || 'Active',
+        originalPrice: p.originalPrice || p.price,
+      })));
+    } catch { /* no packages */ }
+
+    try {
+      const bRes = await bookingApi.listMine();
+      const bookings = bRes?.data || bRes || [];
+      setServiceHistory(bookings.filter(b => b.status === 'Completed').map(b => ({
+        id: b._id || b.id,
+        date: b.date || (b.scheduledAt ? new Date(b.scheduledAt).toISOString().split('T')[0] : ''),
+        service: b.serviceName || b.service || '',
+        amount: b.amount ? `₹${b.amount}` : '—',
+        status: b.status,
+        mechanic: b.mechanicName || b.mechanic || '—',
+      })));
+      setUpcomingBookings(bookings.filter(b => b.status !== 'Completed' && b.status !== 'Cancelled').map(b => ({
+        id: b._id || b.id,
+        service: b.serviceName || b.service || '',
+        date: b.date || (b.scheduledAt ? new Date(b.scheduledAt).toISOString().split('T')[0] : ''),
+        time: b.time || (b.scheduledAt ? new Date(b.scheduledAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : ''),
+        status: b.status || 'Confirmed',
+        mechanic: b.mechanicName || b.mechanic || '—',
+      })));
+    } catch { /* keep empty */ }
+
+    try {
+      const meRes = await authApi.me();
+      const profile = meRes?.data || meRes;
+      if (profile) {
+        if (profile.fullName || profile.name) setProfileName(profile.fullName || profile.name);
+        if (profile.profilePhotoUrl || profile.profilePhoto) setProfilePhoto(profile.profilePhotoUrl || profile.profilePhoto);
+        if (profile.rating) setUserRating(profile.rating);
+        const created = profile.createdAt || profile.joinDate;
+        if (created) setMemberSince(`Member since ${new Date(created).getFullYear()}`);
+        const pd = {
+          phone: profile.phone || '',
+          city: profile.city || '',
+          address: profile.address || '',
+          vehicle: profile.vehicle || '',
+          registration: profile.registration || '',
+        };
+        setProfileData(pd);
+        setSavedProfileData(pd);
+      }
+    } catch { /* profile load failed */ }
+  }, []);
+
+  useEffect(() => { loadDashboardData(); }, [loadDashboardData]);
+
   if (!user) {
     navigate('/login', { replace: true });
     return null;
   }
-
-  // All available services matching the main services page
-  const allServices = [
-    {
-      id: 1,
-      title: "Smart Garage Services",
-      icon: "🚗",
-      description: "Complete vehicle diagnostics, maintenance, and scheduled servicing by certified technicians.",
-      features: [
-        "Full vehicle inspection",
-        "Oil change & filter replacement",
-        "Brake system check",
-        "Battery health check",
-        "Tire rotation & alignment"
-      ],
-      image: "/img/web images/regular services/pexels-19x14-8478233.jpg"
-    },
-    {
-      id: 2,
-      title: "Vehicle Breakdown Assistance",
-      icon: "🛠",
-      description: "24/7 roadside support for breakdowns, tire changes, fuel delivery, and quick fixes.",
-      features: [
-        "24/7 Emergency support",
-        "On-spot tire change",
-        "Battery jump-start",
-        "Fuel delivery service",
-        "Towing assistance"
-      ],
-      image: "/img/web images/break dwon/pexels-edurawpro-21831855.jpg"
-    },
-    {
-      id: 3,
-      title: "Vehicle Modification",
-      icon: "⚙",
-      description: "Expert custom modifications, upgrades, and tuning to enhance performance and aesthetics.",
-      features: [
-        "Performance tuning",
-        "Custom body kits",
-        "Exhaust upgrades",
-        "Lighting modifications",
-        "Interior customization"
-      ],
-      image: "/img/web images/modificasoin/pexels-bylukemiller-32725702.jpg"
-    },
-    {
-      id: 4,
-      title: "Car & Bike Repair",
-      icon: "🔧",
-      description: "Comprehensive repair services for all vehicle types with genuine parts and warranty.",
-      features: [
-        "Engine repair & overhaul",
-        "Transmission services",
-        "AC repair & service",
-        "Electrical diagnostics",
-        "Body repair & painting"
-      ],
-      image: "/img/web images/regular services/pexels-tami-19499386.jpg"
-    },
-    {
-      id: 5,
-      title: "Emergency Roadside Help",
-      icon: "🚘",
-      description: "Immediate assistance for accidents, mechanical failures, and emergency towing services.",
-      features: [
-        "Instant emergency response",
-        "Accident support",
-        "Emergency towing",
-        "Lockout assistance",
-        "Flat tire replacement"
-      ],
-      image: "/img/web images/break dwon/pexels-a-q-91521018-18863497.jpg"
-    },
-    {
-      id: 6,
-      title: "Vehicle Detailing",
-      icon: "✨",
-      description: "Professional cleaning, polishing, and detailing to make your vehicle look brand new.",
-      features: [
-        "Interior deep cleaning",
-        "Exterior polishing & wax",
-        "Paint protection coating",
-        "Ceramic coating",
-        "Odor removal treatment"
-      ],
-      image: "/img/web images/regular services/pexels-artempodrez-8986139.jpg"
-    },
-    {
-      id: 7,
-      title: "Pre-Purchase Inspection",
-      icon: "🔍",
-      description: "Detailed inspection report before buying a used vehicle to ensure quality and safety.",
-      features: [
-        "Complete vehicle assessment",
-        "Mechanical inspection",
-        "Body & paint check",
-        "Documentation verification",
-        "Test drive evaluation"
-      ],
-      image: "/img/web images/break dwon/pexels-jonathan-reynaga-861774-17429096.jpg"
-    },
-    {
-      id: 8,
-      title: "Tire & Wheel Services",
-      icon: "⚪",
-      description: "Complete tire solutions including replacement, alignment, balancing, and wheel care.",
-      features: [
-        "Tire replacement",
-        "Wheel alignment",
-        "Wheel balancing",
-        "Puncture repair",
-        "Tire rotation"
-      ],
-      image: "/img/web images/break dwon/pexels-mikebirdy-943930.jpg"
-    }
-  ];
-
-  // Mock data for service packages
-  const servicePackages = [
-    {
-      id: 1,
-      name: 'Basic Service Package',
-      icon: '🔧',
-      price: '₹2,499',
-      originalPrice: '₹3,500',
-      status: 'Active',
-      validity: '6 Months',
-      nextDue: '2026-02-15',
-      servicesUsed: 2,
-      totalServices: 5,
-      description: 'Essential maintenance for optimal vehicle performance',
-      services: ['Oil Change & Filter Replacement', 'Brake System Inspection', 'Tire Rotation', 'Battery Health Check', 'Car Wash & Vacuum'],
-      color: '#0EA5E9'
-    },
-    {
-      id: 2,
-      name: 'Premium Care Package',
-      icon: '⭐',
-      price: '₹5,999',
-      originalPrice: '₹8,500',
-      status: 'Active',
-      validity: '12 Months',
-      nextDue: '2026-03-20',
-      servicesUsed: 1,
-      totalServices: 8,
-      description: 'Comprehensive care with priority support and detailing',
-      services: ['Complete Vehicle Diagnostics', 'Oil & Filter Service', 'Brake Service', 'AC Service & Gas Refill', 'Tire Care Package', 'Interior & Exterior Detailing', 'Battery Replacement (if needed)', 'Priority 24/7 Support'],
-      color: '#F59E0B'
-    },
-    {
-      id: 3,
-      name: '24/7 Breakdown Assistance',
-      icon: '🚨',
-      price: '₹299/month',
-      originalPrice: '₹499',
-      status: 'Active',
-      validity: 'Monthly Subscription',
-      nextDue: 'Active',
-      servicesUsed: 0,
-      totalServices: 'Unlimited',
-      description: 'Round-the-clock emergency support for peace of mind',
-      services: ['24/7 Emergency Helpline', 'On-Spot Repairs', 'Free Towing (up to 50km)', 'Battery Jump Start', 'Flat Tire Assistance', 'Fuel Delivery', 'Lockout Service'],
-      color: '#DC2626'
-    }
-  ];
-
-  // Mock data for service history
-  const serviceHistory = [
-    {
-      id: 1,
-      date: '2026-01-10',
-      service: 'Regular Service',
-      amount: '₹500',
-      status: 'Completed',
-      mechanic: 'Rajesh Patel'
-    },
-    {
-      id: 2,
-      date: '2025-12-25',
-      service: 'Breakdown Service',
-      amount: '₹1200',
-      status: 'Completed',
-      mechanic: 'Vikram Singh'
-    },
-    {
-      id: 3,
-      date: '2025-12-10',
-      service: 'Tire Change',
-      amount: '₹800',
-      status: 'Completed',
-      mechanic: 'Rajesh Patel'
-    },
-    {
-      id: 4,
-      date: '2025-11-15',
-      service: 'Modification Consultation',
-      amount: '₹2000',
-      status: 'Completed',
-      mechanic: 'Arun Kumar'
-    }
-  ];
-
-  // Mock data for bookings
-  const upcomingBookings = [
-    {
-      id: 1,
-      service: 'Premium Service',
-      date: '2026-02-15',
-      time: '10:00 AM',
-      status: 'Confirmed',
-      mechanic: 'Rajesh Patel'
-    }
-  ];
 
   const navItems = [
     { id: 'overview', label: 'Dashboard', icon: '📊' },
@@ -292,12 +176,15 @@ function CustomerDashboard() {
     { id: 'profile', label: 'Profile', icon: '👤' },
   ];
 
-  const handlePhotoUpload = (e) => {
+  const handlePhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         setProfilePhoto(reader.result);
+        try {
+          await uploadApi.profilePhoto({ photo: reader.result });
+        } catch { /* upload failed – photo still shown locally */ }
       };
       reader.readAsDataURL(file);
     }
@@ -317,9 +204,14 @@ function CustomerDashboard() {
     }));
   };
 
-  const handleSaveProfile = () => {
-    setSavedProfileData(profileData);
-    alert('All changes saved successfully! ✓');
+  const handleSaveProfile = async () => {
+    try {
+      await authApi.updateProfile({ ...profileData, name: profileName });
+      setSavedProfileData(profileData);
+      alert('All changes saved successfully! ✓');
+    } catch {
+      alert('Failed to save profile. Please try again.');
+    }
   };
 
   const handleDiscardChanges = () => {
@@ -411,7 +303,7 @@ function CustomerDashboard() {
               <div className="stat-card">
                 <div className="stat-icon">⭐</div>
                 <div className="stat-info">
-                  <h3>4.8</h3>
+                  <h3>{userRating}</h3>
                   <p>Your Rating</p>
                 </div>
               </div>
@@ -421,6 +313,11 @@ function CustomerDashboard() {
             <div className="content-card">
               <h2>Your Active Packages</h2>
               <div className="packages-grid-overview">
+                {servicePackages.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '30px', color: '#6B7280' }}>
+                    <p>No active packages. <span style={{ color: '#0EA5E9', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => navigate('/view-packages')}>Browse packages</span></p>
+                  </div>
+                )}
                 {servicePackages.map(pkg => (
                   <div key={pkg.id} className="overview-package-card" style={{ borderLeftColor: pkg.color }}>
                     <div className="overview-package-icon" style={{ background: `${pkg.color}15` }}>
@@ -541,6 +438,20 @@ function CustomerDashboard() {
             </div>
 
             <div className="packages-container">
+              {servicePackages.length === 0 && (
+                <div className="empty-state" style={{ textAlign: 'center', padding: '60px 20px', gridColumn: '1 / -1' }}>
+                  <div style={{ fontSize: '64px', marginBottom: '16px' }}>📦</div>
+                  <h3 style={{ marginBottom: '8px', color: '#374151' }}>No Active Packages</h3>
+                  <p style={{ color: '#6B7280', marginBottom: '24px' }}>You haven't subscribed to any service packages yet.</p>
+                  <button
+                    className="btn-primary"
+                    style={{ padding: '12px 32px', fontSize: '16px', borderRadius: '12px', cursor: 'pointer' }}
+                    onClick={() => navigate('/view-packages')}
+                  >
+                    🛒 Browse Packages
+                  </button>
+                </div>
+              )}
               {servicePackages.map(pkg => (
                 <div key={pkg.id} className="premium-package-card" style={{ borderTopColor: pkg.color }}>
                   <div className="package-card-header">
@@ -560,7 +471,7 @@ function CustomerDashboard() {
                     <div className="price-display">
                       <span className="current-price">{pkg.price}</span>
                       <span className="original-price">{pkg.originalPrice}</span>
-                      <span className="savings-badge">Save ₹{parseInt(pkg.originalPrice.replace(/[^0-9]/g, '')) - parseInt(pkg.price.replace(/[^0-9]/g, ''))}</span>
+                      <span className="savings-badge">Save ₹{Math.max(0, parseInt(String(pkg.originalPrice).replace(/[^0-9]/g, '') || '0') - parseInt(String(pkg.price).replace(/[^0-9]/g, '') || '0'))}</span>
                     </div>
                     <div className="validity-badge">
                       <span className="validity-icon">⏰</span>
@@ -753,7 +664,7 @@ function CustomerDashboard() {
                         </div>
                       )}
                     </div>
-                    <p className="profile-member-since">Member since 2024</p>
+                    <p className="profile-member-since">{memberSince || 'Member'}</p>
                   </div>
                 </div>
               </div>
@@ -1193,8 +1104,12 @@ function CustomerDashboard() {
                   </button>
                   <button 
                     className="btn-primary"
-                    onClick={() => {
-                      alert('Booking rescheduled successfully! Confirmation email will be sent.');
+                    onClick={async () => {
+                      try {
+                        await bookingApi.reschedule(selectedBooking.id, { date: selectedBooking.date, time: selectedBooking.time });
+                        alert('Booking rescheduled successfully! Confirmation email will be sent.');
+                        loadDashboardData();
+                      } catch { alert('Reschedule failed. Please try again.'); }
                       setShowBookingModal(false);
                     }}
                   >
@@ -1292,8 +1207,12 @@ function CustomerDashboard() {
                   </button>
                   <button 
                     className="btn-danger"
-                    onClick={() => {
-                      alert('Booking cancelled successfully! Refund will be processed soon.');
+                    onClick={async () => {
+                      try {
+                        await bookingApi.cancel(selectedBooking.id);
+                        alert('Booking cancelled successfully! Refund will be processed soon.');
+                        loadDashboardData();
+                      } catch { alert('Cancellation failed. Please try again.'); }
                       setShowBookingModal(false);
                     }}
                   >

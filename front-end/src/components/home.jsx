@@ -457,6 +457,16 @@ function Home() {
                 <h3>Warranty Coverage</h3>
                 <p>6-12 months warranty on all services and repairs</p>
               </div>
+              <div className="feature-box">
+                <div className="feature-icon">🚗</div>
+                <h3>Free Pickup & Drop</h3>
+                <p>Complimentary vehicle pickup and drop-off service at your doorstep</p>
+              </div>
+              <div className="feature-box">
+                <div className="feature-icon">📊</div>
+                <h3>Digital Reports</h3>
+                <p>Detailed digital inspection reports with photos and recommendations</p>
+              </div>
             </div>
           </div>
 
@@ -486,6 +496,42 @@ function Home() {
                 <div className="showcase-icon">🔨</div>
                 <h3>Repair Services</h3>
                 <p>Engine repairs, transmission fixes, suspension work, electrical repairs, and collision body work</p>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
+              </div>
+              <div className="service-showcase-card">
+                <div className="showcase-icon">🎨</div>
+                <h3>Denting & Painting</h3>
+                <p>Professional dent removal, scratch repair, full body painting, and ceramic coating services</p>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
+              </div>
+              <div className="service-showcase-card">
+                <div className="showcase-icon">❄️</div>
+                <h3>AC & Electrical</h3>
+                <p>AC gas refill, compressor repair, wiring fixes, headlight upgrades, and sensor diagnostics</p>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
+              </div>
+              <div className="service-showcase-card">
+                <div className="showcase-icon">🛞</div>
+                <h3>Tyre & Wheel Care</h3>
+                <p>Tyre replacement, wheel alignment, balancing, puncture repair, and alloy wheel refurbishment</p>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
+              </div>
+              <div className="service-showcase-card">
+                <div className="showcase-icon">🧽</div>
+                <h3>Car Detailing</h3>
+                <p>Interior deep cleaning, exterior polish, upholstery care, engine bay wash, and odor treatment</p>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
+              </div>
+              <div className="service-showcase-card">
+                <div className="showcase-icon">🔋</div>
+                <h3>Battery & Charging</h3>
+                <p>Battery testing, replacement, jumpstart service, alternator repair, and EV charging solutions</p>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
+              </div>
+              <div className="service-showcase-card">
+                <div className="showcase-icon">🪟</div>
+                <h3>Glass & Windshield</h3>
+                <p>Windshield replacement, chip repair, window tinting, and rear glass installation services</p>
                 <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
               </div>
             </div>
@@ -618,6 +664,18 @@ function Home() {
                 <h3>Hours</h3>
                 <p>Always Open</p>
                 <p className="contact-link">24/7 Available</p>
+              </div>
+              <div className="contact-card">
+                <div className="contact-icon">💳</div>
+                <h3>Payment Options</h3>
+                <p>Easy & Secure</p>
+                <p className="contact-link">Cash, UPI, Card, EMI</p>
+              </div>
+              <div className="contact-card">
+                <div className="contact-icon">🎧</div>
+                <h3>Live Chat</h3>
+                <p>Instant Help</p>
+                <a href="/contact" className="contact-link">Start Chat →</a>
               </div>
             </div>
           </div>

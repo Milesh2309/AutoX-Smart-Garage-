@@ -46,7 +46,7 @@ function BookService() {
       customerName: formData.name,
       email: formData.email,
       phone: formData.phone,
-      serviceId: formData.serviceType,
+      serviceId: Number.isFinite(Number(formData.serviceType)) ? Number(formData.serviceType) : null,
       serviceName: serviceTypes.find(st => st.value === formData.serviceType)?.label || formData.serviceType,
       vehicleNumber: formData.vehicle,
       date: formData.preferredDate,

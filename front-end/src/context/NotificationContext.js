@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
+import { notificationApi } from '../utils/apiService';
 
 const NotificationContext = createContext({
   notifications: [],
@@ -16,23 +17,46 @@ export function NotificationProvider({ children }) {
 
   // Load notifications from localStorage on mount
   useEffect(() => {
-    if (user) {
-      const storageKey = `notifications_${role}_${user.id}`;
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        try {
-          setNotifications(JSON.parse(stored));
-        } catch (e) {
-          console.error('Failed to parse notifications:', e);
+    let active = true;
+
+    const loadNotifications = async () => {
+      if (!user) {
+        if (active) {
+          setNotifications([]);
         }
-      } else {
-        // Add some demo notifications on first load
-        const demoNotifications = getDemoNotifications(role);
-        setNotifications(demoNotifications);
+        return;
       }
-    } else {
-      setNotifications([]);
-    }
+
+      try {
+        const response = await notificationApi.listMine();
+        const records = Array.isArray(response?.data) ? response.data : [];
+        if (active) {
+          setNotifications(records);
+        }
+      } catch (_error) {
+        const storageKey = `notifications_${role}_${user.id}`;
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          try {
+            if (active) {
+              setNotifications(JSON.parse(stored));
+            }
+          } catch (_e) {
+            if (active) {
+              setNotifications([]);
+            }
+          }
+        } else if (active) {
+          setNotifications(getDemoNotifications(role));
+        }
+      }
+    };
+
+    loadNotifications();
+
+    return () => {
+      active = false;
+    };
   }, [user, role]);
 
   // Save notifications to localStorage whenever they change
@@ -126,7 +150,7 @@ export function NotificationProvider({ children }) {
     }
   };
 
-  const addNotification = (notification) => {
+  const addNotification = async (notification) => {
     let icon = notification.icon;
     if (!icon) {
       if (notification.type === 'booking') icon = '📅';
@@ -143,18 +167,51 @@ export function NotificationProvider({ children }) {
       ...notification,
       icon,
     };
+
+    try {
+      if (user?.id) {
+        const response = await notificationApi.send({
+          userId: Number(user.id),
+          title: newNotification.title,
+          message: newNotification.message,
+          type: newNotification.type,
+        });
+
+        const createdNotification = response?.id ? response : newNotification;
+        setNotifications((prev) => [createdNotification, ...prev]);
+        return createdNotification;
+      }
+    } catch (_error) {
+      // fallback to local notification list
+    }
+
     setNotifications((prev) => [newNotification, ...prev]);
+    return newNotification;
   };
 
-  const markAsRead = (notificationId) => {
-    setNotifications((prev) =>
-      prev.map((notif) =>
-        notif.id === notificationId ? { ...notif, read: true } : notif
-      )
-    );
+  const markAsRead = async (notificationId) => {
+    try {
+      await notificationApi.markRead(notificationId);
+    } catch (_error) {
+      // fallback to local update
+    }
+
+    setNotifications((prev) => prev.map((notif) =>
+      notif.id === notificationId ? { ...notif, read: true } : notif
+    ));
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
+    try {
+      const response = await notificationApi.markAllRead();
+      if (response?.success && Array.isArray(response?.data)) {
+        setNotifications(response.data);
+        return;
+      }
+    } catch (_error) {
+      // fallback to local update
+    }
+
     setNotifications((prev) => prev.map((notif) => ({ ...notif, read: true })));
   };
 

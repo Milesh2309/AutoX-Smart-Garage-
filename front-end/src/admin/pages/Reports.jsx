@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Reports.css';
+import { analyticsApi } from '../../utils/apiService';
 
 function Reports() {
   const [stats, setStats] = useState({
@@ -13,22 +14,61 @@ function Reports() {
     totalModifications: 0,
   });
 
-  // Simulated data - replace with API calls
+  const [keyMetrics, setKeyMetrics] = useState({
+    efficiency: '0%',
+    avgBookingValue: '₹0',
+    satisfaction: '0/5',
+    inventoryUsage: '0%',
+    avgCompletionTime: '0 hrs',
+  });
+
+  const [revenue, setRevenue] = useState({
+    thisMonth: '₹0',
+    lastMonth: '₹0',
+    growth: '0%',
+    projected: '₹0',
+  });
+
+  const [goals, setGoals] = useState({
+    userAcquisition: 0,
+    mechanicUtilization: 0,
+    serviceBookings: 0,
+    customerRetention: 0,
+  });
+
   useEffect(() => {
     const fetchReports = async () => {
       try {
-        // Mock data - replace with actual API calls
-        const mockStats = {
-          totalUsers: 245,
-          totalMechanics: 18,
-          totalVehicles: 312,
-          totalParts: 1560,
-          totalBookings: 892,
-          totalServices: 156,
-          totalBreakdowns: 48,
-          totalModifications: 67,
-        };
-        setStats(mockStats);
+        const [dashRes, revRes] = await Promise.allSettled([
+          analyticsApi.dashboard(),
+          analyticsApi.revenue(),
+        ]);
+
+        if (dashRes.status === 'fulfilled') {
+          const d = dashRes.value?.data || dashRes.value || {};
+          setStats({
+            totalUsers: d.totalUsers || 0,
+            totalMechanics: d.totalMechanics || 0,
+            totalVehicles: d.totalVehicles || 0,
+            totalParts: d.totalParts || 0,
+            totalBookings: d.totalBookings || 0,
+            totalServices: d.totalServices || 0,
+            totalBreakdowns: d.totalBreakdowns || 0,
+            totalModifications: d.totalModifications || 0,
+          });
+          if (d.keyMetrics) setKeyMetrics(d.keyMetrics);
+          if (d.goals) setGoals(d.goals);
+        }
+
+        if (revRes.status === 'fulfilled') {
+          const r = revRes.value?.data || revRes.value || {};
+          setRevenue({
+            thisMonth: r.thisMonth || '₹0',
+            lastMonth: r.lastMonth || '₹0',
+            growth: r.growth || '0%',
+            projected: r.projected || '₹0',
+          });
+        }
       } catch (error) {
         console.error('Error fetching reports:', error);
       }
@@ -138,23 +178,23 @@ function Reports() {
             </div>
             <div className="metric-item">
               <label>Mechanics Efficiency Rate</label>
-              <span className="metric-value">92%</span>
+              <span className="metric-value">{keyMetrics.efficiency}</span>
             </div>
             <div className="metric-item">
               <label>Average Booking Value</label>
-              <span className="metric-value">₹2,450</span>
+              <span className="metric-value">{keyMetrics.avgBookingValue}</span>
             </div>
             <div className="metric-item">
               <label>Customer Satisfaction</label>
-              <span className="metric-value">4.8/5</span>
+              <span className="metric-value">{keyMetrics.satisfaction}</span>
             </div>
             <div className="metric-item">
               <label>Parts Inventory Usage</label>
-              <span className="metric-value">68%</span>
+              <span className="metric-value">{keyMetrics.inventoryUsage}</span>
             </div>
             <div className="metric-item">
               <label>Avg Service Completion Time</label>
-              <span className="metric-value">2.3 hrs</span>
+              <span className="metric-value">{keyMetrics.avgCompletionTime}</span>
             </div>
           </div>
         </div>
@@ -164,19 +204,19 @@ function Reports() {
           <div className="revenue-grid">
             <div className="revenue-item">
               <label>This Month</label>
-              <span className="revenue-value">₹2,34,560</span>
+              <span className="revenue-value">{revenue.thisMonth}</span>
             </div>
             <div className="revenue-item">
               <label>Last Month</label>
-              <span className="revenue-value">₹1,89,340</span>
+              <span className="revenue-value">{revenue.lastMonth}</span>
             </div>
             <div className="revenue-item">
               <label>Growth</label>
-              <span className="revenue-value">+23.8%</span>
+              <span className="revenue-value">{revenue.growth}</span>
             </div>
             <div className="revenue-item">
               <label>Projected Annual</label>
-              <span className="revenue-value">₹28,14,720</span>
+              <span className="revenue-value">{revenue.projected}</span>
             </div>
           </div>
         </div>
@@ -187,37 +227,37 @@ function Reports() {
             <div className="goal-item">
               <div className="goal-header">
                 <span>User Acquisition</span>
-                <span className="goal-progress">75%</span>
+                <span className="goal-progress">{goals.userAcquisition}%</span>
               </div>
               <div className="progress-bar">
-                <div className="progress-fill" style={{ width: '75%' }}></div>
+                <div className="progress-fill" style={{ width: `${goals.userAcquisition}%` }}></div>
               </div>
             </div>
             <div className="goal-item">
               <div className="goal-header">
                 <span>Mechanic Utilization</span>
-                <span className="goal-progress">88%</span>
+                <span className="goal-progress">{goals.mechanicUtilization}%</span>
               </div>
               <div className="progress-bar">
-                <div className="progress-fill" style={{ width: '88%' }}></div>
+                <div className="progress-fill" style={{ width: `${goals.mechanicUtilization}%` }}></div>
               </div>
             </div>
             <div className="goal-item">
               <div className="goal-header">
                 <span>Service Bookings</span>
-                <span className="goal-progress">92%</span>
+                <span className="goal-progress">{goals.serviceBookings}%</span>
               </div>
               <div className="progress-bar">
-                <div className="progress-fill" style={{ width: '92%' }}></div>
+                <div className="progress-fill" style={{ width: `${goals.serviceBookings}%` }}></div>
               </div>
             </div>
             <div className="goal-item">
               <div className="goal-header">
                 <span>Customer Retention</span>
-                <span className="goal-progress">85%</span>
+                <span className="goal-progress">{goals.customerRetention}%</span>
               </div>
               <div className="progress-bar">
-                <div className="progress-fill" style={{ width: '85%' }}></div>
+                <div className="progress-fill" style={{ width: `${goals.customerRetention}%` }}></div>
               </div>
             </div>
           </div>

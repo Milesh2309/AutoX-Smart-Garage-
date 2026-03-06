@@ -33,7 +33,9 @@ import { NotificationProvider } from "./context/NotificationContext";
 
 // Simple route transition to animate page changes when navigating from the navbar
 function ProtectedAdminRoute({ children }) {
-  const { role } = useAuth();
+  const { role, authLoading } = useAuth();
+  
+  if (authLoading) return <div className="auth-loading">Loading...</div>;
   
   if (role !== 'admin') {
     return <Navigate to="/login" replace />;
@@ -43,7 +45,9 @@ function ProtectedAdminRoute({ children }) {
 }
 
 function ProtectedCustomerRoute({ children }) {
-  const { role } = useAuth();
+  const { role, authLoading } = useAuth();
+  
+  if (authLoading) return <div className="auth-loading">Loading...</div>;
   
   if (role !== 'user') {
     return <Navigate to="/login" replace />;

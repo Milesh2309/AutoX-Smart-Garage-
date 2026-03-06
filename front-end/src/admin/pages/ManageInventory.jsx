@@ -1,21 +1,34 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import CommonTable from '../../components/CommonTable.jsx';
+import { inventoryApi } from '../../utils/apiService';
 
 function ManageInventory() {
-  const [inventory, setInventory] = useState([
-    { id: 1, name: 'Engine Oil 5W-30 (4L)', sku: 'FL-ENG-530', category: 'Fluids', stock: 45, reorderLevel: 20, price: 650, supplier: 'Mobil', location: 'Aisle A1', status: 'In Stock' },
-    { id: 2, name: 'Front Brake Pads - Sedan', sku: 'BRK-FRT-SED', category: 'Brakes', stock: 16, reorderLevel: 15, price: 1800, supplier: 'Brembo', location: 'Aisle B2', status: 'Low Stock' },
-    { id: 3, name: 'Spark Plug (4 pack)', sku: 'IGN-SPK-4P', category: 'Ignition', stock: 8, reorderLevel: 10, price: 950, supplier: 'Bosch', location: 'Aisle C3', status: 'Low Stock' },
-    { id: 4, name: 'Air Filter - SUV', sku: 'FLT-AIR-SUV', category: 'Filters', stock: 0, reorderLevel: 8, price: 720, supplier: 'Mann', location: 'Aisle D1', status: 'Out of Stock' },
-    { id: 5, name: 'Coolant (1L)', sku: 'FLT-COOL-1L', category: 'Fluids', stock: 32, reorderLevel: 12, price: 420, supplier: 'Castrol', location: 'Aisle A3', status: 'In Stock' },
-    { id: 6, name: 'Drive Belt - Alt', sku: 'ENG-BLT-ALT', category: 'Engine', stock: 12, reorderLevel: 6, price: 1250, supplier: 'Gates', location: 'Aisle E1', status: 'In Stock' },
-    { id: 7, name: 'ECU Tuning Module', sku: 'MOD-ECU-TUNE', category: 'Modifications', stock: 6, reorderLevel: 4, price: 18500, supplier: 'RaceChip', location: 'Aisle M1', status: 'In Stock' },
-    { id: 8, name: 'Performance Exhaust Kit', sku: 'MOD-EXH-PERF', category: 'Modifications', stock: 3, reorderLevel: 5, price: 24500, supplier: 'Borla', location: 'Aisle M2', status: 'Low Stock' },
-    { id: 9, name: 'Coilover Suspension Kit', sku: 'MOD-SUS-COIL', category: 'Modifications', stock: 2, reorderLevel: 3, price: 38000, supplier: 'Bilstein', location: 'Aisle M3', status: 'Low Stock' },
-    { id: 10, name: 'Body Kit - Aero', sku: 'MOD-BODY-AERO', category: 'Modifications', stock: 1, reorderLevel: 2, price: 52000, supplier: 'Rocket Bunny', location: 'Aisle M4', status: 'Low Stock' },
-    { id: 11, name: 'Ambient Lighting Kit', sku: 'MOD-LGT-AMBI', category: 'Modifications', stock: 14, reorderLevel: 6, price: 4200, supplier: 'Philips', location: 'Aisle M5', status: 'In Stock' },
-    { id: 12, name: 'Premium Audio Upgrade Pack', sku: 'MOD-AUD-PREM', category: 'Modifications', stock: 4, reorderLevel: 4, price: 26500, supplier: 'Pioneer', location: 'Aisle M6', status: 'Low Stock' }
-  ]);
+  const [inventory, setInventory] = useState([]);
+
+  const loadInventory = async () => {
+    try {
+      const res = await inventoryApi.list();
+      const raw = res?.data || res || [];
+      setInventory(raw.map(item => {
+        const stock = Number(item.stock) || 0;
+        const reorderLevel = Number(item.minStock || item.reorderLevel) || 0;
+        return {
+          ...item,
+          id: item.sku || item._id || '',
+          stock,
+          reorderLevel,
+          price: item.price || 0,
+          supplier: item.supplier || '—',
+          location: item.location || '—',
+          status: stock <= 0 ? 'Out of Stock' : stock <= reorderLevel ? 'Low Stock' : 'In Stock',
+        };
+      }));
+    } catch (err) {
+      console.error('Error loading inventory:', err);
+    }
+  };
+
+  useEffect(() => { loadInventory(); }, []);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -53,7 +66,7 @@ function ManageInventory() {
     setEditingId(null);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const stockValue = Number(formData.stock || 0);
     const reorderValue = Number(formData.reorderLevel || 0);
@@ -61,25 +74,47 @@ function ManageInventory() {
     const normalizedStatus = computeStatus(stockValue, reorderValue);
 
     const payload = {
-      ...formData,
+      name: formData.name,
+      sku: formData.sku,
+      category: formData.category,
       stock: stockValue,
-      reorderLevel: reorderValue,
+      minStock: reorderValue,
       price: priceValue,
-      status: normalizedStatus
+      supplier: formData.supplier,
+      location: formData.location,
+      active: true,
     };
 
-    if (editingId) {
-      setInventory((items) => items.map((item) => (item.id === editingId ? { ...item, ...payload } : item)));
-    } else {
-      const nextId = Math.max(...inventory.map((item) => item.id), 0) + 1;
-      setInventory((items) => [...items, { id: nextId, ...payload }]);
+    try {
+      if (editingId) {
+        await inventoryApi.update(editingId, payload);
+      } else {
+        await inventoryApi.create(payload);
+      }
+      await loadInventory();
+      resetForm();
+      setShowForm(false);
+    } catch (err) {
+      console.error('Error saving inventory item:', err);
     }
-
-    resetForm();
-    setShowForm(false);
   };
 
   const categories = useMemo(() => ['All', ...new Set(inventory.map((item) => item.category))], [inventory]);
+
+  const filteredInventory = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    return inventory.filter((item) => {
+      const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
+      const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
+      const matchesSearch =
+        normalizedSearch === '' ||
+        (item.name || '').toLowerCase().includes(normalizedSearch) ||
+        (item.sku || '').toLowerCase().includes(normalizedSearch);
+
+      return matchesStatus && matchesCategory && matchesSearch;
+    });
+  }, [inventory, statusFilter, categoryFilter, searchTerm]);
 
   const inventoryColumns = useMemo(() => [
     { accessorKey: 'id', header: 'ID' },
@@ -219,7 +254,7 @@ function ManageInventory() {
       <div style={{ padding: '20px' }}>
         <CommonTable 
           columns={inventoryColumns} 
-          data={inventory} 
+          data={filteredInventory} 
           fileName="inventory-data"
           showSelection={true}
         />

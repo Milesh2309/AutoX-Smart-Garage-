@@ -66,4 +66,45 @@ router.post(
   packageController.renewPackage
 );
 
+/**
+ * @swagger
+ * /api/packages/subscribe:
+ *   post:
+ *     summary: Subscribe to a service package
+ *     tags: [Packages]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, price]
+ *             properties:
+ *               packageId:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *               features:
+ *                 type: array
+ *     responses:
+ *       201:
+ *         description: Package subscribed
+ *       401:
+ *         description: Unauthorized
+ *       409:
+ *         description: Package already active
+ */
+router.post(
+  '/api/packages/subscribe',
+  authMiddleware,
+  body('name').notEmpty().withMessage('package name is required'),
+  body('price').notEmpty().withMessage('price is required'),
+  validate,
+  packageController.subscribePackage
+);
+
 module.exports = router;

@@ -1,4 +1,5 @@
 const { getDB } = require('../config/db');
+const { ObjectId } = require('mongodb');
 
 const getNextServiceId = async (db) => {
   const [lastService] = await db
@@ -28,8 +29,19 @@ const getServices = async (req, res, next) => {
 const getServiceById = async (req, res, next) => {
   try {
     const db = getDB();
-    const id = Number(req.params.id);
-    const service = await db.collection('services').findOne({ id });
+    const raw = req.params.id;
+    let service = null;
+
+    // Try numeric id first
+    const numId = Number(raw);
+    if (Number.isFinite(numId)) {
+      service = await db.collection('services').findOne({ id: numId });
+    }
+
+    // Fallback: try as MongoDB ObjectId
+    if (!service && ObjectId.isValid(raw)) {
+      service = await db.collection('services').findOne({ _id: new ObjectId(raw) });
+    }
 
     if (!service) {
       return res.status(404).json({

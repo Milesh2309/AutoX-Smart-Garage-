@@ -1,49 +1,105 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './DataGrid.css';
 import CommonTable from '../../components/CommonTable.jsx';
+import { usersApi, mechanicsApi, vehiclesApi, bookingApi, inventoryApi } from '../../utils/apiService';
 
 function DataGrid() {
   const [activeTab, setActiveTab] = useState('users');
+  const [tabData, setTabData] = useState({
+    users: [],
+    mechanics: [],
+    vehicles: [],
+    bookings: [],
+    parts: [],
+  });
 
-  // Mock data for different views
-  const mockData = {
-    users: [
-      { id: 1, name: 'Raj Patel', email: 'raj@example.com', phone: '9876543210', joinDate: '2025-01-15', status: 'Active', bookings: 5 },
-      { id: 2, name: 'Priya Gupta', email: 'priya@example.com', phone: '9876543211', joinDate: '2025-01-10', status: 'Active', bookings: 3 },
-      { id: 3, name: 'Amit Singh', email: 'amit@example.com', phone: '9876543212', joinDate: '2025-01-05', status: 'Inactive', bookings: 0 },
-      { id: 4, name: 'Neha Sharma', email: 'neha@example.com', phone: '9876543213', joinDate: '2024-12-28', status: 'Active', bookings: 8 },
-      { id: 5, name: 'Vikram Kumar', email: 'vikram@example.com', phone: '9876543214', joinDate: '2024-12-20', status: 'Active', bookings: 12 },
-      { id: 6, name: 'Anjali Verma', email: 'anjali@example.com', phone: '9876543215', joinDate: '2024-12-15', status: 'Active', bookings: 2 },
-      { id: 7, name: 'Rohit Desai', email: 'rohit@example.com', phone: '9876543216', joinDate: '2024-12-10', status: 'Inactive', bookings: 1 },
-      { id: 8, name: 'Shreya Nair', email: 'shreya@example.com', phone: '9876543217', joinDate: '2024-12-05', status: 'Active', bookings: 6 },
-    ],
-    mechanics: [
-      { id: 1, name: 'Rajeev Kumar', specialty: 'Engine Repair', experience: '8 years', phone: '9988776655', status: 'Available', rating: 4.8 },
-      { id: 2, name: 'Mohit Sharma', specialty: 'Electrical', experience: '6 years', phone: '9988776656', status: 'Busy', rating: 4.6 },
-      { id: 3, name: 'Suresh Patel', specialty: 'Transmission', experience: '10 years', phone: '9988776657', status: 'Available', rating: 4.9 },
-      { id: 4, name: 'Arun Singh', specialty: 'Suspension', experience: '5 years', phone: '9988776658', status: 'Available', rating: 4.5 },
-      { id: 5, name: 'Deepak Verma', specialty: 'Brakes', experience: '7 years', phone: '9988776659', status: 'Off Duty', rating: 4.7 },
-    ],
-    vehicles: [
-      { id: 1, owner: 'Raj Patel', registrationNo: 'GJ01AB1234', model: 'Honda City', year: 2020, type: 'Car', status: 'Active' },
-      { id: 2, owner: 'Priya Gupta', registrationNo: 'GJ01AB1235', model: 'Maruti Swift', year: 2019, type: 'Car', status: 'Active' },
-      { id: 3, owner: 'Amit Singh', registrationNo: 'GJ01AB1236', model: 'Hero Splendor', year: 2021, type: 'Bike', status: 'Inactive' },
-      { id: 4, owner: 'Neha Sharma', registrationNo: 'GJ01AB1237', model: 'Toyota Innova', year: 2018, type: 'SUV', status: 'Active' },
-      { id: 5, owner: 'Vikram Kumar', registrationNo: 'GJ01AB1238', model: 'Hyundai i20', year: 2022, type: 'Car', status: 'Active' },
-    ],
-    bookings: [
-      { id: 1, customer: 'Raj Patel', service: 'Engine Oil Change', date: '2025-01-24', amount: '₹500', status: 'Completed', mechanic: 'Rajeev Kumar' },
-      { id: 2, customer: 'Priya Gupta', service: 'Tire Replacement', date: '2025-01-24', amount: '₹2,500', status: 'In Progress', mechanic: 'Mohit Sharma' },
-      { id: 3, customer: 'Neha Sharma', service: 'Full Service', date: '2025-01-23', amount: '₹5,000', status: 'Completed', mechanic: 'Suresh Patel' },
-      { id: 4, customer: 'Vikram Kumar', service: 'AC Repair', date: '2025-01-25', amount: '₹1,500', status: 'Pending', mechanic: 'Arun Singh' },
-    ],
-    parts: [
-      { id: 1, name: 'Engine Oil 5L', partNo: 'MOB001', quantity: 45, unitPrice: '₹800', category: 'Oils', supplier: 'Mobil India' },
-      { id: 2, name: 'Air Filter', partNo: 'AF002', quantity: 120, unitPrice: '₹300', category: 'Filters', supplier: 'Bosch' },
-      { id: 3, name: 'Spark Plug Set', partNo: 'SP003', quantity: 85, unitPrice: '₹600', category: 'Ignition', supplier: 'NGK' },
-      { id: 4, name: 'Brake Pads', partNo: 'BP004', quantity: 35, unitPrice: '₹1,200', category: 'Brakes', supplier: 'Brembo' },
-    ],
-  };
+  useEffect(() => {
+    const fetchTabData = async () => {
+      try {
+        const apiMap = {
+          users: usersApi.list,
+          mechanics: mechanicsApi.list,
+          vehicles: vehiclesApi.listMine,
+          bookings: bookingApi.listAll,
+          parts: inventoryApi.list,
+        };
+        const fetcher = apiMap[activeTab];
+        if (fetcher) {
+          const res = await fetcher();
+          const raw = res?.data || res || [];
+          // Normalize fields per tab
+          let normalized = raw;
+          switch (activeTab) {
+            case 'users':
+              normalized = raw.map(u => ({
+                ...u,
+                id: u.userId || u._id || '',
+                name: u.name || u.fullName || '—',
+                email: u.email || '—',
+                phone: u.phone || '—',
+                role: u.role || '—',
+                status: u.isActive === false ? 'Inactive' : 'Active',
+                joinDate: u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-IN') : '—',
+              }));
+              break;
+            case 'mechanics':
+              normalized = raw.map(m => ({
+                ...m,
+                id: m.mechanicCode || m._id || '',
+                name: m.fullName || m.name || '—',
+                specialty: Array.isArray(m.expertise) ? m.expertise.join(', ') : (m.expertise || '—'),
+                experience: m.yearsExperience != null ? `${m.yearsExperience} yrs` : '—',
+                phone: m.phone || '—',
+                status: m.status || '—',
+                rating: m.rating || '—',
+              }));
+              break;
+            case 'vehicles':
+              normalized = raw.map(v => ({
+                ...v,
+                id: v._id || '',
+                owner: v.ownerName || v.userId || '—',
+                registrationNo: v.plate || v.registrationNo || '—',
+                model: v.model || '—',
+                year: v.year || '—',
+                type: v.fuelType || v.type || '—',
+                status: v.status || 'Active',
+              }));
+              break;
+            case 'bookings':
+              normalized = raw.map(b => ({
+                ...b,
+                id: b.bookingNo || b.id || b._id || '',
+                customer: b.customerName || '—',
+                service: b.serviceName || b.serviceId || '—',
+                date: b.date || (b.scheduledAt ? new Date(b.scheduledAt).toLocaleDateString('en-IN') : '—'),
+                amount: b.amount != null ? `₹${b.amount}` : '—',
+                status: b.status || '—',
+              }));
+              break;
+            case 'parts':
+              normalized = raw.map(p => ({
+                ...p,
+                id: p._id || '',
+                name: p.name || '—',
+                partNo: p.sku || '—',
+                quantity: p.stock ?? '—',
+                unitPrice: p.price != null ? `₹${p.price}` : '—',
+                category: p.category || '—',
+                supplier: p.supplier || '—',
+              }));
+              break;
+            default:
+              break;
+          }
+          setTabData(prev => ({ ...prev, [activeTab]: normalized }));
+        }
+      } catch (err) {
+        console.error(`Error loading ${activeTab} data:`, err);
+      }
+    };
+    fetchTabData();
+  }, [activeTab]);
 
   // Define columns for each tab
   const columns = useMemo(() => {
@@ -102,7 +158,7 @@ function DataGrid() {
         return [];
     }
   }, [activeTab]);
-  const data = mockData[activeTab] || [];
+  const data = tabData[activeTab] || [];
 
   return (
     <div className="datagrid-container">

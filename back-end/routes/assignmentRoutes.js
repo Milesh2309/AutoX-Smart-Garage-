@@ -33,6 +33,18 @@ const validate = require('../middleware/validationMiddleware');
  *       201:
  *         description: Assignment created
  */
+/**
+ * @swagger
+ * /api/assignments:
+ *   get:
+ *     summary: Get all assignments
+ *     tags: [Assignments]
+ *     responses:
+ *       200:
+ *         description: List of all assignments
+ */
+router.get('/api/assignments', assignmentController.getAllAssignments);
+
 router.post(
   '/api/assignments',
   body('bookingId').isInt({ gt: 0 }).withMessage('bookingId must be a positive integer'),

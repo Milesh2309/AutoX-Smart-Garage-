@@ -9,7 +9,7 @@ exports.listInventory = async (req, res, next) => {
   try {
     const db = getDB();
     const inventory = await db.collection('inventory').find().sort({ id: -1 }).toArray();
-    return res.json(inventory);
+    return res.json({ success: true, data: inventory });
   } catch (error) {
     return next(error);
   }
@@ -35,7 +35,7 @@ exports.addPart = async (req, res, next) => {
     };
 
     await db.collection('inventory').insertOne(newPart);
-    return res.status(201).json(newPart);
+    return res.status(201).json({ success: true, data: newPart });
   } catch (error) {
     return next(error);
   }
@@ -57,7 +57,7 @@ exports.updateStock = async (req, res, next) => {
     }
 
     const part = await db.collection('inventory').findOne({ id });
-    return res.json(part);
+    return res.json({ success: true, data: part });
   } catch (error) {
     return next(error);
   }
@@ -73,7 +73,7 @@ exports.deletePart = async (req, res, next) => {
     }
 
     await db.collection('inventory').deleteOne({ id });
-    return res.json({ message: 'Part deleted', deleted: part });
+    return res.json({ success: true, message: 'Part deleted', data: part });
   } catch (error) {
     return next(error);
   }
@@ -86,12 +86,13 @@ exports.getLowStockAlerts = async (req, res, next) => {
     const lowStockItems = allItems.filter((item) => Number(item.stock) < Number(item.minStock || 0));
 
     if (lowStockItems.length === 0) {
-      return res.json({ message: 'No low stock items', items: [] });
+      return res.json({ success: true, data: [], message: 'No low stock items' });
     }
 
     return res.json({
+      success: true,
       message: `${lowStockItems.length} items running low on stock`,
-      items: lowStockItems
+      data: lowStockItems
     });
   } catch (error) {
     return next(error);
@@ -124,7 +125,7 @@ exports.createPartOrder = async (req, res, next) => {
     };
 
     await db.collection('part_orders').insertOne(newOrder);
-    return res.status(201).json(newOrder);
+    return res.status(201).json({ success: true, data: newOrder });
   } catch (error) {
     return next(error);
   }

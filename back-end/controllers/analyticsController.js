@@ -49,7 +49,7 @@ exports.getDashboardMetrics = async (req, res, next) => {
       }
     };
 
-    return res.json(metrics);
+    return res.json({ success: true, data: metrics });
   } catch (error) {
     return next(error);
   }
@@ -92,7 +92,7 @@ exports.getRevenueAnalytics = async (req, res, next) => {
       topCustomers: topCustomers.map((item) => ({ customerId: item._id, totalSpent: item.totalSpent }))
     };
 
-    return res.json(revenueData);
+    return res.json({ success: true, data: revenueData });
   } catch (error) {
     return next(error);
   }
@@ -120,10 +120,13 @@ exports.getBookingTrends = async (req, res, next) => {
     ]);
 
     return res.json({
-      period: period || 'weekly',
-      totalBookings,
-      data: data.map((item) => ({ date: item._id, bookings: item.bookings, completed: item.completed, cancelled: item.cancelled })),
-      peakHours: []
+      success: true,
+      data: {
+        period: period || 'weekly',
+        totalBookings,
+        data: data.map((item) => ({ date: item._id, bookings: item.bookings, completed: item.completed, cancelled: item.cancelled })),
+        peakHours: []
+      }
     });
   } catch (error) {
     return next(error);
@@ -136,7 +139,7 @@ exports.getCustomerSatisfaction = async (req, res, next) => {
     const reviews = await db.collection('reviews').find().toArray();
 
     if (reviews.length === 0) {
-      return res.json({
+      return res.json({ success: true, data: {
         averageRating: 0,
         totalReviews: 0,
         ratingDistribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
@@ -144,7 +147,7 @@ exports.getCustomerSatisfaction = async (req, res, next) => {
         comments: { positive: 0, neutral: 0, negative: 0 },
         topCompliments: [],
         commonComplaints: []
-      });
+      }});
     }
 
     const totalReviews = reviews.length;
@@ -155,7 +158,7 @@ exports.getCustomerSatisfaction = async (req, res, next) => {
       ratingDistribution[rating] += 1;
     });
 
-    return res.json({
+    return res.json({ success: true, data: {
       averageRating: Number(averageRating.toFixed(2)),
       totalReviews,
       ratingDistribution,
@@ -163,7 +166,7 @@ exports.getCustomerSatisfaction = async (req, res, next) => {
       comments: { positive: 0, neutral: 0, negative: 0 },
       topCompliments: [],
       commonComplaints: []
-    });
+    }});
   } catch (error) {
     return next(error);
   }
@@ -175,7 +178,7 @@ exports.generateReport = async (req, res, next) => {
     const { reportType, startDate, endDate } = req.body;
 
     if (!reportType) {
-      return res.status(400).json({ error: 'reportType is required' });
+      return res.status(400).json({ success: false, message: 'reportType is required' });
     }
 
     const timestamp = Date.now();
@@ -189,7 +192,7 @@ exports.generateReport = async (req, res, next) => {
     };
 
     await db.collection('reports').insertOne(report);
-    return res.status(201).json(report);
+    return res.status(201).json({ success: true, data: report });
   } catch (error) {
     return next(error);
   }
@@ -201,7 +204,7 @@ exports.scheduleReport = async (req, res, next) => {
     const { reportType, frequency, email } = req.body;
 
     if (!reportType || !frequency || !email) {
-      return res.status(400).json({ error: 'reportType, frequency, and email are required' });
+      return res.status(400).json({ success: false, message: 'reportType, frequency, and email are required' });
     }
 
     const scheduled = {
@@ -215,7 +218,7 @@ exports.scheduleReport = async (req, res, next) => {
     };
 
     await db.collection('report_schedules').insertOne(scheduled);
-    return res.status(201).json(scheduled);
+    return res.status(201).json({ success: true, data: scheduled });
   } catch (error) {
     return next(error);
   }

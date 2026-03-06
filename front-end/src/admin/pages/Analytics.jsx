@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BarChart,
   Bar,
@@ -14,87 +14,46 @@ import {
   ResponsiveContainer,
   ComposedChart,
 } from 'recharts';
+import { analyticsApi } from '../../utils/apiService';
 import '../Analytics.css';
 
 function Analytics() {
-  // Mock data for Monthly Revenue
-  const monthlyRevenueData = [
-    { month: 'Jan', revenue: 45000, target: 50000 },
-    { month: 'Feb', revenue: 52000, target: 50000 },
-    { month: 'Mar', revenue: 48000, target: 50000 },
-    { month: 'Apr', revenue: 61000, target: 55000 },
-    { month: 'May', revenue: 58000, target: 55000 },
-    { month: 'Jun', revenue: 72000, target: 60000 },
-    { month: 'Jul', revenue: 79000, target: 65000 },
-    { month: 'Aug', revenue: 85000, target: 70000 },
-    { month: 'Sep', revenue: 82000, target: 75000 },
-    { month: 'Oct', revenue: 88000, target: 75000 },
-    { month: 'Nov', revenue: 92000, target: 80000 },
-    { month: 'Dec', revenue: 105000, target: 90000 },
-  ];
+  const [monthlyRevenueData, setMonthlyRevenueData] = useState([]);
+  const [dailyBookingsData, setDailyBookingsData] = useState([]);
+  const [topServicesData, setTopServicesData] = useState([]);
+  const [serviceCategoryData, setServiceCategoryData] = useState([]);
+  const [satisfactionData, setSatisfactionData] = useState([]);
+  const [keyMetrics, setKeyMetrics] = useState({ totalRevenue: '₹0', totalBookings: '0', completedServices: '0', avgRating: '—' });
 
-  // Mock data for Daily Bookings (Last 30 days)
-  const dailyBookingsData = [
-    { day: '1', bookings: 12, completed: 10 },
-    { day: '2', bookings: 15, completed: 14 },
-    { day: '3', bookings: 18, completed: 17 },
-    { day: '4', bookings: 14, completed: 12 },
-    { day: '5', bookings: 22, completed: 20 },
-    { day: '6', bookings: 25, completed: 23 },
-    { day: '7', bookings: 28, completed: 26 },
-    { day: '8', bookings: 16, completed: 15 },
-    { day: '9', bookings: 19, completed: 18 },
-    { day: '10', bookings: 24, completed: 22 },
-    { day: '11', bookings: 26, completed: 25 },
-    { day: '12', bookings: 30, completed: 29 },
-    { day: '13', bookings: 17, completed: 16 },
-    { day: '14', bookings: 21, completed: 20 },
-    { day: '15', bookings: 29, completed: 28 },
-    { day: '16', bookings: 18, completed: 17 },
-    { day: '17', bookings: 23, completed: 22 },
-    { day: '18', bookings: 27, completed: 26 },
-    { day: '19', bookings: 31, completed: 30 },
-    { day: '20', bookings: 19, completed: 18 },
-    { day: '21', bookings: 25, completed: 24 },
-    { day: '22', bookings: 28, completed: 27 },
-    { day: '23', bookings: 14, completed: 13 },
-    { day: '24', bookings: 20, completed: 19 },
-    { day: '25', bookings: 26, completed: 25 },
-    { day: '26', bookings: 32, completed: 31 },
-    { day: '27', bookings: 21, completed: 20 },
-    { day: '28', bookings: 24, completed: 23 },
-    { day: '29', bookings: 28, completed: 27 },
-    { day: '30', bookings: 35, completed: 34 },
-  ];
+  useEffect(() => {
+    const loadAll = async () => {
+      try {
+        const [dashRes, revRes, bookRes, satRes] = await Promise.allSettled([
+          analyticsApi.dashboard(),
+          analyticsApi.revenue(),
+          analyticsApi.bookings(),
+          analyticsApi.customerSatisfaction(),
+        ]);
+        const dash = dashRes.status === 'fulfilled' ? (dashRes.value?.data || dashRes.value || {}) : {};
+        const rev  = revRes.status  === 'fulfilled' ? (revRes.value?.data  || revRes.value  || {}) : {};
+        const book = bookRes.status === 'fulfilled' ? (bookRes.value?.data || bookRes.value || {}) : {};
+        const sat  = satRes.status  === 'fulfilled' ? (satRes.value?.data  || satRes.value  || {}) : {};
 
-  // Mock data for Top Services
-  const topServicesData = [
-    { name: 'Oil Change', value: 2450, percentage: 22 },
-    { name: 'Tire Rotation', value: 2100, percentage: 19 },
-    { name: 'Battery Replacement', value: 1850, percentage: 17 },
-    { name: 'Brake Service', value: 1620, percentage: 15 },
-    { name: 'AC Repair', value: 1450, percentage: 13 },
-    { name: 'Engine Diagnostics', value: 980, percentage: 9 },
-    { name: 'Others', value: 570, percentage: 5 },
-  ];
-
-  // Mock data for Service Categories Revenue
-  const serviceCategoryData = [
-    { category: 'Basic Service', revenue: 145000, bookings: 450 },
-    { category: 'Advanced Repair', revenue: 280000, bookings: 320 },
-    { category: 'Modifications', revenue: 185000, bookings: 95 },
-    { category: 'Emergency/Breakdown', revenue: 95000, bookings: 420 },
-    { category: 'Custom Services', revenue: 125000, bookings: 180 },
-  ];
-
-  // Mock data for Customer Satisfaction
-  const satisfactionData = [
-    { rating: '5 Star', count: 450, percentage: 65 },
-    { rating: '4 Star', count: 150, percentage: 22 },
-    { rating: '3 Star', count: 70, percentage: 10 },
-    { rating: '2 Star', count: 15, percentage: 2 },
-    { rating: '1 Star', count: 5, percentage: 1 },
-  ];
+        if (rev.monthlyRevenue) setMonthlyRevenueData(rev.monthlyRevenue);
+        if (rev.serviceCategories) setServiceCategoryData(rev.serviceCategories);
+        if (book.dailyBookings) setDailyBookingsData(book.dailyBookings);
+        if (dash.topServices) setTopServicesData(dash.topServices);
+        if (sat.ratings || sat.satisfactionData) setSatisfactionData(sat.ratings || sat.satisfactionData);
+        setKeyMetrics({
+          totalRevenue: dash.totalRevenue ? `₹${Number(dash.totalRevenue).toLocaleString('en-IN')}` : '₹0',
+          totalBookings: dash.totalBookings ? dash.totalBookings.toLocaleString() : '0',
+          completedServices: dash.completedServices ? dash.completedServices.toLocaleString() : '0',
+          avgRating: dash.avgRating || sat.avgRating || '—',
+        });
+      } catch { /* analytics unavailable */ }
+    };
+    loadAll();
+  }, []);
 
   // Colors for charts
   const COLORS = ['#DC2626', '#F97316', '#EAB308', '#84CC16', '#22C55E', '#06B6D4', '#0EA5E9'];
@@ -150,32 +109,32 @@ function Analytics() {
           <div className="metric-icon">💰</div>
           <div className="metric-content">
             <h3>Total Revenue</h3>
-            <p className="metric-value">₹9,27,000</p>
-            <span className="metric-change positive">↑ 15.3% from last year</span>
+            <p className="metric-value">{keyMetrics.totalRevenue}</p>
+            <span className="metric-change positive">↑ from last year</span>
           </div>
         </div>
         <div className="metric-card">
           <div className="metric-icon">📅</div>
           <div className="metric-content">
             <h3>Total Bookings</h3>
-            <p className="metric-value">2,845</p>
-            <span className="metric-change positive">↑ 12.7% this month</span>
+            <p className="metric-value">{keyMetrics.totalBookings}</p>
+            <span className="metric-change positive">↑ this month</span>
           </div>
         </div>
         <div className="metric-card">
           <div className="metric-icon">✅</div>
           <div className="metric-content">
             <h3>Completed Services</h3>
-            <p className="metric-value">2,721</p>
-            <span className="metric-change positive">95.6% completion rate</span>
+            <p className="metric-value">{keyMetrics.completedServices}</p>
+            <span className="metric-change positive">completion rate</span>
           </div>
         </div>
         <div className="metric-card">
           <div className="metric-icon">⭐</div>
           <div className="metric-content">
             <h3>Avg. Rating</h3>
-            <p className="metric-value">4.62/5</p>
-            <span className="metric-change positive">↑ 0.3 points</span>
+            <p className="metric-value">{keyMetrics.avgRating}/5</p>
+            <span className="metric-change positive">↑ rating</span>
           </div>
         </div>
       </div>

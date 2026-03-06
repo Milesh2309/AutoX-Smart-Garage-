@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import './BookingWizard.css';
+import { useBookings } from '../context';
 
 const BookingWizard = () => {
+  const { createBooking } = useBookings();
   const [currentStep, setCurrentStep] = useState(1);
   const [bookingData, setBookingData] = useState({
     // Step 1: Service Selection
@@ -208,27 +210,35 @@ const BookingWizard = () => {
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
-  const handleSubmit = () => {
-    // Get existing bookings from localStorage
-    const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-    
-    // Create new booking with ID and timestamp
-    const newBooking = {
-      id: Date.now(),
-      ...bookingData,
-      status: 'Pending',
-      createdAt: new Date().toISOString(),
-      customerId: localStorage.getItem('currentUserId') || 'guest',
-    };
+  const handleSubmit = async () => {
+    const selectedStartSlot = bookingData.preferredSlot?.split(' - ')[0] || '09:00 AM';
+    const [timePart, period] = selectedStartSlot.split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
 
-    // Add to bookings array
-    existingBookings.push(newBooking);
-    
-    // Save to localStorage
-    localStorage.setItem('bookings', JSON.stringify(existingBookings));
+    const slotDate = bookingData.bookingDate ? new Date(bookingData.bookingDate) : new Date();
+    slotDate.setHours(hours, Number(minutes || 0), 0, 0);
+    const scheduledAt = slotDate.toISOString();
+
+    const result = await createBooking({
+      serviceId: bookingData.serviceId,
+      serviceName: bookingData.serviceName,
+      date: bookingData.bookingDate,
+      timeSlot: bookingData.preferredSlot,
+      scheduledAt,
+      notes: bookingData.specialInstructions,
+      amount: bookingData.servicePrice,
+      vehicleNumber: bookingData.vehicleNumber,
+    });
+
+    if (!result.success) {
+      alert(`Booking failed: ${result.error}`);
+      return;
+    }
 
     // Show success message
-    alert('Booking confirmed successfully! Booking ID: ' + newBooking.id);
+    alert('Booking confirmed successfully! Booking ID: ' + (result.data?.id || 'N/A'));
 
     // Reset form
     setBookingData({

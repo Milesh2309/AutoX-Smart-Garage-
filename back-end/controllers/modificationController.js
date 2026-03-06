@@ -9,7 +9,7 @@ exports.listModifications = async (req, res, next) => {
   try {
     const db = getDB();
     const modifications = await db.collection('modifications').find().sort({ id: -1 }).toArray();
-    return res.json(modifications);
+    return res.json({ success: true, data: modifications });
   } catch (error) {
     return next(error);
   }
@@ -21,10 +21,10 @@ exports.getModificationById = async (req, res, next) => {
     const mod = await db.collection('modifications').findOne({ id: Number(req.params.id) });
 
     if (!mod) {
-      return res.status(404).json({ error: 'Modification not found' });
+      return res.status(404).json({ success: false, message: 'Modification not found' });
     }
 
-    return res.json(mod);
+    return res.json({ success: true, data: mod });
   } catch (error) {
     return next(error);
   }
@@ -57,7 +57,7 @@ exports.createModQuote = async (req, res, next) => {
     };
 
     await db.collection('mod_quotes').insertOne(newQuote);
-    return res.status(201).json(newQuote);
+    return res.status(201).json({ success: true, data: newQuote });
   } catch (error) {
     return next(error);
   }
@@ -72,7 +72,7 @@ exports.listModQuotes = async (req, res, next) => {
     if (status) filter.status = status;
 
     const quotes = await db.collection('mod_quotes').find(filter).sort({ id: -1 }).toArray();
-    return res.json(quotes);
+    return res.json({ success: true, data: quotes });
   } catch (error) {
     return next(error);
   }
@@ -93,7 +93,7 @@ exports.updateModQuoteStatus = async (req, res, next) => {
     }
 
     const quote = await db.collection('mod_quotes').findOne({ id });
-    return res.json(quote);
+    return res.json({ success: true, data: quote });
   } catch (error) {
     return next(error);
   }
@@ -127,7 +127,7 @@ exports.createModOrder = async (req, res, next) => {
     await db.collection('mod_orders').insertOne(newOrder);
     await db.collection('mod_quotes').updateOne({ id: Number(modQuoteId) }, { $set: { status: 'approved' } });
 
-    return res.status(201).json(newOrder);
+    return res.status(201).json({ success: true, data: newOrder });
   } catch (error) {
     return next(error);
   }

@@ -17,7 +17,7 @@ exports.getNotifications = async (req, res, next) => {
     }
 
     const userNotifications = await db.collection('notifications').find(filter).sort({ id: -1 }).toArray();
-    return res.json(userNotifications);
+    return res.json({ success: true, data: userNotifications });
   } catch (error) {
     return next(error);
   }
@@ -54,7 +54,7 @@ exports.sendNotification = async (req, res, next) => {
     };
 
     await db.collection('notifications').insertOne(newNotification);
-    return res.status(201).json(newNotification);
+    return res.status(201).json({ success: true, data: newNotification });
   } catch (error) {
     return next(error);
   }
@@ -79,7 +79,7 @@ exports.markAsRead = async (req, res, next) => {
     }
 
     const notification = await db.collection('notifications').findOne({ id });
-    return res.json(notification);
+    return res.json({ success: true, data: notification });
   } catch (error) {
     return next(error);
   }
@@ -114,11 +114,11 @@ exports.deleteNotification = async (req, res, next) => {
     const notification = await db.collection('notifications').findOne({ id });
 
     if (!notification) {
-      return res.status(404).json({ error: 'Notification not found' });
+      return res.status(404).json({ success: false, message: 'Notification not found' });
     }
 
     await db.collection('notifications').deleteOne({ id });
-    return res.json({ message: 'Notification deleted', deleted: notification });
+    return res.json({ success: true, message: 'Notification deleted', data: notification });
   } catch (error) {
     return next(error);
   }

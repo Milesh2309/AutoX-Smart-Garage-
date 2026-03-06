@@ -1,22 +1,61 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import CommonTable from '../../components/CommonTable.jsx';
+import { usersApi } from '../../utils/apiService';
 
 function ManageUsers() {
-  const [users, setUsers] = useState([
-    { id: 1, name: 'John Doe', email: 'john@example.com', phone: '9876543210', vehicleNumber: 'MH-04-AB-1234', joinDate: '2025-12-15' },
-    { id: 2, name: 'Sarah Smith', email: 'sarah@example.com', phone: '9765432109', vehicleNumber: 'DL-01-CD-5678', joinDate: '2025-12-10' },
-    { id: 3, name: 'Mike Johnson', email: 'mike@example.com', phone: '9654321098', vehicleNumber: 'GJ-05-EF-9012', joinDate: '2025-12-05' },
-  ]);
+  const [users, setUsers] = useState([]);
+
+  const loadUsers = async () => {
+    try {
+      const res = await usersApi.list();
+      const raw = res?.data || res || [];
+      // Normalize inconsistent field names from different user sources
+      const normalized = raw.map((u, idx) => ({
+        ...u,
+        id: u.userId || u._id || idx + 1,
+        name: u.name || u.fullName || '—',
+        email: u.email || '—',
+        phone: u.phone || '—',
+        role: u.role || '—',
+        status: u.isActive === false ? 'Inactive' : 'Active',
+        joinDate: u.createdAt
+          ? new Date(u.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+          : '—',
+      }));
+      setUsers(normalized);
+    } catch (err) {
+      console.error('Error loading users:', err);
+    }
+  };
+
+  useEffect(() => { loadUsers(); }, []);
 
   const [selectedUser, setSelectedUser] = useState(null);
 
   const userColumns = useMemo(() => [
-    { accessorKey: 'id', header: 'ID' },
-    { accessorKey: 'name', header: 'Name' },
-    { accessorKey: 'email', header: 'Email' },
-    { accessorKey: 'phone', header: 'Phone' },
-    { accessorKey: 'vehicleNumber', header: 'Vehicle Number' },
-    { accessorKey: 'joinDate', header: 'Join Date' },
+    { accessorKey: 'id', header: 'ID', size: 100 },
+    { accessorKey: 'name', header: 'Name', size: 180 },
+    { accessorKey: 'email', header: 'Email', size: 250 },
+    { accessorKey: 'phone', header: 'Phone', size: 140 },
+    { accessorKey: 'role', header: 'Role', size: 100,
+      Cell: ({ cell }) => {
+        const val = (cell.getValue() || '').toLowerCase();
+        const color = val === 'admin' ? '#e74c3c' : val === 'customer' ? '#2980b9' : '#7f8c8d';
+        return <span style={{ fontWeight: 600, color, textTransform: 'capitalize' }}>{cell.getValue()}</span>;
+      },
+    },
+    { accessorKey: 'status', header: 'Status', size: 100,
+      Cell: ({ cell }) => {
+        const active = cell.getValue() === 'Active';
+        return (
+          <span style={{
+            padding: '2px 10px', borderRadius: 12, fontSize: 13, fontWeight: 600,
+            background: active ? '#e6f9ee' : '#fde8e8', color: active ? '#27ae60' : '#e74c3c',
+          }}>{cell.getValue()}</span>
+        );
+      },
+    },
+    { accessorKey: 'joinDate', header: 'Join Date', size: 130 },
   ], []);
 
   const closeProfile = () => setSelectedUser(null);
@@ -49,9 +88,9 @@ function ManageUsers() {
             <div className="modal-body">
               <p><strong>Email:</strong> {selectedUser.email}</p>
               <p><strong>Phone:</strong> {selectedUser.phone}</p>
-              <p><strong>Vehicle Number:</strong> {selectedUser.vehicleNumber}</p>
+              <p><strong>Role:</strong> {selectedUser.role}</p>
+              <p><strong>Status:</strong> {selectedUser.status}</p>
               <p><strong>Joined:</strong> {selectedUser.joinDate}</p>
-              <p><strong>Status:</strong> Active</p>
             </div>
           </div>
         </div>

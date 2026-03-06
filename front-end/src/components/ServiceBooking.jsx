@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
+import { useBookings } from '../context';
 import { useNotifications } from '../context/NotificationContext';
+import { servicesApi } from '../utils/apiService';
 import PaymentGateway from './PaymentGateway';
 import './BookService.css';
 
@@ -9,6 +11,7 @@ function ServiceBooking() {
   const { serviceId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { createBooking } = useBookings();
   const { addNotification } = useNotifications();
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -22,9 +25,11 @@ function ServiceBooking() {
   const [submitted, setSubmitted] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [bookingData, setBookingData] = useState(null);
+  const [selectedService, setSelectedService] = useState(null);
+  const [serviceLoading, setServiceLoading] = useState(true);
 
-  // Service list matching the one in services.jsx
-  const services = [
+  // Fallback hardcoded service list (matches services.jsx numeric IDs)
+  const fallbackServices = [
     {
       id: 1,
       title: "Smart Garage Services",
@@ -157,7 +162,44 @@ function ServiceBooking() {
     }
   ];
 
-  const selectedService = services.find(service => service.id === parseInt(serviceId));
+  // Fetch service: try API first, fallback to hardcoded list
+  useEffect(() => {
+    let active = true;
+    const loadService = async () => {
+      setServiceLoading(true);
+      try {
+        const res = await servicesApi.getById(serviceId);
+        const svc = res?.data || res;
+        if (svc && active) {
+          setSelectedService({
+            id: svc._id || svc.id,
+            title: svc.title || svc.name || 'Service',
+            icon: svc.icon || '🚗',
+            price: svc.price ?? svc.basePrice ?? 0,
+            gst: svc.gst ?? Math.round((svc.price ?? svc.basePrice ?? 0) * 0.18),
+            description: svc.description || '',
+            features: svc.features || [],
+          });
+          setServiceLoading(false);
+          return;
+        }
+      } catch {
+        // API call failed, try hardcoded
+      }
+
+      // Fallback: match by numeric id in hardcoded list
+      const numId = parseInt(serviceId, 10);
+      const local = fallbackServices.find(s => s.id === numId);
+      if (active) {
+        setSelectedService(local || null);
+        setServiceLoading(false);
+      }
+    };
+
+    loadService();
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -198,7 +240,7 @@ function ServiceBooking() {
     });
   };
 
-  const handlePaymentComplete = (paymentDetails) => {
+  const handlePaymentComplete = async (paymentDetails) => {
     if (bookingData) {
       // Update booking status
       const updatedBooking = {
@@ -209,14 +251,25 @@ function ServiceBooking() {
         transactionId: `TXN${Math.random().toString(36).substr(2, 9).toUpperCase()}`
       };
 
-      // Get existing bookings from localStorage
-      const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-      
-      // Add new booking
-      existingBookings.push(updatedBooking);
-      
-      // Save to localStorage
-      localStorage.setItem('bookings', JSON.stringify(existingBookings));
+      const bookingPayload = {
+        userId: user?.id,
+        serviceId: Number(serviceId),
+        serviceName: selectedService.title,
+        customerName: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        vehicleNumber: formData.vehicle,
+        date: formData.preferredDate,
+        timeSlot: formData.preferredTime,
+        notes: formData.message,
+        amount: Number(updatedBooking.amount),
+      };
+
+      const createResult = await createBooking(bookingPayload);
+      if (!createResult.success) {
+        alert(`Booking failed: ${createResult.error}`);
+        return;
+      }
       
       // Add notifications for successful booking and payment
       addNotification({
@@ -233,7 +286,6 @@ function ServiceBooking() {
         icon: '✅',
       });
       
-      console.log('Booking confirmed with payment:', updatedBooking);
       setShowPayment(false);
       setSubmitted(true);
       setTimeout(() => {
@@ -241,6 +293,17 @@ function ServiceBooking() {
       }, 3000);
     }
   };
+
+  if (serviceLoading) {
+    return (
+      <div className="book-service-container">
+        <div className="error-message">
+          <h2>Loading Service...</h2>
+          <p>Please wait while we fetch service details.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!selectedService) {
     return (

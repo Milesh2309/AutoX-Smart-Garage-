@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { billingApi } from '../utils/apiService';
 
 const BillingContext = createContext();
 
@@ -28,12 +29,13 @@ export const BillingProvider = ({ children }) => {
         const invoiceNumber = generateInvoiceNumber();
         const billingRecord = {
           invoiceNumber,
-          userId,
+          userId: String(userId),
           bookingId,
           amount: paymentData.amount,
           serviceName: paymentData.serviceName,
           paymentMethod: paymentData.method,
-          paymentStatus: 'completed',
+          currency: paymentData.currency || 'INR',
+          paymentStatus: 'pending',
           paymentDate: new Date().toISOString(),
           transactionId: `TXN${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
           tax: 0,
@@ -44,22 +46,17 @@ export const BillingProvider = ({ children }) => {
           createdAt: new Date().toISOString(),
         };
 
-        // TODO: Send to backend API
-        // const response = await fetch('/api/billing/create', {
-        //   method: 'POST',
-        //   headers: {
-        //     'Content-Type': 'application/json',
-        //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        //   },
-        //   body: JSON.stringify(billingRecord)
-        // });
-        // const result = await response.json();
+        const response = await billingApi.create({
+          userId: String(userId),
+          amount: paymentData.amount,
+          currency: billingRecord.currency,
+        });
 
-        // Local state update for demo
-        setBillingRecords((prev) => [...prev, billingRecord]);
-        setInvoices((prev) => [...prev, billingRecord]);
+        const createdRecord = response?.data || billingRecord;
+        setBillingRecords((prev) => [createdRecord, ...prev]);
+        setInvoices((prev) => [createdRecord, ...prev]);
 
-        return billingRecord;
+        return createdRecord;
       } catch (err) {
         setError(err.message);
         throw err;
@@ -76,23 +73,28 @@ export const BillingProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      // TODO: Call backend API
-      // const response = await fetch(`/api/billing/user/${userId}`, {
-      //   headers: {
-      //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-      //   }
-      // });
-      // const data = await response.json();
-
-      // For demo, return local state
-      return billingRecords.filter((r) => r.userId === userId);
+      const response = await billingApi.listByUser(userId);
+      const raw = Array.isArray(response?.data) ? response.data : [];
+      // Normalize field names from MongoDB to what the UI expects
+      const records = raw.map(r => ({
+        ...r,
+        paymentStatus: r.paymentStatus || r.status || 'pending',
+        paymentDate: r.paymentDate || r.createdAt || '',
+        totalAmount: r.totalAmount || r.amount || 0,
+        serviceName: r.serviceName || r.bookingId || '—',
+        paymentMethod: r.paymentMethod || r.method || '—',
+        refundAmount: r.refundAmount || 0,
+      }));
+      setBillingRecords(records);
+      setInvoices(records);
+      return records;
     } catch (err) {
       setError(err.message);
       return [];
     } finally {
       setLoading(false);
     }
-  }, [billingRecords]);
+  }, []);
 
   // Fetch all billing records (admin)
   const fetchAllBillingRecords = useCallback(
@@ -101,16 +103,22 @@ export const BillingProvider = ({ children }) => {
         setLoading(true);
         setError(null);
 
-        // TODO: Call backend API with filters
-        // const queryParams = new URLSearchParams(filters);
-        // const response = await fetch(`/api/billing/all?${queryParams}`, {
-        //   headers: {
-        //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        //   }
-        // });
-        // const data = await response.json();
-
-        return billingRecords;
+        const queryParams = new URLSearchParams(filters).toString();
+        const response = await billingApi.listAll(queryParams);
+        const raw = Array.isArray(response?.data) ? response.data : [];
+        // Normalize field names from MongoDB to what the UI expects
+        const records = raw.map(r => ({
+          ...r,
+          paymentStatus: r.paymentStatus || r.status || 'pending',
+          paymentDate: r.paymentDate || r.createdAt || '',
+          totalAmount: r.totalAmount || r.amount || 0,
+          serviceName: r.serviceName || r.bookingId || '—',
+          paymentMethod: r.paymentMethod || r.method || '—',
+          refundAmount: r.refundAmount || 0,
+        }));
+        setBillingRecords(records);
+        setInvoices(records);
+        return records;
       } catch (err) {
         setError(err.message);
         return [];
@@ -118,7 +126,7 @@ export const BillingProvider = ({ children }) => {
         setLoading(false);
       }
     },
-    [billingRecords]
+    []
   );
 
   // Process refund
@@ -128,23 +136,8 @@ export const BillingProvider = ({ children }) => {
         setLoading(true);
         setError(null);
 
-        // TODO: Call backend API
-        // const response = await fetch('/api/billing/refund', {
-        //   method: 'POST',
-        //   headers: {
-        //     'Content-Type': 'application/json',
-        //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        //   },
-        //   body: JSON.stringify({
-        //     invoiceNumber,
-        //     refundAmount,
-        //     reason,
-        //     refundDate: new Date().toISOString()
-        //   })
-        // });
-        // const result = await response.json();
+        await billingApi.refund({ invoiceNumber, reason, refundAmount });
 
-        // Local state update
         setBillingRecords((prev) =>
           prev.map((record) =>
             record.invoiceNumber === invoiceNumber
@@ -175,13 +168,7 @@ export const BillingProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      // TODO: Call backend API
-      // const response = await fetch(`/api/billing/verify/${invoiceNumber}`, {
-      //   method: 'PATCH',
-      //   headers: {
-      //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-      //   }
-      // });
+      await billingApi.verify(invoiceNumber);
 
       setBillingRecords((prev) =>
         prev.map((record) =>

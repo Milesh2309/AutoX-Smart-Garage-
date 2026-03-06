@@ -15,14 +15,14 @@ function ManageBookings() {
   // Format bookings data for table display
   const formattedBookings = useMemo(() => {
     return bookings.map(booking => ({
-      id: booking.id,
+      id: booking.bookingNo || booking.id || booking._id || '',
       customer: booking.customerName || booking.customer || 'N/A',
-      service: booking.serviceName || booking.service || 'N/A',
+      service: booking.serviceName || booking.serviceId || 'N/A',
       vehicleNumber: booking.vehicleNumber || 'N/A',
       phone: booking.phone || 'N/A',
-      date: booking.date || 'N/A',
-      time: booking.timeSlot || booking.time || 'N/A',
-      amount: typeof booking.amount === 'number' ? `₹${booking.amount}` : booking.amount,
+      date: booking.date || (booking.scheduledAt ? new Date(booking.scheduledAt).toLocaleDateString('en-IN') : 'N/A'),
+      time: booking.timeSlot || booking.time || (booking.scheduledAt ? new Date(booking.scheduledAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'N/A'),
+      amount: typeof booking.amount === 'number' ? `₹${booking.amount}` : (booking.amount || 'N/A'),
       status: booking.status || 'pending',
     }));
   }, [bookings]);

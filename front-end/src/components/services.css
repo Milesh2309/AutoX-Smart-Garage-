@@ -51,12 +51,18 @@
 
 .services-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 24px;
   margin-bottom: 40px;
   overflow-x: hidden;
   width: 100%;
   max-width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .services-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .service-card {
@@ -384,11 +390,6 @@
     font-size: 14px;
   }
 
-  .services-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-  }
-
   .service-card {
     min-height: 450px;
   }
@@ -416,7 +417,7 @@
 
 @media (max-width: 480px) {
   .services-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
   
   .services-container {

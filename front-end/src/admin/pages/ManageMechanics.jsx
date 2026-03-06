@@ -1,15 +1,31 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import CommonTable from '../../components/CommonTable.jsx';
+import { mechanicsApi } from '../../utils/apiService';
 
 function ManageMechanics() {
-  const [mechanics, setMechanics] = useState([
-    { id: 1, name: 'Suresh Patel', expertise: 'Engine & Transmission', phone: '9876543250', experience: '8 years', status: 'Available', assignedJobs: 5, rating: 4.8 },
-    { id: 2, name: 'Rajesh Kumar', expertise: 'Electrical & AC', phone: '9876543251', experience: '6 years', status: 'Available', assignedJobs: 3, rating: 4.6 },
-    { id: 3, name: 'Ramesh Gupta', expertise: 'Suspension & Brakes', phone: '9876543252', experience: '10 years', status: 'Busy', assignedJobs: 7, rating: 4.9 },
-    { id: 4, name: 'Vikram Singh', expertise: 'General Maintenance', phone: '9876543253', experience: '5 years', status: 'Available', assignedJobs: 2, rating: 4.5 },
-    { id: 5, name: 'Ashok Sharma', expertise: 'Painting & Denting', phone: '9876543254', experience: '7 years', status: 'Available', assignedJobs: 4, rating: 4.7 },
-    { id: 6, name: 'Deepak Verma', expertise: 'Tire & Wheel Services', phone: '9876543255', experience: '4 years', status: 'Busy', assignedJobs: 6, rating: 4.4 },
-  ]);
+  const [mechanics, setMechanics] = useState([]);
+
+  const loadMechanics = async () => {
+    try {
+      const res = await mechanicsApi.list();
+      const raw = res?.data || res || [];
+      setMechanics(raw.map(m => ({
+        ...m,
+        id: m.mechanicCode || m._id || '',
+        name: m.fullName || m.name || '—',
+        expertise: Array.isArray(m.expertise) ? m.expertise.join(', ') : (m.expertise || '—'),
+        phone: m.phone || '—',
+        experience: m.yearsExperience != null ? `${m.yearsExperience} yrs` : (m.experience || '—'),
+        status: m.status || m.availability || '—',
+        assignedJobs: m.assignedJobs || 0,
+        rating: m.rating || 0,
+      })));
+    } catch (err) {
+      console.error('Error loading mechanics:', err);
+    }
+  };
+
+  useEffect(() => { loadMechanics(); }, []);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -22,30 +38,31 @@ function ManageMechanics() {
     rating: ''
   });
 
-  const handleAddMechanic = (e) => {
+  const handleAddMechanic = async (e) => {
     e.preventDefault();
     if (formData.name && formData.expertise && formData.phone) {
-      if (editingId) {
-        setMechanics(mechanics.map(m => m.id === editingId ? { ...m, ...formData, assignedJobs: m.assignedJobs } : m));
-        setEditingId(null);
-      } else {
-        const newMechanic = {
-          id: Math.max(...mechanics.map(m => m.id), 0) + 1,
-          ...formData,
-          assignedJobs: 0,
-          rating: formData.rating || '4.5'
-        };
-        setMechanics([...mechanics, newMechanic]);
+      const payload = {
+        fullName: formData.name,
+        expertise: formData.expertise.split(',').map(e => e.trim()).filter(Boolean),
+        phone: formData.phone,
+        yearsExperience: Number(formData.experience) || 0,
+        status: formData.status || 'Available',
+        rating: Number(formData.rating) || 4.5,
+        assignedJobs: 0,
+      };
+      try {
+        if (editingId) {
+          await mechanicsApi.update(editingId, payload);
+          setEditingId(null);
+        } else {
+          await mechanicsApi.create(payload);
+        }
+        await loadMechanics();
+        setFormData({ name: '', expertise: '', phone: '', experience: '', status: 'Available', rating: '' });
+        setShowForm(false);
+      } catch (err) {
+        console.error('Error saving mechanic:', err);
       }
-      setFormData({
-        name: '',
-        expertise: '',
-        phone: '',
-        experience: '',
-        status: 'Available',
-        rating: ''
-      });
-      setShowForm(false);
     }
   };
 
@@ -167,11 +184,11 @@ function ManageMechanics() {
         </div>
         <div className="stat-item">
           <label>Average Rating</label>
-          <span>⭐ {(mechanics.reduce((sum, m) => sum + parseFloat(m.rating), 0) / mechanics.length).toFixed(1)}</span>
+          <span>⭐ {mechanics.length > 0 ? (mechanics.reduce((sum, m) => sum + (parseFloat(m.rating) || 0), 0) / mechanics.length).toFixed(1) : '0.0'}</span>
         </div>
         <div className="stat-item">
           <label>Total Assigned Jobs</label>
-          <span>{mechanics.reduce((sum, m) => sum + m.assignedJobs, 0)}</span>
+          <span>{mechanics.reduce((sum, m) => sum + (Number(m.assignedJobs) || 0), 0)}</span>
         </div>
       </div>
     </div>

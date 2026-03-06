@@ -322,13 +322,6 @@ function Navbar() {
                 >
                   Login
                 </Link>
-                <Link 
-                  to="/register" 
-                  className={`auth-link register-link ${isActive('/register') ? 'active' : ''}`}
-                  onClick={closeMobile}
-                >
-                  Register
-                </Link>
               </>
             )}
           </div>

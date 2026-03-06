@@ -1,15 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { settingsApi } from '../../utils/apiService';
 
 function AdminSettings() {
   const [settings, setSettings] = useState({
-    businessName: 'AutoX',
-    email: 'autox.service@gmail.com',
-    phone: '+91 93287 64024',
-    address: 'Ahmedabad, Gujarat',
-    hours: '24/7 Available',
+    businessName: '',
+    email: '',
+    phone: '',
+    address: '',
+    hours: '',
     maintenanceModeEnabled: false
   });
   const [saveMessage, setSaveMessage] = useState('');
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const res = await settingsApi.get();
+        const data = res?.data || res || {};
+        setSettings(prev => ({ ...prev, ...data }));
+      } catch (err) {
+        console.error('Error loading settings:', err);
+      }
+    };
+    loadSettings();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -19,8 +33,14 @@ function AdminSettings() {
     });
   };
 
-  const handleSave = () => {
-    setSaveMessage('✓ Settings saved successfully!');
+  const handleSave = async () => {
+    try {
+      await settingsApi.update(settings);
+      setSaveMessage('✓ Settings saved successfully!');
+    } catch (err) {
+      console.error('Error saving settings:', err);
+      setSaveMessage('✗ Failed to save settings');
+    }
     setTimeout(() => setSaveMessage(''), 3000);
   };
 

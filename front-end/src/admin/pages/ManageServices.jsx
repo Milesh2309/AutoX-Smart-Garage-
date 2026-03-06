@@ -1,117 +1,74 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { servicesApi } from '../../utils/apiService';
 
 function ManageServices() {
-  const [services, setServices] = useState([
-    {
-      id: 1,
-      title: 'Smart Garage Services',
-      icon: '🚗',
-      description: 'Complete vehicle diagnostics, maintenance, and scheduled servicing by certified technicians.',
-      features: ['Full vehicle inspection', 'Oil change & filter replacement', 'Brake system check', 'Battery health check', 'Tire rotation & alignment'],
-      status: 'Active',
-      price: '₹2,499'
-    },
-    {
-      id: 2,
-      title: 'Vehicle Breakdown Assistance',
-      icon: '🛠',
-      description: '24/7 roadside support for breakdowns, tire changes, fuel delivery, and quick fixes.',
-      features: ['24/7 Emergency support', 'On-spot tire change', 'Battery jump-start', 'Fuel delivery service', 'Towing assistance'],
-      status: 'Active',
-      price: 'Call for quote'
-    },
-    {
-      id: 3,
-      title: 'Vehicle Modification',
-      icon: '⚙',
-      description: 'Expert custom modifications, upgrades, and tuning to enhance performance and aesthetics.',
-      features: ['Performance tuning', 'Custom body kits', 'Exhaust upgrades', 'Lighting modifications', 'Interior customization'],
-      status: 'Active',
-      price: '₹5,000+'
-    },
-    {
-      id: 4,
-      title: 'Car & Bike Repair',
-      icon: '🔧',
-      description: 'Comprehensive repair services for all vehicle types with genuine parts and warranty.',
-      features: ['Engine repair & overhaul', 'Transmission services', 'AC repair & service', 'Electrical diagnostics', 'Body repair & painting'],
-      status: 'Active',
-      price: 'Variable'
-    },
-    {
-      id: 5,
-      title: 'Emergency Roadside Help',
-      icon: '🚘',
-      description: 'Immediate assistance for accidents, mechanical failures, and emergency towing services.',
-      features: ['Instant emergency response', 'Accident support', 'Emergency towing', 'Lockout assistance', 'Flat tire replacement'],
-      status: 'Active',
-      price: '24/7'
-    },
-    {
-      id: 6,
-      title: 'Vehicle Detailing',
-      icon: '✨',
-      description: 'Professional cleaning, polishing, and detailing to make your vehicle look brand new.',
-      features: ['Interior deep cleaning', 'Exterior polishing & wax', 'Paint protection coating', 'Ceramic coating', 'Odor removal treatment'],
-      status: 'Active',
-      price: '₹3,999'
-    },
-    {
-      id: 7,
-      title: 'Pre-Purchase Inspection',
-      icon: '🔍',
-      description: 'Detailed inspection report before buying a used vehicle to ensure quality and safety.',
-      features: ['Complete vehicle assessment', 'Mechanical inspection', 'Body & paint check', 'Documentation verification', 'Test drive evaluation'],
-      status: 'Active',
-      price: '₹2,499'
-    },
-    {
-      id: 8,
-      title: 'Tire & Wheel Services',
-      icon: '⚪',
-      description: 'Complete tire solutions including replacement, alignment, balancing, and wheel care.',
-      features: ['Tire replacement', 'Wheel alignment', 'Wheel balancing', 'Puncture repair', 'Tire rotation'],
-      status: 'Active',
-      price: '₹499+'
-    }
-  ]);
+  const [services, setServices] = useState([]);
+
+  const loadServices = async () => {
+    try {
+      const res = await servicesApi.list();
+      const list = res?.data || res || [];
+      setServices(list.map(s => ({
+        ...s,
+        id: s._id || s.id,
+        title: s.name || s.title || '',
+        price: s.basePrice != null ? `₹${s.basePrice}` : (s.price || ''),
+        rawPrice: s.basePrice || s.price || '',
+        status: s.active === false ? 'Inactive' : (s.status || 'Active'),
+        icon: s.icon || '🔧',
+        features: s.features || [],
+        category: s.category || '',
+        duration: s.estimatedDurationMinutes ? `${s.estimatedDurationMinutes} min` : '',
+      })));
+    } catch { /* keep empty */ }
+  };
+  useEffect(() => { loadServices(); }, []);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ title: '', icon: '', description: '', status: 'Active', price: '', features: '' });
 
-  const handleAddService = (e) => {
+  const handleAddService = async (e) => {
     e.preventDefault();
-    if (editingId) {
-      setServices(services.map(s => s.id === editingId ? { ...s, ...formData, features: formData.features.split(',').map(f => f.trim()) } : s));
+    const payload = {
+      name: formData.title,
+      description: formData.description,
+      basePrice: Number(formData.price) || 0,
+      active: formData.status === 'Active',
+      icon: formData.icon,
+      features: formData.features.split(',').map(f => f.trim()).filter(Boolean),
+    };
+    try {
+      if (editingId) {
+        await servicesApi.update(editingId, payload);
+      } else {
+        await servicesApi.create(payload);
+      }
+      await loadServices();
       setEditingId(null);
-    } else {
-      const newService = {
-        id: Math.max(...services.map(s => s.id), 0) + 1,
-        ...formData,
-        features: formData.features.split(',').map(f => f.trim())
-      };
-      setServices([...services, newService]);
-    }
+    } catch { alert('Failed to save service.'); }
     setFormData({ title: '', icon: '', description: '', status: 'Active', price: '', features: '' });
     setShowForm(false);
   };
 
   const handleEdit = (service) => {
     setFormData({
-      title: service.title,
-      icon: service.icon,
-      description: service.description,
-      status: service.status,
-      price: service.price,
-      features: service.features.join(', ')
+      title: service.title || '',
+      icon: service.icon || '',
+      description: service.description || '',
+      status: service.status || 'Active',
+      price: String(service.rawPrice || service.basePrice || service.price || '').replace(/[₹,]/g, ''),
+      features: (service.features || []).join(', ')
     });
     setEditingId(service.id);
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
-    setServices(services.filter(s => s.id !== id));
+  const handleDelete = async (id) => {
+    try {
+      await servicesApi.delete(id);
+      await loadServices();
+    } catch { alert('Failed to delete service.'); }
   };
 
   const handleCancel = () => {
@@ -195,17 +152,17 @@ function ManageServices() {
           <div key={service.id} className="service-card">
             <div className="service-header">
               <span className="service-icon">{service.icon}</span>
-              <span className={`status ${service.status.toLowerCase()}`}>{service.status}</span>
+              <span className={`status ${(service.status || 'active').toLowerCase()}`}>{service.status || 'Active'}</span>
             </div>
-            <h3>{service.title}</h3>
+            <h3>{service.title || service.name}</h3>
             <p className="service-description">{service.description}</p>
             <div className="service-features">
               <strong>Features:</strong>
               <ul>
-                {service.features.slice(0, 3).map((feature, idx) => (
+                {(service.features || []).slice(0, 3).map((feature, idx) => (
                   <li key={idx}>{feature}</li>
                 ))}
-                {service.features.length > 3 && <li>+ {service.features.length - 3} more</li>}
+                {(service.features || []).length > 3 && <li>+ {service.features.length - 3} more</li>}
               </ul>
             </div>
             <div className="service-price">

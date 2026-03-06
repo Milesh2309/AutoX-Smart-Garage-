@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 require('dotenv').config();
@@ -7,6 +8,15 @@ const errorHandler = require('./middleware/errorMiddleware');
 const{ connectDB } = require('./config/db');
 
 const app = express();
+
+// Enable CORS for frontend
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:5000'],  
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
 app.use(express.json());
 
 // Import Routes
@@ -68,7 +78,7 @@ const options = {
     },
     servers: [
       {
-        url: "http://localhost:3000"
+        url: "http://localhost:5000"
       }
     ]
   },
@@ -83,7 +93,7 @@ app.get('/api-docs.json', (req, res) => {
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use(errorHandler);
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 5000;
 
 const startServer = async () => {
   const skipDb = process.env.SKIP_DB === 'true';

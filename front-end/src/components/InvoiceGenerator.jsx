@@ -106,35 +106,37 @@ function InvoiceGenerator({ paymentData, bookingId, onClose, onSuccess }) {
 
           <div className="detail-row">
             <span className="label">Service:</span>
-            <span className="value">{billingRecord.serviceName}</span>
+            <span className="value">{billingRecord.serviceName || billingRecord.bookingId || '—'}</span>
           </div>
 
           <div className="detail-row">
             <span className="label">Amount:</span>
-            <span className="value">₹{billingRecord.totalAmount}</span>
+            <span className="value">₹{Number(billingRecord.totalAmount || billingRecord.amount || 0).toFixed(2)}</span>
           </div>
 
           <div className="detail-row">
             <span className="label">Payment Method:</span>
-            <span className="value">{billingRecord.paymentMethod}</span>
+            <span className="value">{billingRecord.paymentMethod || billingRecord.method || '—'}</span>
           </div>
 
           <div className="detail-row">
             <span className="label">Payment Status:</span>
-            <span className={`value status-${billingRecord.paymentStatus}`}>
-              {billingRecord.paymentStatus.toUpperCase()}
+            <span className={`value status-${billingRecord.paymentStatus || billingRecord.status || 'pending'}`}>
+              {(billingRecord.paymentStatus || billingRecord.status || 'pending').toUpperCase()}
             </span>
           </div>
 
           <div className="detail-row">
             <span className="label">Transaction ID:</span>
-            <span className="value">{billingRecord.transactionId}</span>
+            <span className="value">{billingRecord.transactionId || '—'}</span>
           </div>
 
           <div className="detail-row">
             <span className="label">Date:</span>
             <span className="value">
-              {new Date(billingRecord.paymentDate).toLocaleString()}
+              {billingRecord.paymentDate || billingRecord.createdAt
+                ? new Date(billingRecord.paymentDate || billingRecord.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                : '—'}
             </span>
           </div>
         </div>

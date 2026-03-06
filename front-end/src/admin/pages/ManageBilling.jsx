@@ -105,9 +105,9 @@ function ManageBilling() {
     if (searchTerm) {
       filtered = filtered.filter(
         b =>
-          b.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          b.userId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          b.serviceName.toLowerCase().includes(searchTerm.toLowerCase())
+          (b.invoiceNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          String(b.userId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (b.serviceName || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -132,7 +132,7 @@ function ManageBilling() {
           break;
       }
 
-      filtered = filtered.filter(b => new Date(b.paymentDate) >= startDate);
+      filtered = filtered.filter(b => new Date(b.paymentDate || b.createdAt) >= startDate);
     }
 
     return filtered;

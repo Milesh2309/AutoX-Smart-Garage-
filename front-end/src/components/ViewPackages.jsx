@@ -1,11 +1,15 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from '../context/AuthContext';
+import { packagesApi } from '../utils/apiService';
 import './ViewPackages.css';
 
 function ViewPackages() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
 
   const packages = [
     {
@@ -94,10 +98,34 @@ function ViewPackages() {
     setShowPurchaseModal(true);
   };
 
-  const handlePurchase = () => {
-    alert(`✓ Package "${selectedPackage.name}" added to cart! Proceeding to checkout...`);
-    setShowPurchaseModal(false);
-    navigate('/');
+  const handlePurchase = async () => {
+    if (!user) {
+      alert('Please login first to purchase a package.');
+      navigate('/login');
+      return;
+    }
+
+    setPurchasing(true);
+    try {
+      await packagesApi.subscribe({
+        packageId: selectedPackage.id,
+        name: selectedPackage.name,
+        icon: selectedPackage.icon,
+        price: selectedPackage.price,
+        originalPrice: `₹${Math.round(selectedPackage.price * 1.3).toLocaleString('en-IN')}`,
+        description: selectedPackage.description,
+        features: selectedPackage.features,
+        validity: selectedPackage.duration,
+        totalServices: selectedPackage.features?.length || 5,
+      });
+      alert(`✅ "${selectedPackage.name}" subscribed successfully! View it in your dashboard.`);
+      setShowPurchaseModal(false);
+      navigate('/customer/dashboard');
+    } catch (err) {
+      alert(err?.message || 'Failed to subscribe. Please try again.');
+    } finally {
+      setPurchasing(false);
+    }
   };
 
   return (
@@ -251,8 +279,9 @@ function ViewPackages() {
               <button 
                 className="btn-primary" 
                 onClick={handlePurchase}
+                disabled={purchasing}
               >
-                Proceed to Checkout
+                {purchasing ? 'Processing...' : 'Proceed to Checkout'}
               </button>
             </div>
           </div>

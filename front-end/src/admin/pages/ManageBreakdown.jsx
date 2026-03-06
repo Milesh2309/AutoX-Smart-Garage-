@@ -1,15 +1,35 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import CommonTable from '../../components/CommonTable.jsx';
+import { breakdownApi } from '../../utils/apiService';
 
 function ManageBreakdown() {
-  const [breakdowns, setBreakdowns] = useState([
-    { id: 1, customer: 'Vikram Singh', location: 'Highway NH-8, Ahmedabad', vehicle: 'Honda Civic', vehicleNumber: 'MH-04-AB-1234', issue: 'Engine Failure', phone: '9876543220', date: '2025-12-30', time: '2:15 PM', status: 'Reached', mechanic: 'Suresh Patel', amount: '₹1,500' },
-    { id: 2, customer: 'Neha Sharma', location: 'Airport Road, Ahmedabad', vehicle: 'Maruti Swift', vehicleNumber: 'DL-01-CD-5678', issue: 'Flat Tire', phone: '9876543221', date: '2025-12-29', time: '11:30 AM', status: 'Completed', mechanic: 'Rajesh Kumar', amount: '₹500' },
-    { id: 3, customer: 'Amit Patel', location: 'SG Highway, Ahmedabad', vehicle: 'Toyota Fortuner', vehicleNumber: 'GJ-05-EF-9012', issue: 'Battery Dead', phone: '9876543222', date: '2025-12-28', time: '9:20 PM', status: 'Completed', mechanic: 'Suresh Patel', amount: '₹800' },
-    { id: 4, customer: 'Pooja Singh', location: 'Ring Road, Ahmedabad', vehicle: 'Hyundai Creta', vehicleNumber: 'MH-02-GH-3456', issue: 'Fuel Pump Issue', phone: '9876543223', date: '2025-12-27', time: '4:45 PM', status: 'Reached', mechanic: 'Ramesh Gupta', amount: '₹2,000' },
-    { id: 5, customer: 'Rohan Desai', location: 'Thaltej, Ahmedabad', vehicle: 'Skoda Rapid', vehicleNumber: 'GJ-06-IJ-7890', issue: 'Overheating', phone: '9876543224', date: '2025-12-26', time: '3:10 PM', status: 'Completed', mechanic: 'Rajesh Kumar', amount: '₹3,500' },
-    { id: 6, customer: 'Anjali Verma', location: 'Iscon, Ahmedabad', vehicle: 'Tata Nexon', vehicleNumber: 'DL-03-KL-1234', issue: 'Brake Failure', phone: '9876543225', date: '2025-12-25', time: '10:00 AM', status: 'En Route', mechanic: 'Suresh Patel', amount: '₹2,500' },
-  ]);
+  const [breakdowns, setBreakdowns] = useState([]);
+
+  const loadBreakdowns = async () => {
+    try {
+      const res = await breakdownApi.list();
+      const raw = res?.data || res || [];
+      setBreakdowns(raw.map((b, idx) => ({
+        ...b,
+        id: b.ticketNo || b._id || idx + 1,
+        customer: b.customerName || b.userId || '—',
+        vehicle: b.vehicleModel || b.vehicleId || '—',
+        vehicleNumber: b.vehicleNumber || '—',
+        issue: b.description || '—',
+        phone: b.phone || '—',
+        location: b.location || '—',
+        date: b.createdAt ? new Date(b.createdAt).toLocaleDateString('en-IN') : '—',
+        time: b.createdAt ? new Date(b.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—',
+        mechanic: b.assignedMechanicName || b.assignedMechanicId || '—',
+        amount: b.amount || '—',
+        status: b.status || 'open',
+      })));
+    } catch (err) {
+      console.error('Error loading breakdowns:', err);
+    }
+  };
+
+  useEffect(() => { loadBreakdowns(); }, []);
 
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -38,27 +58,26 @@ function ManageBreakdown() {
     { accessorKey: 'status', header: 'Status' },
   ], []);
 
-  const handleAddBreakdown = (e) => {
+  const handleAddBreakdown = async (e) => {
     e.preventDefault();
     if (formData.customer && formData.location && formData.vehicle && formData.issue) {
-      const newBreakdown = {
-        id: Math.max(...breakdowns.map(b => b.id), 0) + 1,
-        ...formData,
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
-      };
-      setBreakdowns([...breakdowns, newBreakdown]);
-      setFormData({
-        customer: '',
-        location: '',
-        vehicle: '',
-        issue: '',
-        phone: '',
-        status: 'Pending',
-        mechanic: '',
-        amount: ''
-      });
-      setShowForm(false);
+      try {
+        await breakdownApi.createCall(formData);
+        await loadBreakdowns();
+        setFormData({
+          customer: '',
+          location: '',
+          vehicle: '',
+          issue: '',
+          phone: '',
+          status: 'Pending',
+          mechanic: '',
+          amount: ''
+        });
+        setShowForm(false);
+      } catch (err) {
+        console.error('Error adding breakdown:', err);
+      }
     }
   };
 
@@ -164,11 +183,11 @@ function ManageBreakdown() {
         </div>
         <div className="stat-item">
           <label>Completed Today</label>
-          <span>{breakdowns.filter(b => b.status === 'Completed').length}</span>
+          <span>{breakdowns.filter(b => b.status === 'resolved' || b.status === 'Completed').length}</span>
         </div>
         <div className="stat-item">
           <label>Pending Requests</label>
-          <span>{breakdowns.filter(b => b.status === 'Pending').length}</span>
+          <span>{breakdowns.filter(b => b.status === 'open' || b.status === 'Pending').length}</span>
         </div>
         <div className="stat-item">
           <label>Total Revenue</label>

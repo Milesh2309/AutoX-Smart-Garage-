@@ -27,7 +27,7 @@ exports.createBreakdownCall = async (req, res, next) => {
     };
 
     await db.collection('breakdown_calls').insertOne(newCall);
-    return res.status(201).json(newCall);
+    return res.status(201).json({ success: true, data: newCall });
   } catch (error) {
     return next(error);
   }
@@ -37,7 +37,7 @@ exports.listBreakdownCalls = async (req, res, next) => {
   try {
     const db = getDB();
     const calls = await db.collection('breakdown_calls').find().sort({ id: -1 }).toArray();
-    return res.json(calls);
+    return res.json({ success: true, data: calls });
   } catch (error) {
     return next(error);
   }
@@ -49,10 +49,10 @@ exports.getBreakdownCall = async (req, res, next) => {
     const call = await db.collection('breakdown_calls').findOne({ id: Number(req.params.id) });
 
     if (!call) {
-      return res.status(404).json({ error: 'Breakdown call not found' });
+      return res.status(404).json({ success: false, message: 'Breakdown call not found' });
     }
 
-    return res.json(call);
+    return res.json({ success: true, data: call });
   } catch (error) {
     return next(error);
   }
@@ -71,11 +71,11 @@ exports.updateBreakdownStatus = async (req, res, next) => {
 
     const result = await db.collection('breakdown_calls').updateOne({ id }, { $set: updates });
     if (result.matchedCount === 0) {
-      return res.status(404).json({ error: 'Breakdown call not found' });
+      return res.status(404).json({ success: false, message: 'Breakdown call not found' });
     }
 
     const call = await db.collection('breakdown_calls').findOne({ id });
-    return res.json(call);
+    return res.json({ success: true, data: call });
   } catch (error) {
     return next(error);
   }
@@ -98,7 +98,7 @@ exports.findNearestMechanic = async (req, res, next) => {
       .limit(5)
       .toArray();
 
-    return res.json(mechanics);
+    return res.json({ success: true, data: mechanics });
   } catch (error) {
     return next(error);
   }

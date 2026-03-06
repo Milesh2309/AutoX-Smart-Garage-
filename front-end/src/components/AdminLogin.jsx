@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 
 function AdminLogin() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loginWithOtp, requestLoginOtp, requestForgotPassword } = useAuth();
   const [formData, setFormData] = useState({
     identifier: '', // Can be email or username
     password: '',
@@ -43,6 +43,13 @@ function AdminLogin() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    // Clear field-level error when user edits + clear login error
+    setErrors(prev => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+    setLoginError('');
   };
 
   const validateForm = () => {
@@ -64,7 +71,9 @@ function AdminLogin() {
       }
     }
 
-    if (formData.password.length < 6) {
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters';
     }
 
@@ -72,7 +81,7 @@ function AdminLogin() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoginError('');
 
@@ -80,41 +89,38 @@ function AdminLogin() {
       setLoading(true);
       const loginType = detectLoginType(formData.identifier);
 
-      setTimeout(() => {
-        setLoading(false);
-
+      try {
         if (loginType === 'admin') {
-          // Admin login - verify credentials
-          if (formData.identifier === 'admin' && formData.password === 'admin123') {
-            setSuccess(true);
-            setTimeout(() => {
-              login({ 
-                email: 'admin@autox.com',
-                fullName: 'Admin',
-                role: 'admin'
-              });
-              navigate('/admin', { replace: true });
-            }, 1500);
-          } else {
-            setLoginError('Invalid username or password');
-          }
+          const adminEmail = formData.identifier.includes('@')
+            ? formData.identifier
+            : `${formData.identifier}@autox.com`;
+
+          const user = await login({
+            email: adminEmail,
+            password: formData.password,
+          });
+
+          setSuccess(true);
+          setTimeout(() => {
+            navigate(user?.role === 'admin' ? '/admin' : '/customer/dashboard', { replace: true });
+          }, 1200);
         } else {
-          // Customer login - show OTP verification
-          const otp = Math.floor(100000 + Math.random() * 900000).toString();
-          setGeneratedOtp(otp);
+          const otpResponse = await requestLoginOtp(formData.identifier);
+          setGeneratedOtp(String(otpResponse?.otp || ''));
           setUserOtp('');
           setOtpError('');
           setTempCustomerEmail(formData.identifier);
           setShowOtpVerification(true);
-          
-          // Simulate sending OTP
-          console.log(`OTP sent to ${formData.identifier}: ${otp}`);
         }
-      }, 1000);
+      } catch (error) {
+        setLoginError(error?.message || 'Unable to login right now');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
-  const handleOtpVerification = (e) => {
+  const handleOtpVerification = async (e) => {
     e.preventDefault();
     setOtpError('');
 
@@ -123,29 +129,29 @@ function AdminLogin() {
       return;
     }
 
-    if (userOtp !== generatedOtp) {
-      setOtpError('Invalid OTP. Please try again.');
-      return;
+    setLoading(true);
+    try {
+      await loginWithOtp({ email: tempCustomerEmail, otp: userOtp });
+      setSuccess(true);
+      setTimeout(() => {
+        navigate('/customer/dashboard', { replace: true });
+      }, 1200);
+    } catch (error) {
+      setOtpError(error?.message || 'Invalid OTP. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    // OTP verified successfully
-    setSuccess(true);
-    setTimeout(() => {
-      login({ 
-        email: tempCustomerEmail, 
-        fullName: tempCustomerEmail.split('@')[0],
-        role: 'user' 
-      });
-      navigate('/customer/dashboard', { replace: true });
-    }, 1500);
   };
 
-  const handleResendOtp = () => {
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(otp);
-    setUserOtp('');
-    setOtpError('');
-    console.log(`OTP resent to ${tempCustomerEmail}: ${otp}`);
+  const handleResendOtp = async () => {
+    try {
+      const otpResponse = await requestLoginOtp(tempCustomerEmail);
+      setGeneratedOtp(String(otpResponse?.otp || ''));
+      setUserOtp('');
+      setOtpError('');
+    } catch (error) {
+      setOtpError(error?.message || 'Failed to resend OTP');
+    }
   };
 
   const handleForgotPasswordClick = (e) => {
@@ -156,7 +162,7 @@ function AdminLogin() {
     setForgotSuccess(false);
   };
 
-  const handleForgotSubmit = (e) => {
+  const handleForgotSubmit = async (e) => {
     e.preventDefault();
     setForgotErrors('');
 
@@ -166,14 +172,18 @@ function AdminLogin() {
     }
 
     setForgotLoading(true);
-    setTimeout(() => {
-      setForgotLoading(false);
+    try {
+      await requestForgotPassword(forgotEmail);
       setForgotSuccess(true);
       setTimeout(() => {
         setShowForgotPassword(false);
         setForgotEmail('');
       }, 2000);
-    }, 1000);
+    } catch (error) {
+      setForgotErrors(error?.message || 'Could not process forgot password request');
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   const closeForgotPassword = () => {
@@ -205,7 +215,7 @@ function AdminLogin() {
     }
     const loginType = detectLoginType(formData.identifier);
     if (loginType === 'admin') {
-      return '🔐 Admin login mode (Demo: admin)';
+      return '🔐 Admin login mode';
     }
     return '👤 Customer login mode';
   };

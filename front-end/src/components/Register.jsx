@@ -25,6 +25,7 @@ function Register() {
   const [generatedOtpEmail, setGeneratedOtpEmail] = useState('');
   const [generatedOtpPhone, setGeneratedOtpPhone] = useState('');
   const [otpError, setOtpError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -85,7 +86,7 @@ function Register() {
     }
   };
 
-  const handleOtpVerification = (e) => {
+  const handleOtpVerification = async (e) => {
     e.preventDefault();
     setOtpError('');
 
@@ -110,16 +111,30 @@ function Register() {
     }
 
     // All validations passed
-    setSuccess(true);
-    setTimeout(() => {
-      const from = location.state?.from;
-      if (from) {
-        register({ email: formData.email, fullName: formData.fullName });
-        navigate(from, { replace: true });
-      } else {
-        navigate('/login');
-      }
-    }, 2000);
+    setIsSubmitting(true);
+    try {
+      await register({
+        email: formData.email,
+        fullName: formData.fullName,
+        phone: formData.phone,
+        password: formData.password,
+        role: 'user',
+      });
+
+      setSuccess(true);
+      setTimeout(() => {
+        const from = location.state?.from;
+        if (from) {
+          navigate(from, { replace: true });
+        } else {
+          navigate('/customer/dashboard', { replace: true });
+        }
+      }, 1500);
+    } catch (error) {
+      setOtpError(error?.message || 'Registration failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleResendOtp = () => {
@@ -371,13 +386,17 @@ function Register() {
               <button 
                 type="submit" 
                 className="submit-btn"
-                disabled={otpEmail !== generatedOtpEmail || otpPhone !== generatedOtpPhone}
+                disabled={isSubmitting || otpEmail !== generatedOtpEmail || otpPhone !== generatedOtpPhone}
                 style={{
-                  opacity: (otpEmail !== generatedOtpEmail || otpPhone !== generatedOtpPhone) ? 0.5 : 1,
-                  cursor: (otpEmail !== generatedOtpEmail || otpPhone !== generatedOtpPhone) ? 'not-allowed' : 'pointer'
+                  opacity: (isSubmitting || otpEmail !== generatedOtpEmail || otpPhone !== generatedOtpPhone) ? 0.5 : 1,
+                  cursor: (isSubmitting || otpEmail !== generatedOtpEmail || otpPhone !== generatedOtpPhone) ? 'not-allowed' : 'pointer'
                 }}
               >
-                {otpEmail === generatedOtpEmail && otpPhone === generatedOtpPhone ? '✓ Verify & Complete Registration' : 'Enter Both OTPs to Proceed'}
+                {isSubmitting
+                  ? 'Creating Account...'
+                  : otpEmail === generatedOtpEmail && otpPhone === generatedOtpPhone
+                    ? '✓ Verify & Complete Registration'
+                    : 'Enter Both OTPs to Proceed'}
               </button>
 
               <div style={{ textAlign: 'center', marginTop: '15px' }}>

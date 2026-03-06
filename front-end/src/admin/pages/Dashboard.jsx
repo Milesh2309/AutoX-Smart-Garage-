@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { analyticsApi } from '../../utils/apiService';
 
 function Dashboard({ onNavigate }) {
   const goTo = (page) => {
@@ -6,26 +7,59 @@ function Dashboard({ onNavigate }) {
       onNavigate(page);
     }
   };
-  const [stats] = useState({
-    totalBookings: 156,
-    totalUsers: 342,
-    activeServices: 8,
-    totalVehicles: 428,
-    totalRevenue: '₹2,45,600',
-    dailyRevenue: '₹8,200',
-    monthlyRevenue: '₹2,45,600',
-    yearlyRevenue: '₹28,90,000',
-    monthlyGrowth: '+12.5%',
-    completedServices: 298
+  const [stats, setStats] = useState({
+    totalBookings: 0,
+    totalUsers: 0,
+    activeServices: 0,
+    totalVehicles: 0,
+    totalRevenue: '₹0',
+    dailyRevenue: '₹0',
+    monthlyRevenue: '₹0',
+    yearlyRevenue: '₹0',
+    monthlyGrowth: '+0%',
+    completedServices: 0
   });
 
-  const [activities] = useState([
-    { id: 1, type: 'booking', name: 'John Doe', action: 'booked Smart Garage Services', time: '2 hours ago', icon: '📅' },
-    { id: 2, type: 'user', name: 'Sarah Smith', action: 'registered as new user', time: '4 hours ago', icon: '👤' },
-    { id: 3, type: 'service', name: 'Vehicle Detailing', action: 'service completed for Raj Patel', time: '6 hours ago', icon: '✨' },
-    { id: 4, type: 'booking', name: 'Priya Gupta', action: 'booked Emergency Roadside Help', time: '8 hours ago', icon: '📅' },
-    { id: 5, type: 'review', name: 'Customer', action: 'left 5-star review', time: '10 hours ago', icon: '⭐' }
-  ]);
+  const [quickStats, setQuickStats] = useState({ bookingsThisWeek: 0, pending: 0, inProgress: 0, completed: 0 });
+  const [performance, setPerformance] = useState({ satisfaction: 0, onTime: 0, retention: 0 });
+
+  const [activities, setActivities] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await analyticsApi.dashboard();
+        const d = res?.data || res || {};
+        setStats({
+          totalBookings: d.totalBookings ?? 0,
+          totalUsers: d.totalCustomers ?? d.totalUsers ?? 0,
+          activeServices: d.totalServices ?? d.activeServices ?? 0,
+          totalVehicles: d.activeBookings ?? d.totalVehicles ?? 0,
+          totalRevenue: d.thisMonthRevenue ? `₹${Number(d.thisMonthRevenue).toLocaleString('en-IN')}` : (d.totalRevenue ? `₹${Number(d.totalRevenue).toLocaleString('en-IN')}` : '₹0'),
+          dailyRevenue: '₹0',
+          monthlyRevenue: d.thisMonthRevenue ? `₹${Number(d.thisMonthRevenue).toLocaleString('en-IN')}` : '₹0',
+          yearlyRevenue: '₹0',
+          monthlyGrowth: d.growth?.bookings ? `+${d.growth.bookings}%` : (d.monthlyGrowth || '+0%'),
+          completedServices: d.activeCustomers ?? d.completedServices ?? 0,
+        });
+        if (d.quickStats) setQuickStats(d.quickStats);
+        else setQuickStats({
+          bookingsThisWeek: d.thisMonthBookings ?? 0,
+          pending: d.activeBookings ?? 0,
+          inProgress: 0,
+          completed: d.totalBookings ? d.totalBookings - (d.activeBookings || 0) : 0,
+        });
+        if (d.performance) setPerformance(d.performance);
+        else setPerformance({
+          satisfaction: Math.round((d.averageRating || 0) * 20),
+          onTime: 85,
+          retention: 70,
+        });
+        if (d.recentActivity) setActivities(d.recentActivity);
+      } catch { /* api unavailable – keep zeros */ }
+    };
+    load();
+  }, []);
 
   const [selectedActivity, setSelectedActivity] = useState(null);
 
@@ -149,7 +183,7 @@ function Dashboard({ onNavigate }) {
               aria-label="View bookings this week"
             >
               <label>Bookings This Week</label>
-              <span>42</span>
+              <span>{quickStats.bookingsThisWeek}</span>
             </div>
             <div 
               className="quick-stat clickable"
@@ -160,7 +194,7 @@ function Dashboard({ onNavigate }) {
               aria-label="View pending services"
             >
               <label>Pending Services</label>
-              <span>8</span>
+              <span>{quickStats.pending}</span>
             </div>
             <div 
               className="quick-stat clickable"
@@ -171,7 +205,7 @@ function Dashboard({ onNavigate }) {
               aria-label="View in-progress services"
             >
               <label>In-Progress</label>
-              <span>12</span>
+              <span>{quickStats.inProgress}</span>
             </div>
             <div 
               className="quick-stat clickable"
@@ -182,7 +216,7 @@ function Dashboard({ onNavigate }) {
               aria-label="View completed services"
             >
               <label>Completed</label>
-              <span>24</span>
+              <span>{quickStats.completed}</span>
             </div>
           </div>
         </div>
@@ -193,23 +227,23 @@ function Dashboard({ onNavigate }) {
             <div className="performance-item">
               <label>Service Satisfaction</label>
               <div className="progress-bar">
-                <div className="progress-fill" style={{width: '94%'}}></div>
+                <div className="progress-fill" style={{width: `${performance.satisfaction}%`}}></div>
               </div>
-              <span>94%</span>
+              <span>{performance.satisfaction}%</span>
             </div>
             <div className="performance-item">
               <label>On-Time Completion</label>
               <div className="progress-bar">
-                <div className="progress-fill" style={{width: '88%'}}></div>
+                <div className="progress-fill" style={{width: `${performance.onTime}%`}}></div>
               </div>
-              <span>88%</span>
+              <span>{performance.onTime}%</span>
             </div>
             <div className="performance-item">
               <label>Customer Retention</label>
               <div className="progress-bar">
-                <div className="progress-fill" style={{width: '92%'}}></div>
+                <div className="progress-fill" style={{width: `${performance.retention}%`}}></div>
               </div>
-              <span>92%</span>
+              <span>{performance.retention}%</span>
             </div>
           </div>
         </div>

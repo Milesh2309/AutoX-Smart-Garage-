@@ -1,159 +1,386 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+// ──────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────
+
+/** Safe number – returns 0 when the value is not a finite number */
+const safeNum = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+/** Format a date value to DD/MM/YYYY – returns '' for anything unparseable */
+const formatDate = (v) => {
+  if (!v) return '';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return '';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+};
+
+/** Safe string – returns fallback when the value is null / undefined / empty */
+const safeStr = (v, fallback = '—') => {
+  if (
+    v === null ||
+    v === undefined ||
+    String(v).trim() === '' ||
+    v === 'undefined' ||
+    v === 'null'
+  ) {
+    return fallback;
+  }
+  return String(v);
+};
+
+/** Draw the AUTOX logo icon (a small steering-wheel shape) */
+const drawLogoIcon = (doc, x, y, size) => {
+  const cx = x + size / 2;
+  const cy = y + size / 2;
+  const r = size / 2;
+
+  // Outer circle
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(1.6);
+  doc.circle(cx, cy, r, 'S');
+
+  // Inner circle
+  doc.circle(cx, cy, r * 0.38, 'S');
+
+  // Spokes (3)
+  const spoke = (angle) => {
+    const rad = (angle * Math.PI) / 180;
+    const x1 = cx + r * 0.38 * Math.cos(rad);
+    const y1 = cy + r * 0.38 * Math.sin(rad);
+    const x2 = cx + r * Math.cos(rad);
+    const y2 = cy + r * Math.sin(rad);
+    doc.line(x1, y1, x2, y2);
+  };
+  spoke(90);
+  spoke(210);
+  spoke(330);
+};
+
+// ──────────────────────────────────────────────
+// Colour palette
+// ──────────────────────────────────────────────
+const COLORS = {
+  primary: [13, 71, 161], // Deep blue
+  accent: [21, 101, 192], // Medium blue
+  dark: [33, 33, 33], // Near black
+  gray: [97, 97, 97], // Mid gray
+  lightGray: [238, 238, 238], // Light gray bg
+  white: [255, 255, 255],
+  green: [46, 125, 50],
+  red: [198, 40, 40],
+  orange: [239, 108, 0],
+};
+
+// ──────────────────────────────────────────────
+// generateInvoicePDF
+// ──────────────────────────────────────────────
+
 /**
- * Generate PDF invoice
- * @param {Object} billingData - Billing record data
+ * Generate a professional AUTOX invoice PDF.
+ * All dynamic values are safely accessed so missing / undefined data
+ * never causes a runtime error.
+ *
+ * @param {Object} billingData  - Billing record data
  * @param {Object} customerData - Customer information
- * @returns {jsPDF} - PDF document
+ * @returns {jsPDF} document
  */
-export const generateInvoicePDF = (billingData, customerData = {}) => {
+export const generateInvoicePDF = (billingData = {}, customerData = {}) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 15;
+  const contentWidth = pageWidth - margin * 2;
 
-  // Color scheme
-  const primaryColor = [41, 128, 185]; // Blue
-  const grayColor = [52, 73, 94]; // Dark gray
-  const lightGray = [236, 240, 241]; // Light gray
-
-  // Header
-  doc.setFillColor(...primaryColor);
-  doc.rect(0, 0, pageWidth, 40, 'F');
-
-  // Company name and logo
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(24);
-  doc.text('GARAGE SERVICES', margin, 20);
-  doc.setFontSize(10);
-  doc.text('Professional Auto Care & Maintenance', margin, 28);
-
-  // Reset text color
-  doc.setTextColor(...grayColor);
-
-  // Invoice title and number
-  doc.setFontSize(16);
-  doc.text('INVOICE', pageWidth - margin - 40, 20);
-  doc.setFontSize(10);
-  doc.text(`Invoice #: ${billingData.invoiceNumber}`, pageWidth - margin - 40, 28);
-
-  // Invoice details
-  const invoiceDetailsY = 50;
-  doc.setFontSize(9);
-  doc.text(`Date: ${new Date(billingData.paymentDate).toLocaleDateString()}`, margin, invoiceDetailsY);
-  doc.text(
-    `Status: ${billingData.paymentStatus.toUpperCase()}`,
-    pageWidth / 2,
-    invoiceDetailsY
+  // ── Resolve all values once (safe) ────────────
+  const invoiceNo = safeStr(billingData.invoiceNumber, 'N/A');
+  const serviceName = safeStr(
+    billingData.serviceName || billingData.bookingId,
+    'Service'
+  );
+  const paymentDate =
+    formatDate(billingData.paymentDate || billingData.createdAt) ||
+    formatDate(new Date());
+  const status = safeStr(
+    billingData.paymentStatus || billingData.status,
+    'pending'
   );
 
-  // Customer information
-  const customerY = 65;
-  doc.setFontSize(11);
-  doc.setTextColor(...primaryColor);
-  doc.text('CUSTOMER INFORMATION', margin, customerY);
+  const amount = safeNum(billingData.amount);
+  const tax = safeNum(billingData.tax);
+  const total = safeNum(billingData.totalAmount) || amount + tax;
 
-  doc.setTextColor(...grayColor);
+  const paymentMethod = safeStr(
+    billingData.paymentMethod || billingData.method,
+    '—'
+  );
+  const transactionId = safeStr(billingData.transactionId, '—');
+  const currency = safeStr(billingData.currency, 'INR');
+
+  const custName = safeStr(customerData.name, 'Customer');
+  const custEmail = safeStr(customerData.email, '—');
+  const custPhone = safeStr(customerData.phone, '—');
+  const custAddress = safeStr(customerData.address, '—');
+
+  // ── 1. HEADER BAR ────────────────────────────
+  const headerH = 38;
+  doc.setFillColor(...COLORS.primary);
+  doc.rect(0, 0, pageWidth, headerH, 'F');
+
+  // Logo icon
+  drawLogoIcon(doc, margin, 6, 16);
+
+  // Brand name
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(22);
+  doc.setFont(undefined, 'bold');
+  doc.text('AUTOX', margin + 21, 17);
+
+  // Tagline
+  doc.setFontSize(8);
+  doc.setFont(undefined, 'normal');
+  doc.text('Smart Garage, Breakdown & Modification', margin + 21, 24);
+
+  // Right side: INVOICE title
+  doc.setFontSize(20);
+  doc.setFont(undefined, 'bold');
+  doc.text('INVOICE', pageWidth - margin, 16, { align: 'right' });
+
   doc.setFontSize(9);
-  doc.text(`Name: ${customerData.name || 'N/A'}`, margin, customerY + 8);
-  doc.text(`Email: ${customerData.email || 'N/A'}`, margin, customerY + 14);
-  doc.text(`Phone: ${customerData.phone || 'N/A'}`, margin, customerY + 20);
-  doc.text(`Address: ${customerData.address || 'N/A'}`, margin, customerY + 26);
+  doc.setFont(undefined, 'normal');
+  doc.text(`# ${invoiceNo}`, pageWidth - margin, 24, { align: 'right' });
+  doc.text(`Date: ${paymentDate}`, pageWidth - margin, 31, { align: 'right' });
 
-  // Service details table
-  const tableY = 105;
+  // ── 2. STATUS PILL ────────────────────────────
+  let statusColor = COLORS.green;
+  const statusUpper = status.toUpperCase();
+  if (['PENDING', 'INITIATED'].includes(statusUpper))
+    statusColor = COLORS.orange;
+  else if (['FAILED', 'OVERDUE', 'VOID'].includes(statusUpper))
+    statusColor = COLORS.red;
+
+  const pillY = headerH + 8;
+  doc.setFillColor(...statusColor);
+  const pillW = doc.getTextWidth(statusUpper) + 10;
+  doc.roundedRect(
+    pageWidth - margin - pillW,
+    pillY - 4,
+    pillW,
+    7,
+    1.5,
+    1.5,
+    'F'
+  );
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(7);
+  doc.setFont(undefined, 'bold');
+  doc.text(statusUpper, pageWidth - margin - pillW + 5, pillY + 1);
+
+  // ── 3. CUSTOMER DETAILS BOX ──────────────────
+  const custStartY = pillY + 12;
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(...COLORS.primary);
+  doc.text('BILLED TO', margin, custStartY);
+
+  // Light background box for customer info
+  const custBoxY = custStartY + 3;
+  doc.setFillColor(...COLORS.lightGray);
+  doc.roundedRect(margin, custBoxY, contentWidth, 26, 2, 2, 'F');
+
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(...COLORS.dark);
+
+  const col1 = margin + 5;
+  const col2 = pageWidth / 2 + 5;
+  const row1 = custBoxY + 8;
+  const row2 = custBoxY + 15;
+
+  doc.setFont(undefined, 'bold');
+  doc.text('Name:', col1, row1);
+  doc.text('Email:', col1, row2);
+  doc.text('Phone:', col2, row1);
+  doc.text('Address:', col2, row2);
+
+  doc.setFont(undefined, 'normal');
+  doc.text(custName, col1 + 20, row1);
+  doc.text(custEmail, col1 + 20, row2);
+  doc.text(custPhone, col2 + 22, row1);
+  doc.text(custAddress, col2 + 22, row2);
+
+  // ── 4. SERVICE TABLE ─────────────────────────
+  const tableStartY = custBoxY + 36;
+
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(...COLORS.primary);
+  doc.text('SERVICE DETAILS', margin, tableStartY);
+
   autoTable(doc, {
-    startY: tableY,
-    head: [['Service', 'Amount', 'Tax', 'Total']],
-    body: [
+    startY: tableStartY + 4,
+    head: [
       [
-        billingData.serviceName || 'Service',
-        `₹${billingData.amount}`,
-        `₹${billingData.tax || 0}`,
-        `₹${billingData.totalAmount}`,
+        '#',
+        'Service Name',
+        `Amount (${currency})`,
+        `Tax (${currency})`,
+        `Total (${currency})`,
       ],
     ],
+    body: [
+      ['1', serviceName, amount.toFixed(2), tax.toFixed(2), total.toFixed(2)],
+    ],
     headStyles: {
-      fillColor: primaryColor,
-      textColor: [255, 255, 255],
-      fontSize: 10,
+      fillColor: COLORS.primary,
+      textColor: COLORS.white,
+      fontSize: 9,
       fontStyle: 'bold',
       halign: 'center',
+      cellPadding: 4,
     },
     bodyStyles: {
       fontSize: 9,
-      halign: 'center',
+      textColor: COLORS.dark,
+      cellPadding: 4,
     },
-    alternateRowStyles: {
-      fillColor: lightGray,
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 12 },
+      1: { halign: 'left' },
+      2: { halign: 'right' },
+      3: { halign: 'right' },
+      4: { halign: 'right', fontStyle: 'bold' },
     },
-    margin: margin,
+    theme: 'grid',
+    styles: {
+      lineColor: [200, 200, 200],
+      lineWidth: 0.3,
+    },
+    margin: { left: margin, right: margin },
   });
 
-  // Total summary
-  const summaryY = doc.internal.pageSize.getHeight() - 100;
+  const afterTableY = doc.lastAutoTable.finalY + 6;
+
+  // ── 5. PAYMENT SUMMARY BOX ───────────────────
+  const summBoxW = 75;
+  const summBoxX = pageWidth - margin - summBoxW;
+  const summBoxY = afterTableY;
+  const summRowH = 9;
+
+  // Box border
+  doc.setDrawColor(...COLORS.primary);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(summBoxX, summBoxY, summBoxW, summRowH * 4 + 4, 2, 2, 'S');
+
+  // Row helper
+  const drawSummaryRow = (label, value, yOffset, bold, bg) => {
+    const ry = summBoxY + yOffset;
+    if (bg) {
+      doc.setFillColor(...bg);
+      doc.rect(summBoxX + 0.5, ry - 3, summBoxW - 1, summRowH, 'F');
+    }
+    doc.setFont(undefined, bold ? 'bold' : 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...(bold ? COLORS.primary : COLORS.dark));
+    doc.text(label, summBoxX + 5, ry + 2);
+    doc.text(value, summBoxX + summBoxW - 5, ry + 2, { align: 'right' });
+  };
+
+  drawSummaryRow('Subtotal', `${currency} ${amount.toFixed(2)}`, 5, false, null);
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.2);
+  doc.line(summBoxX + 3, summBoxY + 12, summBoxX + summBoxW - 3, summBoxY + 12);
+
+  drawSummaryRow('Tax', `${currency} ${tax.toFixed(2)}`, 14, false, null);
+  doc.line(summBoxX + 3, summBoxY + 21, summBoxX + summBoxW - 3, summBoxY + 21);
+
+  drawSummaryRow(
+    'TOTAL',
+    `${currency} ${total.toFixed(2)}`,
+    24,
+    true,
+    COLORS.lightGray
+  );
+
+  // ── 6. PAYMENT INFO ──────────────────────────
+  const payInfoY = afterTableY + 4;
+
   doc.setFontSize(10);
-  doc.setTextColor(...primaryColor);
-  doc.text('PAYMENT SUMMARY', pageWidth - margin - 50, summaryY);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(...COLORS.primary);
+  doc.text('PAYMENT INFORMATION', margin, payInfoY);
 
-  doc.setTextColor(...grayColor);
   doc.setFontSize(9);
-  doc.text(
-    `Subtotal: ₹${billingData.amount}`,
-    pageWidth - margin - 50,
-    summaryY + 8
-  );
-  doc.text(
-    `Tax: ₹${billingData.tax || 0}`,
-    pageWidth - margin - 50,
-    summaryY + 14
-  );
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(...COLORS.dark);
 
-  // Total box
-  doc.setFillColor(...lightGray);
-  doc.rect(pageWidth - margin - 60, summaryY + 20, 55, 12, 'F');
-  doc.setTextColor(...primaryColor);
-  doc.setFontSize(11);
-  doc.setFontStyle('bold');
-  doc.text(
-    `Total: ₹${billingData.totalAmount}`,
-    pageWidth - margin - 58,
-    summaryY + 27
-  );
+  doc.text('Payment Method:', margin, payInfoY + 9);
+  doc.text(paymentMethod, margin + 38, payInfoY + 9);
 
-  // Payment information
-  const paymentY = summaryY + 40;
-  doc.setTextColor(...grayColor);
-  doc.setFontSize(9);
-  doc.text('PAYMENT METHOD', margin, paymentY);
-  doc.text(`Method: ${billingData.paymentMethod || 'N/A'}`, margin, paymentY + 6);
-  doc.text(`Transaction ID: ${billingData.transactionId}`, margin, paymentY + 12);
+  doc.text('Transaction ID:', margin, payInfoY + 17);
+  doc.text(transactionId, margin + 38, payInfoY + 17);
 
-  // Refund information if applicable
-  if (billingData.refundStatus !== 'none' && billingData.refundAmount > 0) {
-    const refundY = paymentY + 25;
-    doc.setTextColor(220, 53, 69); // Red
+  doc.text('Status:', margin, payInfoY + 25);
+  doc.setTextColor(...statusColor);
+  doc.setFont(undefined, 'bold');
+  doc.text(statusUpper, margin + 38, payInfoY + 25);
+
+  // ── 7. REFUND INFO (if applicable) ───────────
+  const refundStatus = safeStr(billingData.refundStatus, 'none');
+  const refundAmount = safeNum(billingData.refundAmount);
+
+  if (refundStatus !== 'none' && refundAmount > 0) {
+    const refundY = payInfoY + 36;
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(...COLORS.red);
+    doc.setFontSize(10);
     doc.text('REFUND INFORMATION', margin, refundY);
-    doc.setTextColor(...grayColor);
-    doc.text(`Status: ${billingData.refundStatus}`, margin, refundY + 6);
-    doc.text(`Amount: ₹${billingData.refundAmount}`, margin, refundY + 12);
+
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(...COLORS.dark);
+    doc.text(`Status: ${refundStatus}`, margin, refundY + 8);
+    doc.text(
+      `Refund Amount: ${currency} ${refundAmount.toFixed(2)}`,
+      margin,
+      refundY + 15
+    );
   }
 
-  // Footer
-  const footerY = pageHeight - 15;
-  doc.setFontSize(8);
-  doc.setTextColor(189, 195, 199); // Light gray
-  doc.text('Thank you for your business!', pageWidth / 2, footerY, {
+  // ── 8. FOOTER ────────────────────────────────
+  const footerDivY = pageHeight - 30;
+  doc.setDrawColor(...COLORS.primary);
+  doc.setLineWidth(0.6);
+  doc.line(margin, footerDivY, pageWidth - margin, footerDivY);
+
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(...COLORS.primary);
+  doc.text('Thank you for choosing AUTOX!', pageWidth / 2, footerDivY + 7, {
     align: 'center',
   });
+
+  doc.setFontSize(7.5);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(...COLORS.gray);
   doc.text(
-    'For support, contact: support@garageservices.com',
+    'Support: support@autox.in  |  www.autox.in',
     pageWidth / 2,
-    footerY + 5,
-    {
-      align: 'center',
-    }
+    footerDivY + 13,
+    { align: 'center' }
+  );
+  doc.text(
+    'This is a computer-generated invoice and does not require a signature.',
+    pageWidth / 2,
+    footerDivY + 18,
+    { align: 'center' }
   );
 
   return doc;
@@ -161,12 +388,13 @@ export const generateInvoicePDF = (billingData, customerData = {}) => {
 
 /**
  * Download invoice as PDF
- * @param {Object} billingData - Billing record data
+ * @param {Object} billingData  - Billing record data
  * @param {Object} customerData - Customer information
  */
-export const downloadInvoicePDF = (billingData, customerData = {}) => {
+export const downloadInvoicePDF = (billingData = {}, customerData = {}) => {
   const doc = generateInvoicePDF(billingData, customerData);
-  doc.save(`${billingData.invoiceNumber}.pdf`);
+  const fileName = safeStr(billingData.invoiceNumber, 'invoice');
+  doc.save(`${fileName}.pdf`);
 };
 
 /**
@@ -206,7 +434,7 @@ export const generateBillingReportPDF = (records, summary = {}) => {
 
   doc.setTextColor(...primaryColor);
   doc.setFontSize(9);
-  doc.setFontStyle('bold');
+  doc.setFont(undefined, 'bold');
   doc.text(`Total Amount: ₹${summary.totalAmount || 0}`, margin + 5, summaryY + 7);
   doc.text(
     `Total Transactions: ${summary.totalTransactions || 0}`,

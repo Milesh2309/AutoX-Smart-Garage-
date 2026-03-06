@@ -8,7 +8,7 @@ const createToken = (user) => {
     name: user.name,
     role: user.role || 'user'
   };
-  return jwt.sign(payload, process.env.JWT_SECRET || 'dev-secret', { expiresIn: '1h' });
+  return jwt.sign(payload, process.env.JWT_SECRET || 'dev-secret', { expiresIn: '30d' });
 };
 
 const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
@@ -26,7 +26,7 @@ const getNextUserId = async (db) => {
 
 const register = async (req, res, next) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, phone } = req.body;
     const db = getDB();
     const emailLower = String(email).toLowerCase();
 
@@ -43,6 +43,7 @@ const register = async (req, res, next) => {
       name,
       email: emailLower,
       password,
+      phone: phone || '',
       role: role === 'admin' ? 'admin' : 'user',
       createdAt: new Date().toISOString()
     };

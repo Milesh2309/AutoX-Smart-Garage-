@@ -40,7 +40,7 @@ function CustomerBillingHistory() {
         header: 'Status',
         size: 100,
         cell: ({ getValue }) => {
-          const status = getValue();
+          const status = getValue() || 'pending';
           return (
             <span className={`status-badge status-${status}`}>
               {status.toUpperCase()}
@@ -52,8 +52,12 @@ function CustomerBillingHistory() {
         accessorKey: 'paymentDate',
         header: 'Payment Date',
         size: 130,
-        cell: ({ getValue }) =>
-          new Date(getValue()).toLocaleDateString('en-IN'),
+        cell: ({ getValue }) => {
+          const v = getValue();
+          if (!v) return '—';
+          const d = new Date(v);
+          return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        },
       },
     ],
     []
@@ -68,7 +72,7 @@ function CustomerBillingHistory() {
     if (user?.id) {
       fetchBillings();
     }
-  }, [user?.id, billingRecords, fetchUserBillingRecords]);
+  }, [user?.id, fetchUserBillingRecords]);
 
   // Filter billings based on status and date range
   const filteredBillings = useMemo(() => {

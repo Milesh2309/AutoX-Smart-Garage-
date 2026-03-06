@@ -5,6 +5,16 @@ const getNextAssignmentId = async (db) => {
   return (last?.id || 0) + 1;
 };
 
+exports.getAllAssignments = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const assignments = await db.collection('assignments').find({}).toArray();
+    return res.json({ success: true, data: assignments });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 exports.createAssignment = async (req, res, next) => {
   try {
     const db = getDB();
@@ -24,7 +34,7 @@ exports.createAssignment = async (req, res, next) => {
     };
 
     await db.collection('assignments').insertOne(newAssignment);
-    return res.status(201).json(newAssignment);
+    return res.status(201).json({ success: true, data: newAssignment });
   } catch (error) {
     return next(error);
   }
@@ -36,10 +46,10 @@ exports.getAssignmentById = async (req, res, next) => {
     const assignment = await db.collection('assignments').findOne({ id: Number(req.params.id) });
 
     if (!assignment) {
-      return res.status(404).json({ error: 'Assignment not found' });
+      return res.status(404).json({ success: false, message: 'Assignment not found' });
     }
 
-    return res.json(assignment);
+    return res.json({ success: true, data: assignment });
   } catch (error) {
     return next(error);
   }
@@ -60,7 +70,7 @@ exports.updateAssignment = async (req, res, next) => {
     }
 
     const assignment = await db.collection('assignments').findOne({ id });
-    return res.json(assignment);
+    return res.json({ success: true, data: assignment });
   } catch (error) {
     return next(error);
   }
@@ -76,7 +86,7 @@ exports.deleteAssignment = async (req, res, next) => {
     }
 
     await db.collection('assignments').deleteOne({ id });
-    return res.json({ message: 'Assignment deleted', deleted: assignment });
+    return res.json({ success: true, message: 'Assignment deleted', data: assignment });
   } catch (error) {
     return next(error);
   }
@@ -87,11 +97,7 @@ exports.getMechanicAssignments = async (req, res, next) => {
     const db = getDB();
     const mechanicAssignments = await db.collection('assignments').find({ mechanicId: Number(req.params.mechanicId) }).toArray();
 
-    if (mechanicAssignments.length === 0) {
-      return res.status(404).json({ message: 'No assignments found for mechanic' });
-    }
-
-    return res.json(mechanicAssignments);
+    return res.json({ success: true, data: mechanicAssignments });
   } catch (error) {
     return next(error);
   }
@@ -116,7 +122,7 @@ exports.getJobProgress = async (req, res, next) => {
       ]
     };
 
-    return res.json(progress);
+    return res.json({ success: true, data: progress });
   } catch (error) {
     return next(error);
   }

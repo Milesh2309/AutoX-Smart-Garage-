@@ -4,27 +4,13 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
+import { getAuthToken } from '../utils/apiClient';
+import { bookingApi } from '../utils/apiService';
 
 export { AuthProvider, useAuth } from './AuthContext';
 export { BillingProvider, useBilling } from './BillingContext';
 export { NotificationProvider, useNotifications } from './NotificationContext';
 export { ThemeContext, ThemeProvider, useTheme } from './ThemeContext';
-
-const BOOKINGS_STORAGE_KEY = 'bookings';
-
-const readStoredBookings = () => {
-  const raw = localStorage.getItem(BOOKINGS_STORAGE_KEY);
-  if (!raw) {
-    return [];
-  }
-
-  const parsed = JSON.parse(raw);
-  return Array.isArray(parsed) ? parsed : [];
-};
-
-const writeStoredBookings = (bookings) => {
-  localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(bookings));
-};
 
 const getBookingAmount = (booking) => {
   if (typeof booking.amount === 'number') {
@@ -62,14 +48,17 @@ export const useBookings = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const loadBookings = useCallback(() => {
+  const loadBookings = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const storedBookings = readStoredBookings();
-      setBookings(storedBookings);
-      setStats(computeBookingStats(storedBookings));
+      const hasToken = !!getAuthToken();
+      const response = hasToken ? await bookingApi.listMine() : await bookingApi.listAll();
+      const incomingBookings = Array.isArray(response?.data) ? response.data : [];
+
+      setBookings(incomingBookings);
+      setStats(computeBookingStats(incomingBookings));
     } catch (err) {
       setBookings([]);
       setStats(computeBookingStats([]));
@@ -80,53 +69,79 @@ export const useBookings = () => {
   }, []);
 
   const loadStats = useCallback(() => {
-    const sourceBookings = bookings.length ? bookings : readStoredBookings();
-    setStats(computeBookingStats(sourceBookings));
+    setStats(computeBookingStats(bookings));
   }, [bookings]);
 
   const addBooking = useCallback((bookingData) => {
-    const storedBookings = readStoredBookings();
     const booking = {
       id: bookingData.id || `BKG-${Date.now()}`,
       ...bookingData
     };
-    const updatedBookings = [...storedBookings, booking];
 
-    writeStoredBookings(updatedBookings);
+    const updatedBookings = [...bookings, booking];
     setBookings(updatedBookings);
     setStats(computeBookingStats(updatedBookings));
 
     return booking;
-  }, []);
+  }, [bookings]);
 
   const createBooking = useCallback(async (bookingData) => {
+    setLoading(true);
     setError(null);
 
     try {
-      const booking = addBooking(bookingData);
-      return { success: true, data: booking };
+      const response = await bookingApi.createPublic(bookingData);
+      const booking = response?.data || bookingData;
+
+      setBookings((prev) => {
+        const updatedBookings = [booking, ...prev];
+        setStats(computeBookingStats(updatedBookings));
+        return updatedBookings;
+      });
+
+      return { success: true, data: booking, message: response?.message };
     } catch (err) {
       setError(err);
       return { success: false, error: err?.message || 'Unable to create booking' };
+    } finally {
+      setLoading(false);
     }
-  }, [addBooking]);
+  }, []);
 
   const updateBooking = useCallback((bookingId, updates) => {
-    const storedBookings = readStoredBookings();
-    const updatedBookings = storedBookings.map((booking) =>
+    const updatedBookings = bookings.map((booking) =>
       booking.id === bookingId ? { ...booking, ...updates } : booking
     );
 
-    writeStoredBookings(updatedBookings);
     setBookings(updatedBookings);
     setStats(computeBookingStats(updatedBookings));
 
     return updatedBookings.find((booking) => booking.id === bookingId) || null;
-  }, []);
+  }, [bookings]);
 
-  const cancelBooking = useCallback((bookingId) => {
-    return updateBooking(bookingId, { status: 'cancelled' });
-  }, [updateBooking]);
+  const cancelBooking = useCallback(async (bookingId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await bookingApi.cancel(bookingId);
+      const canceledBooking = response?.data;
+
+      setBookings((prev) => {
+        const updatedBookings = prev.map((booking) =>
+          booking.id === bookingId ? { ...booking, ...(canceledBooking || {}), status: 'canceled' } : booking
+        );
+        setStats(computeBookingStats(updatedBookings));
+        return updatedBookings;
+      });
+
+      return { success: true, data: canceledBooking };
+    } catch (err) {
+      setError(err);
+      return { success: false, error: err?.message || 'Unable to cancel booking' };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const fetchBookings = loadBookings;
 
@@ -167,6 +182,13 @@ export const usePayments = () => {
     error: null,
     fetchPayments: () => {},
     processPayment: () => {},
+    makePayment: async (paymentData) => {
+      return {
+        success: true,
+        data: paymentData,
+        transactionId: `TXN${Date.now()}${Math.random().toString(36).substr(2, 6).toUpperCase()}`
+      };
+    },
     refundPayment: () => {}
   };
 };

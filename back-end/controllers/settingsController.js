@@ -35,7 +35,7 @@ exports.getSettings = async (req, res, next) => {
     }
 
     const { _id, key, ...data } = settings;
-    return res.json(data);
+    return res.json({ success: true, data });
   } catch (error) {
     return next(error);
   }
@@ -60,7 +60,7 @@ exports.updateSettings = async (req, res, next) => {
     const settings = await db.collection('settings').findOne({ key: 'system' });
     const { _id, key, ...data } = settings;
 
-    return res.json({ message: 'Settings updated successfully', settings: data });
+    return res.json({ success: true, message: 'Settings updated successfully', data });
   } catch (error) {
     return next(error);
   }
@@ -77,7 +77,7 @@ exports.getCompanyInfo = async (req, res, next) => {
     }
 
     const { _id, key, ...data } = companyInfo;
-    return res.json(data);
+    return res.json({ success: true, data });
   } catch (error) {
     return next(error);
   }
