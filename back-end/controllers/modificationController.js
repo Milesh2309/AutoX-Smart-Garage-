@@ -15,6 +15,38 @@ exports.listModifications = async (req, res, next) => {
   }
 };
 
+exports.createModification = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const { customer, vehicle, modType, description, estimatedCost, duration, phone, status, assignedTo, progress, budget, mods, category, registration, email } = req.body;
+
+    const newMod = {
+      id: await getNextId(db, 'modifications'),
+      customer: customer || '—',
+      vehicle: vehicle || '—',
+      modType: modType || '—',
+      description: description || '—',
+      estimatedCost: estimatedCost || '—',
+      duration: duration || '—',
+      phone: phone || '—',
+      assignedTo: assignedTo || '—',
+      status: status || 'Pending',
+      progress: progress != null ? progress : 0,
+      budget: budget || '',
+      mods: mods || [],
+      category: category || '',
+      registration: registration || '',
+      email: email || '',
+      createdAt: new Date().toISOString()
+    };
+
+    await db.collection('modifications').insertOne(newMod);
+    return res.status(201).json({ success: true, data: newMod });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 exports.getModificationById = async (req, res, next) => {
   try {
     const db = getDB();

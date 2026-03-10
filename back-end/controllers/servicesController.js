@@ -62,14 +62,18 @@ const getServiceById = async (req, res, next) => {
 const createService = async (req, res, next) => {
   try {
     const db = getDB();
-    const { name, price, description, category } = req.body;
+    const { name, basePrice, price, description, category, active, icon, features, estimatedDurationMinutes } = req.body;
 
     const service = {
       id: await getNextServiceId(db),
       name,
-      price: Number(price),
+      basePrice: Number(basePrice) || Number(price) || 0,
       description,
       category: category || 'general',
+      active: active !== false,
+      icon: icon || '🔧',
+      features: Array.isArray(features) ? features : [],
+      estimatedDurationMinutes: estimatedDurationMinutes || null,
       createdAt: new Date().toISOString()
     };
 
@@ -88,17 +92,33 @@ const createService = async (req, res, next) => {
 const updateService = async (req, res, next) => {
   try {
     const db = getDB();
-    const id = Number(req.params.id);
-    const { name, price, description, category } = req.body;
+    const raw = req.params.id;
+    const { name, basePrice, price, description, category, active, icon, features, estimatedDurationMinutes } = req.body;
 
     const updates = {};
     if (name !== undefined) updates.name = name;
-    if (price !== undefined) updates.price = Number(price);
+    if (basePrice !== undefined) updates.basePrice = Number(basePrice);
+    else if (price !== undefined) updates.basePrice = Number(price);
     if (description !== undefined) updates.description = description;
     if (category !== undefined) updates.category = category;
+    if (active !== undefined) updates.active = active;
+    if (icon !== undefined) updates.icon = icon;
+    if (features !== undefined) updates.features = Array.isArray(features) ? features : [];
+    if (estimatedDurationMinutes !== undefined) updates.estimatedDurationMinutes = estimatedDurationMinutes;
     updates.updatedAt = new Date().toISOString();
 
-    const result = await db.collection('services').updateOne({ id }, { $set: updates });
+    // Support both numeric id and ObjectId
+    let filter = {};
+    const numId = Number(raw);
+    if (Number.isFinite(numId) && numId > 0) {
+      filter = { id: numId };
+    } else if (ObjectId.isValid(raw)) {
+      filter = { _id: new ObjectId(raw) };
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid service ID' });
+    }
+
+    const result = await db.collection('services').updateOne(filter, { $set: updates });
 
     if (result.matchedCount === 0) {
       return res.status(404).json({
@@ -107,7 +127,7 @@ const updateService = async (req, res, next) => {
       });
     }
 
-    const service = await db.collection('services').findOne({ id });
+    const service = await db.collection('services').findOne(filter);
     return res.status(200).json({
       success: true,
       message: 'Service updated',
@@ -121,8 +141,19 @@ const updateService = async (req, res, next) => {
 const deleteService = async (req, res, next) => {
   try {
     const db = getDB();
-    const id = Number(req.params.id);
-    const result = await db.collection('services').deleteOne({ id });
+    const raw = req.params.id;
+
+    let filter = {};
+    const numId = Number(raw);
+    if (Number.isFinite(numId) && numId > 0) {
+      filter = { id: numId };
+    } else if (ObjectId.isValid(raw)) {
+      filter = { _id: new ObjectId(raw) };
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid service ID' });
+    }
+
+    const result = await db.collection('services').deleteOne(filter);
 
     if (result.deletedCount === 0) {
       return res.status(404).json({

@@ -13,6 +13,18 @@ const validate = require('../middleware/validationMiddleware');
 
 /**
  * @swagger
+ * /api/repairs:
+ *   get:
+ *     summary: List all repair requests
+ *     tags: [Repairs]
+ *     responses:
+ *       200:
+ *         description: All repair records
+ */
+router.get('/api/repairs', repairController.listAllRepairs);
+
+/**
+ * @swagger
  * /api/repairs/schedule:
  *   post:
  *     summary: Schedule a repair service

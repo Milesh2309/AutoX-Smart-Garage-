@@ -23,6 +23,8 @@ const validate = require('../middleware/validationMiddleware');
  */
 router.get('/api/modifications', modificationController.listModifications);
 
+router.post('/api/modifications', modificationController.createModification);
+
 /**
  * @swagger
  * /api/modifications/{id}:

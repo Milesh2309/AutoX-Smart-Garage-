@@ -5,6 +5,7 @@ import CommonTable from './CommonTable.jsx';
 import PaymentGateway from './PaymentGateway';
 import CustomerBillingHistory from './CustomerBillingHistory';
 import BookingWizard from './BookingWizard';
+import BreakdownCall from './BreakdownCall';
 import { servicesApi, packagesApi, bookingApi, authApi, uploadApi } from '../utils/apiService';
 import './CustomerDashboard.css';
 
@@ -172,6 +173,7 @@ function CustomerDashboard() {
     { id: 'history', label: 'Service History', icon: '✓' },
     { id: 'bookings', label: 'My Bookings', icon: '📅' },
     { id: 'new-booking', label: 'New Booking', icon: '🔧' },
+    { id: 'breakdown', label: 'Breakdown', icon: '🆘' },
     { id: 'billing', label: 'Billing', icon: '🧾' },
     { id: 'profile', label: 'Profile', icon: '👤' },
   ];
@@ -587,6 +589,13 @@ function CustomerDashboard() {
         {activeTab === 'new-booking' && (
           <div className="content-section new-booking-section">
             <BookingWizard />
+          </div>
+        )}
+
+        {/* Breakdown Tab */}
+        {activeTab === 'breakdown' && (
+          <div className="content-section">
+            <BreakdownCall />
           </div>
         )}
 

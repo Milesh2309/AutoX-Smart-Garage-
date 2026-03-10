@@ -99,7 +99,18 @@ const getRepairStatus = async (req, res, next) => {
   }
 };
 
+const listAllRepairs = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const records = await db.collection('repairs').find().sort({ createdAt: -1 }).toArray();
+    return res.status(200).json({ success: true, count: records.length, data: records });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   scheduleRepair,
-  getRepairStatus
+  getRepairStatus,
+  listAllRepairs
 };

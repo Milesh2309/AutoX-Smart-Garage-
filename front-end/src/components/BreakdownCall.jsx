@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { breakdownApi } from '../utils/apiService';
 import "./Breakdown.css";
 
 function BreakdownCall() {
@@ -102,6 +103,25 @@ function BreakdownCall() {
         setMechanicAssigned(mechanicData);
         setAssignmentStatus("Mechanic assigned successfully!");
         setShowMap(true);
+        
+        // Save breakdown call to API
+        try {
+          breakdownApi.createCall({
+            userId: 1,
+            location: `${locationData.latitude.toFixed(4)}, ${locationData.longitude.toFixed(4)}`,
+            description: 'Emergency breakdown call',
+            latitude: locationData.latitude,
+            longitude: locationData.longitude,
+            customerName: 'Walk-in Customer',
+            phone: '',
+            vehicle: '',
+            mechanicName: mechanicData.name,
+            mechanicPhone: mechanicData.phone,
+            eta: mechanicData.eta,
+          });
+        } catch (err) {
+          console.error('Error saving breakdown call:', err);
+        }
       }, 1500);
     } catch (error) {
       console.error("Error assigning mechanic:", error);

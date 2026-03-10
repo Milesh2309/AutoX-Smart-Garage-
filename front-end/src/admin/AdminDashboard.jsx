@@ -14,8 +14,11 @@ import ManageUsers from './pages/ManageUsers';
 import AdminSettings from './pages/AdminSettings';
 import ManageInventory from './pages/ManageInventory';
 import Reports from './pages/Reports';
-import DataGrid from './pages/DataGrid';
 import ManageBilling from './pages/ManageBilling';
+import ManageContacts from './pages/ManageContacts';
+import ManageNotifications from './pages/ManageNotifications';
+import ManagePackages from './pages/ManagePackages';
+import ManageRepairs from './pages/ManageRepairs';
 import { useAuth } from '../context/AuthContext';
 
 function AdminDashboard() {
@@ -42,7 +45,6 @@ function AdminDashboard() {
         {currentPage === 'analytics' && <Analytics />}
         {currentPage === 'reports' && <Reports />}
         {currentPage === 'billing' && <ManageBilling />}
-        {currentPage === 'datagrid' && <DataGrid />}
         {currentPage === 'services' && <ManageServices />}
         {currentPage === 'bookings' && <ManageBookings />}
         {currentPage === 'breakdown' && <ManageBreakdown />}
@@ -50,6 +52,10 @@ function AdminDashboard() {
         {currentPage === 'inventory' && <ManageInventory />}
         {currentPage === 'assignments' && <ManageAssignments />}
         {currentPage === 'modifications' && <ManageModifications />}
+        {currentPage === 'repairs' && <ManageRepairs />}
+        {currentPage === 'contacts' && <ManageContacts />}
+        {currentPage === 'notifications' && <ManageNotifications />}
+        {currentPage === 'packages' && <ManagePackages />}
         {currentPage === 'users' && <ManageUsers />}
         {currentPage === 'settings' && <AdminSettings />}
       </div>

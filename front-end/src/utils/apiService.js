@@ -35,6 +35,7 @@ export const billingApi = {
 
 /* ─── Notifications ─── */
 export const notificationApi = {
+  listAll: () => apiGet('/api/notifications/all', { auth: false }),
   listMine: () => apiGet('/api/notifications'),
   send: (payload) => apiPost('/api/notifications/send', payload),
   markRead: (id) => apiPut(`/api/notifications/${id}/read`),
@@ -59,9 +60,9 @@ export const breakdownApi = {
 export const servicesApi = {
   list: () => apiGet('/api/services', { auth: false }),
   getById: (id) => apiGet(`/api/services/${id}`, { auth: false }),
-  create: (payload) => apiPost('/services', payload, { auth: false }),
-  update: (id, payload) => apiPut(`/services/${id}`, payload, { auth: false }),
-  delete: (id) => apiDelete(`/services/${id}`, { auth: false }),
+  create: (payload) => apiPost('/api/services', payload, { auth: false }),
+  update: (id, payload) => apiPut(`/api/services/${id}`, payload, { auth: false }),
+  delete: (id) => apiDelete(`/api/services/${id}`, { auth: false }),
 };
 
 /* ─── Mechanics ─── */
@@ -84,6 +85,7 @@ export const assignmentsApi = {
 export const modificationsApi = {
   list: () => apiGet('/api/modifications', { auth: false }),
   getById: (id) => apiGet(`/api/modifications/${id}`, { auth: false }),
+  create: (payload) => apiPost('/api/modifications', payload, { auth: false }),
   createQuote: (payload) => apiPost('/api/mod-quotes', payload, { auth: false }),
   listQuotes: () => apiGet('/api/mod-quotes', { auth: false }),
   updateQuote: (id, payload) => apiPut(`/api/mod-quotes/${id}`, payload, { auth: false }),
@@ -97,6 +99,10 @@ export const inventoryApi = {
   update: (id, payload) => apiPut(`/api/inventory/${id}`, payload, { auth: false }),
   delete: (id) => apiDelete(`/api/inventory/${id}`, { auth: false }),
   lowStock: () => apiGet('/api/inventory/low-stock', { auth: false }),
+  stockHistory: (partId) => apiGet(partId ? `/api/inventory/stock-history?partId=${partId}` : '/api/inventory/stock-history', { auth: false }),
+  useInService: (payload) => apiPost('/api/inventory/use', payload, { auth: false }),
+  report: () => apiGet('/api/inventory/report', { auth: false }),
+  createOrder: (payload) => apiPost('/api/inventory/orders', payload, { auth: false }),
 };
 
 /* ─── Users ─── */
@@ -135,9 +141,17 @@ export const settingsApi = {
 
 /* ─── Packages ─── */
 export const packagesApi = {
+  listAll: () => apiGet('/api/packages', { auth: false }),
   getMyPackages: () => apiGet('/api/packages/me'),
   renew: (id) => apiPost(`/api/packages/${id}/renew`),
   subscribe: (payload) => apiPost('/api/packages/subscribe', payload),
+};
+
+/* ─── Repairs ─── */
+export const repairApi = {
+  listAll: () => apiGet('/api/repairs', { auth: false }),
+  schedule: (payload) => apiPost('/api/repairs/schedule', payload, { auth: false }),
+  getStatus: (params) => apiGet(`/api/repairs/status?${new URLSearchParams(params)}`, { auth: false }),
 };
 
 /* ─── Upload ─── */

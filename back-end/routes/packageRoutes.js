@@ -14,6 +14,18 @@ const validate = require('../middleware/validationMiddleware');
 
 /**
  * @swagger
+ * /api/packages:
+ *   get:
+ *     summary: List all packages (admin)
+ *     tags: [Packages]
+ *     responses:
+ *       200:
+ *         description: All packages
+ */
+router.get('/api/packages', packageController.listAllPackages);
+
+/**
+ * @swagger
  * /api/packages/me:
  *   get:
  *     summary: Get current user's packages

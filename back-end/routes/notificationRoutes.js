@@ -14,6 +14,18 @@ const authMiddleware = require('../middleware/authMiddleware');
 
 /**
  * @swagger
+ * /api/notifications/all:
+ *   get:
+ *     summary: List all notifications (admin)
+ *     tags: [Notifications]
+ *     responses:
+ *       200:
+ *         description: All notifications
+ */
+router.get('/api/notifications/all', notificationController.listAllNotifications);
+
+/**
+ * @swagger
  * /api/notifications:
  *   get:
  *     summary: Get logged-in user notifications

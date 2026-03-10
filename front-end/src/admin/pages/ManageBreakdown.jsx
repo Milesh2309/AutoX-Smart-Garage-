@@ -191,7 +191,7 @@ function ManageBreakdown() {
         </div>
         <div className="stat-item">
           <label>Total Revenue</label>
-          <span>₹{breakdowns.reduce((sum, b) => sum + (parseInt(b.amount?.replace(/[₹,]/g, '')) || 0), 0).toLocaleString('en-IN')}</span>
+          <span>₹{breakdowns.reduce((sum, b) => sum + (parseInt(String(b.amount ?? '').replace(/[₹,]/g, '')) || 0), 0).toLocaleString('en-IN')}</span>
         </div>
       </div>
     </div>

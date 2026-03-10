@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useNotifications } from '../context/NotificationContext';
+import { modificationsApi } from '../utils/apiService';
 import "./Mods.css";
 
 function ModsQuote() {
@@ -75,9 +76,28 @@ function ModsQuote() {
     });
   };
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
-    console.log("Mods quote submitted:", form);
+    
+    try {
+      await modificationsApi.create({
+        customer: form.name,
+        vehicle: form.vehicle,
+        modType: form.category || (form.mods.length > 0 ? form.mods[0] : '—'),
+        description: form.mods.length > 0 ? form.mods.join(', ') : form.notes || '—',
+        estimatedCost: form.budget || '—',
+        phone: form.phone,
+        status: 'Pending',
+        progress: 0,
+        budget: form.budget,
+        mods: form.mods,
+        category: form.category,
+        registration: form.registration,
+        email: form.email,
+      });
+    } catch (err) {
+      console.error('Error submitting modification quote:', err);
+    }
     
     // Add notification for quote request
     addNotification({

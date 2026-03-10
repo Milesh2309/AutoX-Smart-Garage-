@@ -99,8 +99,19 @@ const subscribePackage = async (req, res, next) => {
   }
 };
 
+const listAllPackages = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const records = await db.collection('packages').find().sort({ createdAt: -1 }).toArray();
+    return res.status(200).json({ success: true, count: records.length, data: records });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getMyPackages,
   renewPackage,
-  subscribePackage
+  subscribePackage,
+  listAllPackages
 };

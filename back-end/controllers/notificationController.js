@@ -5,6 +5,16 @@ const getNextNotificationId = async (db) => {
   return (last?.id || 0) + 1;
 };
 
+exports.listAllNotifications = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const records = await db.collection('notifications').find().sort({ id: -1 }).toArray();
+    return res.json({ success: true, count: records.length, data: records });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 exports.getNotifications = async (req, res, next) => {
   try {
     const db = getDB();

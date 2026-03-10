@@ -82,11 +82,11 @@ router.get('/api/services/:id', servicesController.getServiceById);
 router.post(
   '/services',
   body('name').notEmpty().withMessage('name is required'),
-  body('price').isFloat({ gt: 0 }).withMessage('price must be greater than 0'),
   body('description').notEmpty().withMessage('description is required'),
   validate,
   servicesController.createService
 );
+router.post('/api/services', servicesController.createService);
 
 /**
  * @swagger
@@ -122,10 +122,10 @@ router.post(
 router.put(
   '/services/:id',
   param('id').isInt({ gt: 0 }).withMessage('id must be a positive integer'),
-  body('price').optional().isFloat({ gt: 0 }).withMessage('price must be greater than 0'),
   validate,
   servicesController.updateService
 );
+router.put('/api/services/:id', servicesController.updateService);
 
 /**
  * @swagger
@@ -149,6 +149,7 @@ router.delete(
   validate,
   servicesController.deleteService
 );
+router.delete('/api/services/:id', servicesController.deleteService);
 
 /**
  * @swagger
