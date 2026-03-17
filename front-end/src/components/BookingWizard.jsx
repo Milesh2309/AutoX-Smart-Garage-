@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
 import './BookingWizard.css';
 import { useBookings } from '../context';
+import { useAuth } from '../context/AuthContext';
+import { vehiclesApi } from '../utils/apiService';
 
 const BookingWizard = () => {
   const { createBooking } = useBookings();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+  const [savedVehicles, setSavedVehicles] = useState([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState('new');
   const [bookingData, setBookingData] = useState({
     // Step 1: Service Selection
     serviceId: '',
@@ -31,6 +36,20 @@ const BookingWizard = () => {
   });
 
   const [errors, setErrors] = useState({});
+
+  React.useEffect(() => {
+    const loadSavedVehicles = async () => {
+      try {
+        const response = await vehiclesApi.listMine();
+        const vehicles = Array.isArray(response?.data) ? response.data : [];
+        setSavedVehicles(vehicles);
+      } catch (_error) {
+        setSavedVehicles([]);
+      }
+    };
+
+    loadSavedVehicles();
+  }, []);
 
   const steps = [
     { number: 1, title: 'Select Service', icon: '🔧' },
@@ -116,7 +135,7 @@ const BookingWizard = () => {
     }
   ];
 
-  const vehicleTypes = ['Car', 'SUV', 'Bike', 'Truck', 'Van'];
+  const vehicleTypes = ['Car', 'Bike'];
   const timeSlots = [
     '09:00 AM - 11:00 AM',
     '11:00 AM - 01:00 PM',
@@ -150,6 +169,34 @@ const BookingWizard = () => {
     if (errors.serviceId) {
       setErrors(prev => ({ ...prev, serviceId: '' }));
     }
+  };
+
+  const handleVehicleSelection = (value) => {
+    setSelectedVehicleId(value);
+
+    if (value === 'new') {
+      setBookingData((prev) => ({
+        ...prev,
+        vehicleType: '',
+        vehicleBrand: '',
+        vehicleModel: '',
+        vehicleNumber: '',
+        vehicleYear: '',
+      }));
+      return;
+    }
+
+    const selected = savedVehicles.find((vehicle) => String(vehicle.id) === String(value));
+    if (!selected) return;
+
+    setBookingData((prev) => ({
+      ...prev,
+      vehicleType: selected.vehicle_type || selected.vehicleType || 'Car',
+      vehicleBrand: selected.vehicle_company || selected.vehicleCompany || selected.make || '',
+      vehicleModel: selected.vehicle_model || selected.vehicleModel || selected.model || '',
+      vehicleNumber: selected.vehicle_number || selected.vehicleNumber || selected.plate || '',
+      vehicleYear: selected.vehicle_year || selected.year || '',
+    }));
   };
 
   const validateStep = (step) => {
@@ -222,14 +269,21 @@ const BookingWizard = () => {
     const scheduledAt = slotDate.toISOString();
 
     const result = await createBooking({
+      userId: user?.userId || user?.id,
       serviceId: bookingData.serviceId,
       serviceName: bookingData.serviceName,
+      customerName: user?.name || user?.fullName || user?.email || 'Customer',
+      email: user?.email || '',
+      phone: user?.phone || '',
       date: bookingData.bookingDate,
       timeSlot: bookingData.preferredSlot,
       scheduledAt,
       notes: bookingData.specialInstructions,
       amount: bookingData.servicePrice,
       vehicleNumber: bookingData.vehicleNumber,
+      vehicleCompany: bookingData.vehicleBrand,
+      vehicleModel: bookingData.vehicleModel,
+      vehicleType: bookingData.vehicleType,
     });
 
     if (!result.success) {
@@ -256,6 +310,7 @@ const BookingWizard = () => {
       paymentMethod: '',
       specialInstructions: '',
     });
+    setSelectedVehicleId('new');
     setCurrentStep(1);
   };
 
@@ -312,6 +367,20 @@ const BookingWizard = () => {
           <div className="step-content">
             <h2>Vehicle Details</h2>
             <p className="step-description">Enter your vehicle information</p>
+
+            <div className="saved-vehicle-bar">
+              <div className="form-group full-width">
+                <label>Select Vehicle</label>
+                <select value={selectedVehicleId} onChange={(e) => handleVehicleSelection(e.target.value)}>
+                  <option value="new">Add a New Vehicle</option>
+                  {savedVehicles.map((vehicle) => (
+                    <option key={vehicle.id} value={vehicle.id}>
+                      {(vehicle.vehicle_number || vehicle.plate || '—')} - {(vehicle.vehicle_company || vehicle.make || '')} {(vehicle.vehicle_model || vehicle.model || '')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
             
             <div className="form-grid">
               <div className="form-group">

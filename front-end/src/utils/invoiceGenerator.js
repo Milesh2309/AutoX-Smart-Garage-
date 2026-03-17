@@ -68,8 +68,8 @@ const drawLogoIcon = (doc, x, y, size) => {
 // Colour palette
 // ──────────────────────────────────────────────
 const COLORS = {
-  primary: [13, 71, 161], // Deep blue
-  accent: [21, 101, 192], // Medium blue
+  primary: [183, 28, 28],
+  accent: [198, 40, 40],
   dark: [33, 33, 33], // Near black
   gray: [97, 97, 97], // Mid gray
   lightGray: [238, 238, 238], // Light gray bg
@@ -101,10 +101,14 @@ export const generateInvoicePDF = (billingData = {}, customerData = {}) => {
 
   // ── Resolve all values once (safe) ────────────
   const invoiceNo = safeStr(billingData.invoiceNumber, 'N/A');
-  const serviceName = safeStr(
-    billingData.serviceName || billingData.bookingId,
-    'Service'
-  );
+  const invoiceLineItems = Array.isArray(billingData.lineItems) && billingData.lineItems.length
+    ? billingData.lineItems
+    : [{
+      name: safeStr(billingData.serviceName || billingData.bookingId, 'Service'),
+      quantity: 1,
+      price: safeNum(billingData.amount),
+      total: safeNum(billingData.totalAmount || billingData.finalTotal || billingData.amount),
+    }];
   const paymentDate =
     formatDate(billingData.paymentDate || billingData.createdAt) ||
     formatDate(new Date());
@@ -113,9 +117,12 @@ export const generateInvoicePDF = (billingData = {}, customerData = {}) => {
     'pending'
   );
 
-  const amount = safeNum(billingData.amount);
-  const tax = safeNum(billingData.tax);
-  const total = safeNum(billingData.totalAmount) || amount + tax;
+  const itemsTotal = invoiceLineItems.reduce((sum, item) => sum + safeNum(item.total || safeNum(item.quantity) * safeNum(item.price)), 0);
+  const serviceCharge = safeNum(billingData.serviceCharge);
+  const discount = safeNum(billingData.discount);
+  const subtotal = safeNum(billingData.subtotal) || Math.max(0, itemsTotal + serviceCharge - discount);
+  const tax = safeNum(billingData.gst || billingData.tax);
+  const total = safeNum(billingData.finalTotal || billingData.totalAmount) || subtotal + tax;
 
   const paymentMethod = safeStr(
     billingData.paymentMethod || billingData.method,
@@ -124,10 +131,13 @@ export const generateInvoicePDF = (billingData = {}, customerData = {}) => {
   const transactionId = safeStr(billingData.transactionId, '—');
   const currency = safeStr(billingData.currency, 'INR');
 
-  const custName = safeStr(customerData.name, 'Customer');
-  const custEmail = safeStr(customerData.email, '—');
-  const custPhone = safeStr(customerData.phone, '—');
+  const custName = safeStr(billingData?.customerDetails?.name || customerData.name, 'Customer');
+  const custEmail = safeStr(billingData?.customerDetails?.email || customerData.email, '—');
+  const custPhone = safeStr(billingData?.customerDetails?.phone || customerData.phone, '—');
   const custAddress = safeStr(customerData.address, '—');
+  const vehicleNumber = safeStr(billingData?.vehicleDetails?.number || customerData.vehicleNumber, '—');
+  const vehicleModel = safeStr(billingData?.vehicleDetails?.model || customerData.vehicleModel, '—');
+  const vehicleCompany = safeStr(billingData?.vehicleDetails?.company || customerData.vehicleCompany, '—');
 
   // ── 1. HEADER BAR ────────────────────────────
   const headerH = 38;
@@ -193,7 +203,7 @@ export const generateInvoicePDF = (billingData = {}, customerData = {}) => {
   // Light background box for customer info
   const custBoxY = custStartY + 3;
   doc.setFillColor(...COLORS.lightGray);
-  doc.roundedRect(margin, custBoxY, contentWidth, 26, 2, 2, 'F');
+  doc.roundedRect(margin, custBoxY, contentWidth, 34, 2, 2, 'F');
 
   doc.setFontSize(9);
   doc.setFont(undefined, 'normal');
@@ -203,21 +213,26 @@ export const generateInvoicePDF = (billingData = {}, customerData = {}) => {
   const col2 = pageWidth / 2 + 5;
   const row1 = custBoxY + 8;
   const row2 = custBoxY + 15;
+  const row3 = custBoxY + 22;
 
   doc.setFont(undefined, 'bold');
   doc.text('Name:', col1, row1);
   doc.text('Email:', col1, row2);
   doc.text('Phone:', col2, row1);
   doc.text('Address:', col2, row2);
+  doc.text('Vehicle No.:', col1, row3);
+  doc.text('Vehicle:', col2, row3);
 
   doc.setFont(undefined, 'normal');
   doc.text(custName, col1 + 20, row1);
   doc.text(custEmail, col1 + 20, row2);
   doc.text(custPhone, col2 + 22, row1);
   doc.text(custAddress, col2 + 22, row2);
+  doc.text(vehicleNumber, col1 + 20, row3);
+  doc.text(`${vehicleCompany} ${vehicleModel}`.trim(), col2 + 22, row3);
 
   // ── 4. SERVICE TABLE ─────────────────────────
-  const tableStartY = custBoxY + 36;
+  const tableStartY = custBoxY + 44;
 
   doc.setFontSize(10);
   doc.setFont(undefined, 'bold');
@@ -229,15 +244,19 @@ export const generateInvoicePDF = (billingData = {}, customerData = {}) => {
     head: [
       [
         '#',
-        'Service Name',
-        `Amount (${currency})`,
-        `Tax (${currency})`,
+        'Service / Part',
+        'Qty',
+        `Price (${currency})`,
         `Total (${currency})`,
       ],
     ],
-    body: [
-      ['1', serviceName, amount.toFixed(2), tax.toFixed(2), total.toFixed(2)],
-    ],
+    body: invoiceLineItems.map((item, index) => [
+      String(index + 1),
+      safeStr(item.name, 'Item'),
+      safeNum(item.quantity || 1).toFixed(0),
+      safeNum(item.price).toFixed(2),
+      safeNum(item.total || safeNum(item.quantity) * safeNum(item.price)).toFixed(2),
+    ]),
     headStyles: {
       fillColor: COLORS.primary,
       textColor: COLORS.white,
@@ -254,7 +273,7 @@ export const generateInvoicePDF = (billingData = {}, customerData = {}) => {
     columnStyles: {
       0: { halign: 'center', cellWidth: 12 },
       1: { halign: 'left' },
-      2: { halign: 'right' },
+      2: { halign: 'center' },
       3: { halign: 'right' },
       4: { halign: 'right', fontStyle: 'bold' },
     },
@@ -293,18 +312,28 @@ export const generateInvoicePDF = (billingData = {}, customerData = {}) => {
     doc.text(value, summBoxX + summBoxW - 5, ry + 2, { align: 'right' });
   };
 
-  drawSummaryRow('Subtotal', `${currency} ${amount.toFixed(2)}`, 5, false, null);
+  drawSummaryRow('Line Items', `${currency} ${itemsTotal.toFixed(2)}`, 5, false, null);
   doc.setDrawColor(200, 200, 200);
   doc.setLineWidth(0.2);
   doc.line(summBoxX + 3, summBoxY + 12, summBoxX + summBoxW - 3, summBoxY + 12);
 
-  drawSummaryRow('Tax', `${currency} ${tax.toFixed(2)}`, 14, false, null);
+  drawSummaryRow('Subtotal', `${currency} ${subtotal.toFixed(2)}`, 14, false, null);
   doc.line(summBoxX + 3, summBoxY + 21, summBoxX + summBoxW - 3, summBoxY + 21);
 
   drawSummaryRow(
-    'TOTAL',
-    `${currency} ${total.toFixed(2)}`,
+    `GST`,
+    `${currency} ${tax.toFixed(2)}`,
     24,
+    false,
+    null
+  );
+
+  doc.line(summBoxX + 3, summBoxY + 30, summBoxX + summBoxW - 3, summBoxY + 30);
+
+  drawSummaryRow(
+    'FINAL TOTAL',
+    `${currency} ${total.toFixed(2)}`,
+    33,
     true,
     COLORS.lightGray
   );

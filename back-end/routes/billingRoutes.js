@@ -43,11 +43,35 @@ const authMiddleware = require('../middleware/authMiddleware');
  */
 router.post(
   '/api/billing/create',
-  body('userId').notEmpty().withMessage('userId is required'),
-  body('amount').isFloat({ gt: 0 }).withMessage('amount must be greater than 0'),
-  body('currency').isLength({ min: 3, max: 3 }).withMessage('currency must be 3 letters'),
+  body('customerType').optional().isString().withMessage('customerType must be a string'),
+  body('currency').optional().isLength({ min: 3, max: 3 }).withMessage('currency must be 3 letters'),
   validate,
   billingController.createBilling
+);
+
+router.get('/api/billing/customers/registered', billingController.getRegisteredCustomers);
+router.get('/billing/customers/registered', billingController.getRegisteredCustomers);
+router.get('/api/billing/registered-users', billingController.getRegisteredCustomers);
+
+router.get(
+  '/api/billing/customers/registered/:userId',
+  param('userId').notEmpty().withMessage('userId is required'),
+  validate,
+  billingController.getRegisteredCustomerProfile
+);
+
+router.get(
+  '/billing/customers/registered/:userId',
+  param('userId').notEmpty().withMessage('userId is required'),
+  validate,
+  billingController.getRegisteredCustomerProfile
+);
+
+router.get(
+  '/api/billing/registered-users/:userId',
+  param('userId').notEmpty().withMessage('userId is required'),
+  validate,
+  billingController.getRegisteredCustomerProfile
 );
 
 /**
@@ -180,6 +204,22 @@ router.patch(
   param('invoiceNumber').notEmpty().withMessage('invoiceNumber is required'),
   validate,
   billingController.verifyBilling
+);
+
+router.get(
+  '/api/billing/:invoiceNumber',
+  param('invoiceNumber').notEmpty().withMessage('invoiceNumber is required'),
+  validate,
+  billingController.getBillingByInvoiceNumber
+);
+
+router.put(
+  '/api/billing/:invoiceNumber',
+  param('invoiceNumber').notEmpty().withMessage('invoiceNumber is required'),
+  body('customerType').optional().isString().withMessage('customerType must be a string'),
+  body('currency').optional().isLength({ min: 3, max: 3 }).withMessage('currency must be 3 letters'),
+  validate,
+  billingController.updateBilling
 );
 
 /**

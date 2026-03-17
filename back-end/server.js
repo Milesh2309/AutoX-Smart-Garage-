@@ -39,6 +39,8 @@ const packageRoutes = require('./routes/packageRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const mechanicRoutes = require('./routes/mechanicRoutes');
 
+
+
 app.use('/', userRoutes);
 app.use('/', billingRoutes);
 app.use('/', contactRoutes);
@@ -67,6 +69,12 @@ const options = {
       version: "1.0.0",
       description: "Express API with Routes and Controller"
     },
+    
+    servers: [
+      {
+        url: "http://localhost:5000"
+      }
+    ],
     components: {
       securitySchemes: {
         bearerAuth: {
@@ -76,11 +84,11 @@ const options = {
         }
       }
     },
-    servers: [
+    security: [
       {
-        url: "http://localhost:5000"
+        bearerAuth: []
       }
-    ]
+    ],
   },
   apis: [path.join(__dirname, 'routes', '*.js')],
 };

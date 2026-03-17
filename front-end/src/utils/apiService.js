@@ -14,13 +14,15 @@ export const authApi = {
 /* ─── Bookings ─── */
 export const bookingApi = {
   listAll: () => apiGet('/api/bookings', { auth: false }),
+  listAdmin: (queryString = '') => apiGet(`/api/get_bookings.php${queryString ? `?${queryString}` : ''}`, { auth: false }),
   listMine: () => apiGet('/api/bookings/me'),
+  listHistory: () => apiGet('/api/bookings/history/me'),
   createPublic: (payload) => apiPost('/api/bookings', payload, { auth: false }),
   cancel: (id) => apiPut(`/api/bookings/${id}/cancel`),
   reschedule: (id, payload) => apiPost(`/api/bookings/${id}/reschedule`, payload),
   getStats: () => apiGet('/bookings/stats', { auth: false }),
-  updateStatus: (id, payload) => apiPut(`/bookings/${id}/status`, payload, { auth: false }),
-  delete: (id) => apiDelete(`/bookings/${id}`),
+  updateStatus: (id, payload) => apiPut(`/api/bookings/${id}/status`, payload, { auth: false }),
+  delete: (id) => apiDelete(`/api/bookings/${id}`, { auth: false }),
 };
 
 /* ─── Billing ─── */
@@ -29,6 +31,10 @@ export const billingApi = {
   listByUser: (userId) => apiGet(`/api/billing/user/${userId}`),
   listMine: () => apiGet('/api/billing/me'),
   listAll: (queryString = '') => apiGet(`/api/billing/all${queryString ? `?${queryString}` : ''}`),
+  getByInvoice: (invoiceNumber) => apiGet(`/api/billing/${invoiceNumber}`),
+  update: (invoiceNumber, payload) => apiPut(`/api/billing/${invoiceNumber}`, payload),
+  listRegisteredCustomers: () => apiGet('/api/billing/customers/registered'),
+  getRegisteredCustomerProfile: (userId) => apiGet(`/api/billing/customers/registered/${userId}`),
   refund: (payload) => apiPost('/api/billing/refund', payload),
   verify: (invoiceNumber) => apiPatch(`/api/billing/verify/${invoiceNumber}`),
 };
@@ -116,7 +122,34 @@ export const usersApi = {
 
 /* ─── Vehicles ─── */
 export const vehiclesApi = {
+  listAll: async (queryString = '') => {
+    const query = queryString ? `?${queryString}` : '';
+
+    try {
+      return await apiGet(`/api/get_vehicles.php${query}`, { auth: false });
+    } catch (error) {
+      if (error?.status !== 404) throw error;
+    }
+
+    try {
+      return await apiGet(`/api/vehicles${query}`, { auth: false });
+    } catch (error) {
+      if (error?.status !== 404) throw error;
+    }
+
+    try {
+      return await apiGet(`/vehicles/all${query}`);
+    } catch (error) {
+      if (error?.status !== 404) throw error;
+    }
+
+    return { success: true, data: [] };
+  },
   listMine: () => apiGet('/api/vehicles/me'),
+  listByUser: (userId) => apiGet(`/api/vehicles/user/${userId}`, { auth: false }),
+  createAdmin: (payload) => apiPost('/api/vehicles', payload, { auth: false }),
+  updateAdmin: (id, payload) => apiPut(`/api/vehicles/${id}`, payload, { auth: false }),
+  deleteAdmin: (id) => apiDelete(`/api/vehicles/${id}`, { auth: false }),
   create: (payload) => apiPost('/vehicles', payload),
   getById: (id) => apiGet(`/vehicles/${id}`),
   update: (id, payload) => apiPut(`/vehicles/${id}`, payload),

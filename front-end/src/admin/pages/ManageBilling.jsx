@@ -1,537 +1,606 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useBilling } from '../../context/BillingContext';
-import {
-  downloadInvoicePDF,
-  downloadBillingReportPDF,
-} from '../../utils/invoiceGenerator';
+import { downloadInvoicePDF } from '../../utils/invoiceGenerator';
 import CommonTable from '../../components/CommonTable';
 import './ManageBilling.css';
+
+const emptyLineItem = () => ({ name: '', quantity: 1, price: 0, itemType: 'service' });
+
+const emptyForm = {
+  customerType: 'registered',
+  userId: '',
+  customerDetails: { name: '', phone: '', email: '' },
+  vehicleDetails: { number: '', model: '', company: '' },
+  lineItems: [emptyLineItem()],
+  serviceCharge: 0,
+  discount: 0,
+  gst: 0,
+  currency: 'INR',
+  paymentMethod: 'cash',
+  status: 'issued',
+};
 
 function ManageBilling() {
   const {
     billingRecords,
     fetchAllBillingRecords,
-    processRefund,
-    verifyInvoice,
-    generateBillingReport,
+    createBillingRecord,
+    updateBillingRecord,
+    fetchRegisteredCustomers,
+    fetchRegisteredCustomerProfile,
     loading,
   } = useBilling();
 
-  const [activeTab, setActiveTab] = useState('invoices');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterMethod, setFilterMethod] = useState('all');
-  const [dateRange, setDateRange] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('create');
+  const [editingInvoice, setEditingInvoice] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
-  const [showRefundModal, setShowRefundModal] = useState(false);
-  const [refundData, setRefundData] = useState({ amount: 0, reason: '' });
-  const [reportFilters, setReportFilters] = useState({
-    startDate: new Date(new Date().setDate(new Date().getDate() - 30))
-      .toISOString()
-      .slice(0, 10),
-    endDate: new Date().toISOString().slice(0, 10),
-    paymentStatus: 'all',
-  });
+  const [registeredCustomers, setRegisteredCustomers] = useState([]);
+  const [customerVehicles, setCustomerVehicles] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchDate, setSearchDate] = useState('');
+  const [formData, setFormData] = useState(emptyForm);
 
   useEffect(() => {
-    fetchAllBillingRecords();
+    const bootstrap = async () => {
+      try {
+        await fetchAllBillingRecords();
+      } catch (_error) {
+        setRegisteredCustomers([]);
+      }
+
+      try {
+        const customers = await fetchRegisteredCustomers();
+        setRegisteredCustomers(customers);
+      } catch (_error) {
+        setRegisteredCustomers([]);
+      }
+    };
+    bootstrap();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const totals = useMemo(() => {
+    const lineTotal = formData.lineItems.reduce((sum, item) => {
+      const quantity = Number(item.quantity || 0);
+      const price = Number(item.price || 0);
+      return sum + quantity * price;
+    }, 0);
+
+    const serviceCharge = Number(formData.serviceCharge || 0);
+    const discount = Number(formData.discount || 0);
+    const gst = Number(formData.gst || 0);
+    const subtotal = Math.max(0, lineTotal + serviceCharge - discount);
+    const finalTotal = Math.max(0, subtotal + gst);
+
+    return { lineTotal, subtotal, finalTotal };
+  }, [formData]);
+
   const billingColumns = useMemo(
     () => [
+      { accessorKey: 'invoiceNumber', header: 'Invoice #', size: 140 },
       {
-        accessorKey: 'invoiceNumber',
-        header: 'Invoice #',
-        size: 120,
+        accessorKey: 'customerDetails.name',
+        header: 'Customer',
+        cell: ({ row }) => row.original?.customerDetails?.name || '—',
       },
       {
-        accessorKey: 'userId',
-        header: 'Customer ID',
-        size: 120,
+        accessorKey: 'vehicleDetails.number',
+        header: 'Vehicle Number',
+        cell: ({ row }) => row.original?.vehicleDetails?.number || '—',
       },
       {
-        accessorKey: 'serviceName',
-        header: 'Service',
-        size: 130,
+        accessorKey: 'customerType',
+        header: 'Type',
+        cell: ({ getValue }) => (getValue() === 'offline' ? 'Offline' : 'Registered'),
       },
       {
-        accessorKey: 'amount',
-        header: 'Amount',
-        size: 100,
-        cell: ({ getValue }) => `₹${getValue()}`,
+        accessorKey: 'finalTotal',
+        header: 'Final Total',
+        cell: ({ row }) => `₹${Number(row.original?.finalTotal || row.original?.totalAmount || 0).toFixed(2)}`,
       },
       {
-        accessorKey: 'paymentMethod',
-        header: 'Method',
-        size: 100,
-      },
-      {
-        accessorKey: 'paymentStatus',
-        header: 'Status',
-        size: 100,
-        cell: ({ getValue }) => {
-          const status = getValue();
-          return (
-            <span className={`status-badge status-${status}`}>
-              {status.toUpperCase()}
-            </span>
-          );
-        },
-      },
-      {
-        accessorKey: 'paymentDate',
+        accessorKey: 'createdAt',
         header: 'Date',
-        size: 130,
-        cell: ({ getValue }) =>
-          new Date(getValue()).toLocaleDateString('en-IN'),
+        cell: ({ getValue }) => new Date(getValue()).toLocaleDateString('en-IN'),
       },
     ],
     []
   );
 
-  // Filter billings
   const filteredBillings = useMemo(() => {
-    let filtered = billingRecords;
+    return billingRecords.filter((record) => {
+      const text = searchTerm.trim().toLowerCase();
+      const customerName = String(record?.customerDetails?.name || '').toLowerCase();
+      const vehicleNumber = String(record?.vehicleDetails?.number || '').toLowerCase();
+      const matchesText =
+        !text ||
+        customerName.includes(text) ||
+        vehicleNumber.includes(text) ||
+        String(record?.invoiceNumber || '').toLowerCase().includes(text);
 
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(b => b.paymentStatus === filterStatus);
-    }
+      if (!matchesText) return false;
 
-    if (filterMethod !== 'all') {
-      filtered = filtered.filter(b => b.paymentMethod === filterMethod);
-    }
-
-    if (searchTerm) {
-      filtered = filtered.filter(
-        b =>
-          (b.invoiceNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          String(b.userId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (b.serviceName || '').toLowerCase().includes(searchTerm.toLowerCase())
+      if (!searchDate) return true;
+      const billDate = new Date(record?.createdAt || record?.paymentDate);
+      const selectedDate = new Date(searchDate);
+      return (
+        billDate.getFullYear() === selectedDate.getFullYear() &&
+        billDate.getMonth() === selectedDate.getMonth() &&
+        billDate.getDate() === selectedDate.getDate()
       );
-    }
-
-    if (dateRange !== 'all') {
-      const now = new Date();
-      let startDate = new Date();
-
-      switch (dateRange) {
-        case '7days':
-          startDate.setDate(now.getDate() - 7);
-          break;
-        case '30days':
-          startDate.setDate(now.getDate() - 30);
-          break;
-        case '90days':
-          startDate.setDate(now.getDate() - 90);
-          break;
-        case '1year':
-          startDate.setFullYear(now.getFullYear() - 1);
-          break;
-        default:
-          break;
-      }
-
-      filtered = filtered.filter(b => new Date(b.paymentDate || b.createdAt) >= startDate);
-    }
-
-    return filtered;
-  }, [billingRecords, filterStatus, filterMethod, searchTerm, dateRange]);
-
-  // Calculate statistics
-  const statistics = useMemo(() => {
-    const stats = {
-      totalInvoices: filteredBillings.length,
-      totalRevenue: 0,
-      completedPayments: 0,
-      failedPayments: 0,
-      totalRefunds: 0,
-    };
-
-    filteredBillings.forEach(billing => {
-      stats.totalRevenue += billing.totalAmount;
-      if (billing.paymentStatus === 'completed') {
-        stats.completedPayments += 1;
-      } else if (billing.paymentStatus === 'failed') {
-        stats.failedPayments += 1;
-      }
-      stats.totalRefunds += billing.refundAmount || 0;
     });
+  }, [billingRecords, searchDate, searchTerm]);
 
-    return stats;
-  }, [filteredBillings]);
-
-  const handleRefund = async () => {
-    if (selectedInvoice && refundData.amount > 0) {
-      try {
-        await processRefund(
-          selectedInvoice.invoiceNumber,
-          refundData.amount,
-          refundData.reason
-        );
-        setShowRefundModal(false);
-        setRefundData({ amount: 0, reason: '' });
-        alert('Refund processed successfully!');
-      } catch (err) {
-        alert(`Refund failed: ${err.message}`);
-      }
-    }
+  const handleCustomerTypeChange = (customerType) => {
+    setFormData((prev) => ({
+      ...prev,
+      customerType,
+      userId: '',
+      customerDetails: { name: '', phone: '', email: '' },
+      vehicleDetails: { number: '', model: '', company: '' },
+    }));
+    setCustomerVehicles([]);
   };
 
-  const handleVerifyInvoice = async (invoiceNumber) => {
-    try {
-      await verifyInvoice(invoiceNumber);
-      alert('Invoice verified successfully!');
-    } catch (err) {
-      alert(`Verification failed: ${err.message}`);
-    }
+  const handleRegisteredCustomerSelect = async (userId) => {
+    if (!userId) return;
+    const profile = await fetchRegisteredCustomerProfile(userId);
+    if (!profile) return;
+
+    setCustomerVehicles(profile.vehicles || []);
+    setFormData((prev) => ({
+      ...prev,
+      userId: profile.userId || userId,
+      customerDetails: profile.customerDetails || { name: '', phone: '', email: '' },
+      vehicleDetails: profile.vehicleDetails || { number: '', model: '', company: '' },
+    }));
   };
 
-  const handleDownloadInvoice = (billing) => {
-    const customerData = {
-      name: `Customer ${billing.userId}`,
-      email: 'customer@email.com',
-      phone: 'N/A',
-      address: 'N/A',
+  const handleVehiclePick = (vehicleNumber) => {
+    const found = customerVehicles.find((vehicle) => vehicle.number === vehicleNumber);
+    if (!found) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      vehicleDetails: {
+        number: found.number || '',
+        model: found.model || '',
+        company: found.company || '',
+      },
+    }));
+  };
+
+  const handleLineItemChange = (index, field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      lineItems: prev.lineItems.map((item, idx) =>
+        idx === index ? { ...item, [field]: field === 'name' || field === 'itemType' ? value : Number(value || 0) } : item
+      ),
+    }));
+  };
+
+  const addLineItem = () => {
+    setFormData((prev) => ({ ...prev, lineItems: [...prev.lineItems, emptyLineItem()] }));
+  };
+
+  const removeLineItem = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      lineItems: prev.lineItems.length <= 1 ? prev.lineItems : prev.lineItems.filter((_, idx) => idx !== index),
+    }));
+  };
+
+  const mapInvoiceToForm = (invoice) => ({
+    customerType: invoice.customerType || 'registered',
+    userId: invoice.userId || '',
+    customerDetails: {
+      name: invoice.customerDetails?.name || '',
+      phone: invoice.customerDetails?.phone || '',
+      email: invoice.customerDetails?.email || '',
+    },
+    vehicleDetails: {
+      number: invoice.vehicleDetails?.number || '',
+      model: invoice.vehicleDetails?.model || '',
+      company: invoice.vehicleDetails?.company || '',
+    },
+    lineItems: Array.isArray(invoice.lineItems) && invoice.lineItems.length
+      ? invoice.lineItems.map((item) => ({
+          name: item.name || '',
+          quantity: Number(item.quantity || 1),
+          price: Number(item.price || 0),
+          itemType: item.itemType || 'service',
+        }))
+      : [emptyLineItem()],
+    serviceCharge: Number(invoice.serviceCharge || 0),
+    discount: Number(invoice.discount || 0),
+    gst: Number(invoice.gst || 0),
+    currency: invoice.currency || 'INR',
+    paymentMethod: invoice.paymentMethod || 'cash',
+    status: invoice.status || 'issued',
+  });
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    const payload = {
+      ...formData,
+      lineItems: formData.lineItems.filter((item) => item.name.trim()),
+      subtotal: totals.subtotal,
+      finalTotal: totals.finalTotal,
     };
-    downloadInvoicePDF(billing, customerData);
+
+    if (!payload.lineItems.length) {
+      alert('Please add at least one service or part item.');
+      return;
+    }
+
+    if (payload.customerType === 'registered' && !payload.userId) {
+      alert('Please select a registered user.');
+      return;
+    }
+
+    if (payload.customerType === 'offline' && (!payload.customerDetails.name || !payload.customerDetails.phone)) {
+      alert('Please enter offline customer name and mobile number.');
+      return;
+    }
+
+    if (!payload.vehicleDetails.number) {
+      alert('Please enter/select vehicle number.');
+      return;
+    }
+
+    try {
+      if (editingInvoice) {
+        await updateBillingRecord(editingInvoice, payload);
+        alert('Bill updated successfully.');
+      } else {
+        await createBillingRecord(payload);
+        alert('Bill created successfully.');
+      }
+
+      setEditingInvoice('');
+      setFormData(emptyForm);
+      setCustomerVehicles([]);
+      await fetchAllBillingRecords();
+      setActiveTab('records');
+    } catch (error) {
+      alert(error.message || 'Unable to save bill.');
+    }
   };
 
-  const handleGenerateReport = () => {
-    const report = generateBillingReport(
-      new Date(reportFilters.startDate),
-      new Date(reportFilters.endDate),
-      {
-        paymentStatus: reportFilters.paymentStatus !== 'all' ? reportFilters.paymentStatus : undefined,
-      }
-    );
+  const handleEditBill = async (record) => {
+    setEditingInvoice(record.invoiceNumber);
+    setFormData(mapInvoiceToForm(record));
 
-    downloadBillingReportPDF(report.records, {
-      totalAmount: report.totalAmount,
-      totalTransactions: report.totalTransactions,
-      completedPayments: report.completedPayments,
-      totalRefunds: report.totalRefunds,
+    if (record.customerType === 'registered' && record.userId) {
+      const profile = await fetchRegisteredCustomerProfile(record.userId);
+      setCustomerVehicles(profile?.vehicles || []);
+    } else {
+      setCustomerVehicles([]);
+    }
+
+    setActiveTab('create');
+  };
+
+  const handleDownloadInvoice = (record) => {
+    downloadInvoicePDF(record, {
+      name: record?.customerDetails?.name || 'Customer',
+      email: record?.customerDetails?.email || 'N/A',
+      phone: record?.customerDetails?.phone || 'N/A',
+      address: 'N/A',
+      vehicleNumber: record?.vehicleDetails?.number || 'N/A',
+      vehicleModel: record?.vehicleDetails?.model || 'N/A',
+      vehicleCompany: record?.vehicleDetails?.company || 'N/A',
     });
   };
 
   return (
     <div className="manage-billing">
       <div className="billing-page-header">
-        <h1>💳 Billing Management</h1>
-        <p>Manage invoices, verify payments, and process refunds</p>
+        <h1>Billing Management</h1>
+        <p>Create, edit, view, search, and download professional invoices.</p>
       </div>
 
-      {/* Statistics */}
-      <div className="billing-stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon">📊</div>
-          <div className="stat-info">
-            <div className="stat-label">Total Invoices</div>
-            <div className="stat-value">{statistics.totalInvoices}</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">💵</div>
-          <div className="stat-info">
-            <div className="stat-label">Total Revenue</div>
-            <div className="stat-value">₹{statistics.totalRevenue}</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">✅</div>
-          <div className="stat-info">
-            <div className="stat-label">Completed Payments</div>
-            <div className="stat-value">{statistics.completedPayments}</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">❌</div>
-          <div className="stat-info">
-            <div className="stat-label">Failed Payments</div>
-            <div className="stat-value">{statistics.failedPayments}</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">↩️</div>
-          <div className="stat-info">
-            <div className="stat-label">Total Refunds</div>
-            <div className="stat-value">₹{statistics.totalRefunds}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
       <div className="billing-tabs">
-        <button
-          className={`tab-btn ${activeTab === 'invoices' ? 'active' : ''}`}
-          onClick={() => setActiveTab('invoices')}
-        >
-          📋 Invoices
+        <button className={`tab-btn ${activeTab === 'create' ? 'active' : ''}`} onClick={() => setActiveTab('create')}>
+          Create New Bill
         </button>
-        <button
-          className={`tab-btn ${activeTab === 'reports' ? 'active' : ''}`}
-          onClick={() => setActiveTab('reports')}
-        >
-          📈 Reports
+        <button className={`tab-btn ${activeTab === 'records' ? 'active' : ''}`} onClick={() => setActiveTab('records')}>
+          Billing Records
         </button>
       </div>
 
-      {/* Invoices Tab */}
-      {activeTab === 'invoices' && (
-        <div className="tab-content">
-          {/* Filters */}
-          <div className="billing-filters-section">
-            <div className="filter-box">
-              <label>Search:</label>
-              <input
-                type="text"
-                placeholder="Invoice #, Customer ID, Service..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="search-input"
-              />
-            </div>
-
-            <div className="filter-box">
-              <label>Payment Status:</label>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-              >
-                <option value="all">All</option>
-                <option value="completed">Completed</option>
-                <option value="pending">Pending</option>
-                <option value="failed">Failed</option>
-              </select>
-            </div>
-
-            <div className="filter-box">
-              <label>Payment Method:</label>
-              <select
-                value={filterMethod}
-                onChange={(e) => setFilterMethod(e.target.value)}
-              >
-                <option value="all">All Methods</option>
-                <option value="credit_card">Credit Card</option>
-                <option value="debit_card">Debit Card</option>
-                <option value="upi">UPI</option>
-                <option value="netbanking">Net Banking</option>
-                <option value="wallet">Wallet</option>
-                <option value="cash_on_delivery">Cash on Delivery</option>
-              </select>
-            </div>
-
-            <div className="filter-box">
-              <label>Date Range:</label>
-              <select value={dateRange} onChange={(e) => setDateRange(e.target.value)}>
-                <option value="all">All Time</option>
-                <option value="7days">Last 7 Days</option>
-                <option value="30days">Last 30 Days</option>
-                <option value="90days">Last 90 Days</option>
-                <option value="1year">Last 1 Year</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Table */}
-          {loading ? (
-            <div className="loading-state">
-              <div className="spinner"></div>
-              <p>Loading billing records...</p>
-            </div>
-          ) : filteredBillings.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">📭</div>
-              <h3>No Billing Records</h3>
-              <p>No invoices match your filter criteria.</p>
-            </div>
-          ) : (
-            <>
-              <div className="table-wrapper">
-                <CommonTable data={filteredBillings} columns={billingColumns} />
-              </div>
-
-              {/* Action Buttons */}
-              <div className="billing-actions-grid">
-                {filteredBillings.map((billing) => (
-                  <div key={billing.invoiceNumber} className="action-row">
-                    <span className="invoice-ref">{billing.invoiceNumber}</span>
-                    <div className="action-buttons">
-                      <button
-                        className="btn-action btn-download"
-                        onClick={() => handleDownloadInvoice(billing)}
-                        title="Download Invoice"
-                      >
-                        📥
-                      </button>
-                      <button
-                        className="btn-action btn-verify"
-                        onClick={() => handleVerifyInvoice(billing.invoiceNumber)}
-                        title="Verify Invoice"
-                      >
-                        ✓
-                      </button>
-                      <button
-                        className="btn-action btn-refund"
-                        onClick={() => {
-                          setSelectedInvoice(billing);
-                          setShowRefundModal(true);
-                        }}
-                        title="Process Refund"
-                      >
-                        ↩️
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Reports Tab */}
-      {activeTab === 'reports' && (
-        <div className="tab-content">
-          <div className="report-section">
-            <h3>📈 Generate Billing Report</h3>
-
-            <div className="report-filters">
-              <div className="filter-box">
-                <label>Start Date:</label>
-                <input
-                  type="date"
-                  value={reportFilters.startDate}
-                  onChange={(e) =>
-                    setReportFilters({
-                      ...reportFilters,
-                      startDate: e.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              <div className="filter-box">
-                <label>End Date:</label>
-                <input
-                  type="date"
-                  value={reportFilters.endDate}
-                  onChange={(e) =>
-                    setReportFilters({
-                      ...reportFilters,
-                      endDate: e.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              <div className="filter-box">
-                <label>Payment Status:</label>
-                <select
-                  value={reportFilters.paymentStatus}
-                  onChange={(e) =>
-                    setReportFilters({
-                      ...reportFilters,
-                      paymentStatus: e.target.value,
-                    })
-                  }
-                >
-                  <option value="all">All</option>
-                  <option value="completed">Completed</option>
-                  <option value="pending">Pending</option>
-                  <option value="failed">Failed</option>
+      <div className="tab-content">
+        {activeTab === 'create' && (
+          <form className="billing-form" onSubmit={handleSubmit}>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Select Customer Type</label>
+                <select value={formData.customerType} onChange={(e) => handleCustomerTypeChange(e.target.value)}>
+                  <option value="registered">Registered User</option>
+                  <option value="offline">Offline Customer (Walk-in)</option>
                 </select>
               </div>
 
-              <button className="btn-generate-report" onClick={handleGenerateReport}>
-                📊 Generate & Download Report
+              {formData.customerType === 'registered' ? (
+                <>
+                  <div className="form-group">
+                    <label>Registered User</label>
+                    <select value={formData.userId} onChange={(e) => handleRegisteredCustomerSelect(e.target.value)}>
+                      <option value="">Select customer</option>
+                      {registeredCustomers.map((user) => (
+                        <option key={user.id} value={user.userId || user.id}>
+                          {user.name} {user.phone ? `(${user.phone})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Customer Name</label>
+                    <input type="text" value={formData.customerDetails.name} readOnly />
+                  </div>
+                  <div className="form-group">
+                    <label>Mobile Number</label>
+                    <input type="text" value={formData.customerDetails.phone} readOnly />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Vehicle Number</label>
+                    <select
+                      value={formData.vehicleDetails.number}
+                      onChange={(e) => handleVehiclePick(e.target.value)}
+                    >
+                      <option value="">Select vehicle</option>
+                      {customerVehicles.map((vehicle) => (
+                        <option key={`${vehicle.number}-${vehicle.id || ''}`} value={vehicle.number}>
+                          {vehicle.number}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Vehicle Model</label>
+                    <input type="text" value={formData.vehicleDetails.model} readOnly />
+                  </div>
+                  <div className="form-group">
+                    <label>Vehicle Company</label>
+                    <input type="text" value={formData.vehicleDetails.company} readOnly />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="form-group">
+                    <label>Customer Name</label>
+                    <input
+                      type="text"
+                      value={formData.customerDetails.name}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          customerDetails: { ...prev.customerDetails, name: e.target.value },
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Mobile Number</label>
+                    <input
+                      type="text"
+                      value={formData.customerDetails.phone}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          customerDetails: { ...prev.customerDetails, phone: e.target.value },
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Vehicle Number</label>
+                    <input
+                      type="text"
+                      value={formData.vehicleDetails.number}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          vehicleDetails: { ...prev.vehicleDetails, number: e.target.value.toUpperCase() },
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Vehicle Model</label>
+                    <input
+                      type="text"
+                      value={formData.vehicleDetails.model}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          vehicleDetails: { ...prev.vehicleDetails, model: e.target.value },
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Vehicle Company</label>
+                    <input
+                      type="text"
+                      value={formData.vehicleDetails.company}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          vehicleDetails: { ...prev.vehicleDetails, company: e.target.value },
+                        }))
+                      }
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <h3 className="section-title">Service & Parts Details</h3>
+            <div className="line-items-table">
+              <div className="line-items-header">
+                <span>Service/Part Name</span>
+                <span>Quantity</span>
+                <span>Price</span>
+                <span>Total</span>
+                <span>Action</span>
+              </div>
+              {formData.lineItems.map((item, index) => (
+                <div key={`line-item-${index}`} className="line-item-row">
+                  <input
+                    type="text"
+                    value={item.name}
+                    placeholder="Enter service or part name"
+                    onChange={(e) => handleLineItemChange(index, 'name', e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    min="1"
+                    value={item.quantity}
+                    onChange={(e) => handleLineItemChange(index, 'quantity', e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    value={item.price}
+                    onChange={(e) => handleLineItemChange(index, 'price', e.target.value)}
+                  />
+                  <input type="text" value={`₹${(Number(item.quantity || 0) * Number(item.price || 0)).toFixed(2)}`} readOnly />
+                  <button type="button" className="btn-danger" onClick={() => removeLineItem(index)}>
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button type="button" className="btn-secondary" onClick={addLineItem}>
+                + Add Row
               </button>
             </div>
 
-            <div className="report-preview">
-              <h4>Report Preview</h4>
-              <div className="report-grid">
-                <div className="report-item">
-                  <span className="report-label">Total Transactions:</span>
-                  <span className="report-value">{statistics.totalInvoices}</span>
-                </div>
-                <div className="report-item">
-                  <span className="report-label">Total Revenue:</span>
-                  <span className="report-value">₹{statistics.totalRevenue}</span>
-                </div>
-                <div className="report-item">
-                  <span className="report-label">Completed Payments:</span>
-                  <span className="report-value">{statistics.completedPayments}</span>
-                </div>
-                <div className="report-item">
-                  <span className="report-label">Failed Payments:</span>
-                  <span className="report-value">{statistics.failedPayments}</span>
-                </div>
-                <div className="report-item">
-                  <span className="report-label">Total Refunds:</span>
-                  <span className="report-value">₹{statistics.totalRefunds}</span>
-                </div>
+            <h3 className="section-title">Additional Billing Fields</h3>
+            <div className="form-grid compact-grid">
+              <div className="form-group">
+                <label>Service Charge</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.serviceCharge}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, serviceCharge: Number(e.target.value || 0) }))}
+                />
+              </div>
+              <div className="form-group">
+                <label>Discount</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.discount}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, discount: Number(e.target.value || 0) }))}
+                />
+              </div>
+              <div className="form-group">
+                <label>GST</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.gst}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, gst: Number(e.target.value || 0) }))}
+                />
+              </div>
+              <div className="form-group">
+                <label>Final Total</label>
+                <input type="text" value={`₹${totals.finalTotal.toFixed(2)}`} readOnly />
               </div>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Refund Modal */}
-      {showRefundModal && selectedInvoice && (
-        <div className="modal-overlay" onClick={() => setShowRefundModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button
-              className="modal-close"
-              onClick={() => setShowRefundModal(false)}
-            >
-              ✕
-            </button>
-
-            <h3>Process Refund</h3>
-            <p>Invoice: {selectedInvoice.invoiceNumber}</p>
-
-            <div className="form-group">
-              <label>Refund Amount (max ₹{selectedInvoice.totalAmount}):</label>
-              <input
-                type="number"
-                max={selectedInvoice.totalAmount}
-                value={refundData.amount}
-                onChange={(e) =>
-                  setRefundData({
-                    ...refundData,
-                    amount: parseFloat(e.target.value) || 0,
-                  })
-                }
-              />
+            <div className="summary-box">
+              <div><span>Line Items:</span><strong>₹{totals.lineTotal.toFixed(2)}</strong></div>
+              <div><span>Subtotal:</span><strong>₹{totals.subtotal.toFixed(2)}</strong></div>
+              <div><span>Final Total:</span><strong>₹{totals.finalTotal.toFixed(2)}</strong></div>
             </div>
 
-            <div className="form-group">
-              <label>Reason for Refund:</label>
-              <textarea
-                rows="4"
-                value={refundData.reason}
-                onChange={(e) =>
-                  setRefundData({ ...refundData, reason: e.target.value })
-                }
-                placeholder="Enter reason for refund..."
-              />
+            <div className="form-actions">
+              {editingInvoice ? (
+                <button type="button" className="btn-secondary" onClick={() => {
+                  setEditingInvoice('');
+                  setFormData(emptyForm);
+                  setCustomerVehicles([]);
+                }}>
+                  Cancel Edit
+                </button>
+              ) : null}
+              <button type="submit" className="btn-primary">
+                {editingInvoice ? 'Update Bill' : 'Save Bill'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {activeTab === 'records' && (
+          <>
+            <div className="billing-filters-section">
+              <div className="filter-box">
+                <label>Search (Customer / Vehicle / Invoice)</label>
+                <input
+                  type="text"
+                  className="search-input"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="filter-box">
+                <label>Date</label>
+                <input type="date" value={searchDate} onChange={(e) => setSearchDate(e.target.value)} />
+              </div>
             </div>
 
+            {loading ? (
+              <div className="loading-state"><p>Loading billing records...</p></div>
+            ) : (
+              <>
+                <div className="table-wrapper">
+                  <CommonTable data={filteredBillings} columns={billingColumns} />
+                </div>
+                <div className="billing-actions-grid">
+                  {filteredBillings.map((record) => (
+                    <div key={record.invoiceNumber} className="action-row">
+                      <span className="invoice-ref">{record.invoiceNumber}</span>
+                      <div className="action-buttons">
+                        <button className="btn-action btn-view" onClick={() => setSelectedInvoice(record)}>View</button>
+                        <button className="btn-action btn-edit" onClick={() => handleEditBill(record)}>Edit</button>
+                        <button className="btn-action btn-download" onClick={() => handleDownloadInvoice(record)}>PDF</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
+
+      {selectedInvoice && (
+        <div className="modal-overlay" onClick={() => setSelectedInvoice(null)}>
+          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
+            <button className="modal-close" onClick={() => setSelectedInvoice(null)}>✕</button>
+            <h3>Invoice {selectedInvoice.invoiceNumber}</h3>
+            <p>
+              <strong>Customer:</strong> {selectedInvoice.customerDetails?.name || '—'}<br />
+              <strong>Mobile:</strong> {selectedInvoice.customerDetails?.phone || '—'}<br />
+              <strong>Vehicle:</strong> {selectedInvoice.vehicleDetails?.number || '—'} ({selectedInvoice.vehicleDetails?.company || '—'} {selectedInvoice.vehicleDetails?.model || ''})
+            </p>
+            <div className="mini-table">
+              {(selectedInvoice.lineItems || []).map((item, index) => (
+                <div key={`${item.name}-${index}`} className="mini-row">
+                  <span>{item.name}</span>
+                  <span>{item.quantity} × ₹{item.price}</span>
+                  <strong>₹{item.total}</strong>
+                </div>
+              ))}
+            </div>
             <div className="modal-actions">
-              <button
-                className="btn-cancel"
-                onClick={() => setShowRefundModal(false)}
-              >
-                Cancel
-              </button>
-              <button className="btn-submit" onClick={handleRefund}>
-                Process Refund
-              </button>
+              <button className="btn-secondary" onClick={() => handleDownloadInvoice(selectedInvoice)}>Download PDF</button>
             </div>
           </div>
         </div>

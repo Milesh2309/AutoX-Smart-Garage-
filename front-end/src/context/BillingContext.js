@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { billingApi } from '../utils/apiService';
+import React, { createContext, useCallback, useContext, useState } from 'react';
+import { billingApi, usersApi } from '../utils/apiService';
 
 const BillingContext = createContext();
 
@@ -9,65 +9,157 @@ export const BillingProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Generate unique invoice number
-  const generateInvoiceNumber = useCallback(() => {
-    const date = new Date();
-    const dateString = date.toISOString().slice(0, 10).replace(/-/g, '');
-    const randomNumber = Math.floor(Math.random() * 10000)
-      .toString()
-      .padStart(4, '0');
-    return `INV-${dateString}-${randomNumber}`;
+  const normalizeBillingRecord = useCallback((record = {}) => {
+    const lineItems = Array.isArray(record.lineItems) ? record.lineItems : [];
+    const serviceName =
+      record.serviceName ||
+      lineItems.map((item) => item.name).filter(Boolean).join(', ') ||
+      record.bookingId ||
+      '—';
+
+    return {
+      ...record,
+      customerType: record.customerType || (record.userId ? 'registered' : 'offline'),
+      customerDetails: record.customerDetails || {
+        name: record.customerName || `Customer ${record.userId || ''}`.trim(),
+        phone: record.phone || '',
+        email: record.email || '',
+      },
+      vehicleDetails: record.vehicleDetails || {
+        number: record.vehicleNumber || '',
+        model: record.vehicleModel || '',
+        company: record.vehicleCompany || '',
+      },
+      lineItems,
+      paymentStatus: record.paymentStatus || record.status || 'pending',
+      paymentDate: record.paymentDate || record.createdAt || '',
+      subtotal: Number(record.subtotal || 0),
+      serviceCharge: Number(record.serviceCharge || 0),
+      discount: Number(record.discount || 0),
+      gst: Number(record.gst || record.tax || 0),
+      totalAmount: Number(record.finalTotal || record.totalAmount || record.amount || 0),
+      finalTotal: Number(record.finalTotal || record.totalAmount || record.amount || 0),
+      serviceName,
+      paymentMethod: record.paymentMethod || record.method || 'cash',
+      refundAmount: Number(record.refundAmount || 0),
+    };
   }, []);
 
-  // Create billing record after successful payment
-  const createBillingRecord = useCallback(
-    async (paymentData, userId, bookingId) => {
-      try {
-        setLoading(true);
-        setError(null);
+  const createBillingRecord = useCallback(async (paymentData, userId, bookingId) => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        const invoiceNumber = generateInvoiceNumber();
-        const billingRecord = {
-          invoiceNumber,
-          userId: String(userId),
-          bookingId,
-          amount: paymentData.amount,
-          serviceName: paymentData.serviceName,
-          paymentMethod: paymentData.method,
-          currency: paymentData.currency || 'INR',
-          paymentStatus: 'pending',
-          paymentDate: new Date().toISOString(),
-          transactionId: `TXN${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-          tax: 0,
-          totalAmount: paymentData.amount,
-          refundStatus: 'none',
-          refundAmount: 0,
-          notes: '',
-          createdAt: new Date().toISOString(),
-        };
+      const isNewBillingPayload =
+        paymentData &&
+        (paymentData.customerType || paymentData.customerDetails || paymentData.vehicleDetails || Array.isArray(paymentData.lineItems));
 
-        const response = await billingApi.create({
-          userId: String(userId),
-          amount: paymentData.amount,
-          currency: billingRecord.currency,
-        });
+      const payload = isNewBillingPayload
+        ? { ...paymentData }
+        : {
+            customerType: 'registered',
+            userId: String(userId),
+            bookingId,
+            currency: paymentData?.currency || 'INR',
+            lineItems: [
+              {
+                name: paymentData?.serviceName || 'Service',
+                quantity: 1,
+                price: Number(paymentData?.amount || 0),
+                itemType: 'service',
+              },
+            ],
+            serviceCharge: 0,
+            discount: 0,
+            gst: Number(paymentData?.tax || 0),
+            paymentMethod: paymentData?.method || 'online',
+          };
 
-        const createdRecord = response?.data || billingRecord;
-        setBillingRecords((prev) => [createdRecord, ...prev]);
-        setInvoices((prev) => [createdRecord, ...prev]);
+      const response = await billingApi.create(payload);
+      const createdRecord = normalizeBillingRecord(response?.data || {});
 
-        return createdRecord;
-      } catch (err) {
-        setError(err.message);
-        throw err;
-      } finally {
-        setLoading(false);
+      setBillingRecords((prev) => [createdRecord, ...prev]);
+      setInvoices((prev) => [createdRecord, ...prev]);
+      return createdRecord;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [normalizeBillingRecord]);
+
+  const updateBillingRecord = useCallback(async (invoiceNumber, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await billingApi.update(invoiceNumber, payload);
+      const updated = normalizeBillingRecord(response?.data || {});
+
+      setBillingRecords((prev) => prev.map((record) => (record.invoiceNumber === invoiceNumber ? updated : record)));
+      setInvoices((prev) => prev.map((record) => (record.invoiceNumber === invoiceNumber ? updated : record)));
+      return updated;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [normalizeBillingRecord]);
+
+  const getBillingByInvoice = useCallback(async (invoiceNumber) => {
+    const response = await billingApi.getByInvoice(invoiceNumber);
+    return normalizeBillingRecord(response?.data || {});
+  }, [normalizeBillingRecord]);
+
+  const fetchRegisteredCustomers = useCallback(async () => {
+    try {
+      const response = await billingApi.listRegisteredCustomers();
+      return Array.isArray(response?.data) ? response.data : [];
+    } catch (err) {
+      if (err?.status === 404) {
+        const fallback = await usersApi.list();
+        const users = Array.isArray(fallback?.data) ? fallback.data : [];
+        return users
+          .filter((user) => user?.role !== 'admin')
+          .map((user) => ({
+            id: String(user?.userId || user?._id || ''),
+            userId: String(user?.userId || user?._id || ''),
+            name: user?.fullName || user?.name || user?.email || 'Customer',
+            phone: user?.phone || '',
+            email: user?.email || '',
+          }));
       }
-    },
-    [generateInvoiceNumber]
-  );
+      throw err;
+    }
+  }, []);
 
-  // Fetch billing records for user
+  const fetchRegisteredCustomerProfile = useCallback(async (userId) => {
+    try {
+      const response = await billingApi.getRegisteredCustomerProfile(userId);
+      return response?.data || null;
+    } catch (err) {
+      if (err?.status === 404) {
+        const fallbackUser = await usersApi.getById(userId);
+        const user = fallbackUser?.data;
+        if (!user) return null;
+
+        return {
+          userId: String(user?.userId || user?._id || userId),
+          customerDetails: {
+            name: user?.fullName || user?.name || user?.email || 'Customer',
+            phone: user?.phone || '',
+            email: user?.email || '',
+          },
+          vehicleDetails: { number: '', model: '', company: '' },
+          vehicles: [],
+        };
+      }
+      throw err;
+    }
+  }, []);
+
   const fetchUserBillingRecords = useCallback(async (userId) => {
     try {
       setLoading(true);
@@ -75,16 +167,8 @@ export const BillingProvider = ({ children }) => {
 
       const response = await billingApi.listByUser(userId);
       const raw = Array.isArray(response?.data) ? response.data : [];
-      // Normalize field names from MongoDB to what the UI expects
-      const records = raw.map(r => ({
-        ...r,
-        paymentStatus: r.paymentStatus || r.status || 'pending',
-        paymentDate: r.paymentDate || r.createdAt || '',
-        totalAmount: r.totalAmount || r.amount || 0,
-        serviceName: r.serviceName || r.bookingId || '—',
-        paymentMethod: r.paymentMethod || r.method || '—',
-        refundAmount: r.refundAmount || 0,
-      }));
+      const records = raw.map((record) => normalizeBillingRecord(record));
+
       setBillingRecords(records);
       setInvoices(records);
       return records;
@@ -94,82 +178,58 @@ export const BillingProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
+  }, [normalizeBillingRecord]);
+
+  const fetchAllBillingRecords = useCallback(async (filters = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const queryParams = new URLSearchParams(filters).toString();
+      const response = await billingApi.listAll(queryParams);
+      const raw = Array.isArray(response?.data) ? response.data : [];
+      const records = raw.map((record) => normalizeBillingRecord(record));
+
+      setBillingRecords(records);
+      setInvoices(records);
+      return records;
+    } catch (err) {
+      setError(err.message);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [normalizeBillingRecord]);
+
+  const processRefund = useCallback(async (invoiceNumber, refundAmount, reason) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      await billingApi.refund({ invoiceNumber, reason, refundAmount });
+      setBillingRecords((prev) =>
+        prev.map((record) =>
+          record.invoiceNumber === invoiceNumber
+            ? { ...record, refundStatus: 'processing', refundAmount, notes: reason }
+            : record
+        )
+      );
+
+      return true;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Fetch all billing records (admin)
-  const fetchAllBillingRecords = useCallback(
-    async (filters = {}) => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const queryParams = new URLSearchParams(filters).toString();
-        const response = await billingApi.listAll(queryParams);
-        const raw = Array.isArray(response?.data) ? response.data : [];
-        // Normalize field names from MongoDB to what the UI expects
-        const records = raw.map(r => ({
-          ...r,
-          paymentStatus: r.paymentStatus || r.status || 'pending',
-          paymentDate: r.paymentDate || r.createdAt || '',
-          totalAmount: r.totalAmount || r.amount || 0,
-          serviceName: r.serviceName || r.bookingId || '—',
-          paymentMethod: r.paymentMethod || r.method || '—',
-          refundAmount: r.refundAmount || 0,
-        }));
-        setBillingRecords(records);
-        setInvoices(records);
-        return records;
-      } catch (err) {
-        setError(err.message);
-        return [];
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
-
-  // Process refund
-  const processRefund = useCallback(
-    async (invoiceNumber, refundAmount, reason) => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        await billingApi.refund({ invoiceNumber, reason, refundAmount });
-
-        setBillingRecords((prev) =>
-          prev.map((record) =>
-            record.invoiceNumber === invoiceNumber
-              ? {
-                  ...record,
-                  refundStatus: 'processing',
-                  refundAmount,
-                  notes: reason,
-                }
-              : record
-          )
-        );
-
-        return true;
-      } catch (err) {
-        setError(err.message);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
-
-  // Verify invoice (admin)
   const verifyInvoice = useCallback(async (invoiceNumber) => {
     try {
       setLoading(true);
       setError(null);
 
       await billingApi.verify(invoiceNumber);
-
       setBillingRecords((prev) =>
         prev.map((record) =>
           record.invoiceNumber === invoiceNumber
@@ -187,42 +247,34 @@ export const BillingProvider = ({ children }) => {
     }
   }, []);
 
-  // Generate billing report
-  const generateBillingReport = useCallback(
-    (startDate, endDate, filters = {}) => {
-      const filtered = billingRecords.filter((record) => {
-        const recordDate = new Date(record.paymentDate);
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+  const generateBillingReport = useCallback((startDate, endDate, filters = {}) => {
+    const filtered = billingRecords.filter((record) => {
+      const recordDate = new Date(record.paymentDate);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
 
-        return (
-          recordDate >= start &&
-          recordDate <= end &&
-          (!filters.paymentStatus ||
-            record.paymentStatus === filters.paymentStatus) &&
-          (!filters.paymentMethod ||
-            record.paymentMethod === filters.paymentMethod)
-        );
-      });
+      return (
+        recordDate >= start &&
+        recordDate <= end &&
+        (!filters.paymentStatus || record.paymentStatus === filters.paymentStatus) &&
+        (!filters.paymentMethod || record.paymentMethod === filters.paymentMethod)
+      );
+    });
 
-      const totalAmount = filtered.reduce((sum, r) => sum + r.totalAmount, 0);
-      const totalTransactions = filtered.length;
-      const completedPayments = filtered.filter(
-        (r) => r.paymentStatus === 'completed'
-      ).length;
-      const totalRefunds = filtered.reduce((sum, r) => sum + r.refundAmount, 0);
+    const totalAmount = filtered.reduce((sum, record) => sum + Number(record.totalAmount || record.finalTotal || 0), 0);
+    const totalTransactions = filtered.length;
+    const completedPayments = filtered.filter((record) => record.paymentStatus === 'completed').length;
+    const totalRefunds = filtered.reduce((sum, record) => sum + Number(record.refundAmount || 0), 0);
 
-      return {
-        totalAmount,
-        totalTransactions,
-        completedPayments,
-        totalRefunds,
-        records: filtered,
-        generatedAt: new Date().toISOString(),
-      };
-    },
-    [billingRecords]
-  );
+    return {
+      totalAmount,
+      totalTransactions,
+      completedPayments,
+      totalRefunds,
+      records: filtered,
+      generatedAt: new Date().toISOString(),
+    };
+  }, [billingRecords]);
 
   const value = {
     billingRecords,
@@ -230,17 +282,18 @@ export const BillingProvider = ({ children }) => {
     loading,
     error,
     createBillingRecord,
+    updateBillingRecord,
+    getBillingByInvoice,
+    fetchRegisteredCustomers,
+    fetchRegisteredCustomerProfile,
     fetchUserBillingRecords,
     fetchAllBillingRecords,
     processRefund,
     verifyInvoice,
     generateBillingReport,
-    generateInvoiceNumber,
   };
 
-  return (
-    <BillingContext.Provider value={value}>{children}</BillingContext.Provider>
-  );
+  return <BillingContext.Provider value={value}>{children}</BillingContext.Provider>;
 };
 
 export const useBilling = () => {

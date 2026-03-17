@@ -144,7 +144,7 @@ router.delete('/users/:id', userController.deleteUser);
  *       401:
  *         description: Unauthorized
  */
-router.get('/api/users/me', authMiddleware, authController.me);
+router.get('/api/users/me', authMiddleware, userController.getMe);
 
 /**
  * @swagger
@@ -175,6 +175,6 @@ router.get('/api/users/me', authMiddleware, authController.me);
  *       401:
  *         description: Unauthorized
  */
-router.put('/api/users/me', authMiddleware, authController.updateProfile);
+router.put('/api/users/me', authMiddleware, userController.updateMe);
 
 module.exports = router;

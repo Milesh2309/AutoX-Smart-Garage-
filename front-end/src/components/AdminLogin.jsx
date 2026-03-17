@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import './auth.css';
 import { useAuth } from '../context/AuthContext';
+import { usersApi } from '../utils/apiService';
 
 function AdminLogin() {
   const navigate = useNavigate();
@@ -24,10 +25,10 @@ function AdminLogin() {
   
   // OTP verification states for customer login
   const [showOtpVerification, setShowOtpVerification] = useState(false);
-  const [generatedOtp, setGeneratedOtp] = useState('');
   const [userOtp, setUserOtp] = useState('');
   const [otpError, setOtpError] = useState('');
   const [tempCustomerEmail, setTempCustomerEmail] = useState('');
+  const [otpPreview, setOtpPreview] = useState('');
 
   // Detect login type based on input format
   const detectLoginType = (identifier) => {
@@ -35,6 +36,36 @@ function AdminLogin() {
       return 'customer'; // Email format
     }
     return 'admin'; // Username format
+  };
+
+  const resolveCustomerEmail = async (identifier) => {
+    const raw = String(identifier || '').trim();
+    if (!raw) return '';
+    if (raw.includes('@')) return raw.toLowerCase();
+
+    try {
+      const response = await usersApi.list();
+      const users = Array.isArray(response?.data) ? response.data : [];
+      const normalized = raw.toLowerCase();
+
+      const found = users.find((user) => {
+        const email = String(user?.email || '').toLowerCase();
+        const username = String(user?.username || '').toLowerCase();
+        const name = String(user?.name || user?.fullName || '').toLowerCase();
+        const phone = String(user?.phone || '').toLowerCase();
+
+        return (
+          email === normalized ||
+          username === normalized ||
+          name === normalized ||
+          phone === normalized
+        );
+      });
+
+      return String(found?.email || '').toLowerCase();
+    } catch (_error) {
+      return '';
+    }
   };
 
   const handleChange = (e) => {
@@ -95,21 +126,40 @@ function AdminLogin() {
             ? formData.identifier
             : `${formData.identifier}@autox.com`;
 
-          const user = await login({
-            email: adminEmail,
-            password: formData.password,
-          });
+          try {
+            const user = await login({
+              email: adminEmail,
+              password: formData.password,
+            });
 
-          setSuccess(true);
-          setTimeout(() => {
-            navigate(user?.role === 'admin' ? '/admin' : '/customer/dashboard', { replace: true });
-          }, 1200);
+            setSuccess(true);
+            setTimeout(() => {
+              navigate(user?.role === 'admin' ? '/admin' : '/customer/dashboard', { replace: true });
+            }, 1200);
+          } catch (_adminError) {
+            const customerEmail = await resolveCustomerEmail(formData.identifier);
+            if (!customerEmail) {
+              throw _adminError;
+            }
+
+            const otpResponse = await requestLoginOtp(customerEmail);
+            setUserOtp('');
+            setOtpError('');
+            setTempCustomerEmail(customerEmail);
+            setOtpPreview(String(otpResponse?.otp || ''));
+            setShowOtpVerification(true);
+          }
         } else {
-          const otpResponse = await requestLoginOtp(formData.identifier);
-          setGeneratedOtp(String(otpResponse?.otp || ''));
+          const customerEmail = await resolveCustomerEmail(formData.identifier);
+          if (!customerEmail) {
+            throw new Error('Customer email not found. Please enter registered email.');
+          }
+
+          const otpResponse = await requestLoginOtp(customerEmail);
           setUserOtp('');
           setOtpError('');
-          setTempCustomerEmail(formData.identifier);
+          setTempCustomerEmail(customerEmail);
+          setOtpPreview(String(otpResponse?.otp || ''));
           setShowOtpVerification(true);
         }
       } catch (error) {
@@ -146,9 +196,9 @@ function AdminLogin() {
   const handleResendOtp = async () => {
     try {
       const otpResponse = await requestLoginOtp(tempCustomerEmail);
-      setGeneratedOtp(String(otpResponse?.otp || ''));
       setUserOtp('');
       setOtpError('');
+      setOtpPreview(String(otpResponse?.otp || ''));
     } catch (error) {
       setOtpError(error?.message || 'Failed to resend OTP');
     }
@@ -404,12 +454,11 @@ function AdminLogin() {
 
             <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px', textAlign: 'center' }}>
               <p><strong>📧 {tempCustomerEmail}</strong></p>
-            </div>
-
-            {/* Debug Info - Shows OTP for testing */}
-            <div style={{ background: '#e3f2fd', padding: '15px', borderRadius: '8px', marginBottom: '20px', fontSize: '13px', border: '1px solid #90caf9' }}>
-              <p style={{ color: '#1565c0', fontWeight: 'bold', marginBottom: '8px' }}>🔍 Demo - Use OTP Below:</p>
-              <p style={{ margin: '5px 0', color: '#1565c0' }}>📧 Email OTP: <code style={{ background: '#fff', padding: '2px 8px', borderRadius: '3px', fontWeight: 'bold', fontSize: '16px' }}>{generatedOtp}</code></p>
+              {otpPreview ? (
+                <p style={{ marginTop: '10px', color: '#b91c1c' }}>
+                  <strong>OTP: {otpPreview}</strong>
+                </p>
+              ) : null}
             </div>
 
             {otpError && (
@@ -434,16 +483,6 @@ function AdminLogin() {
                   className={otpError ? 'error' : ''}
                   style={{ textAlign: 'center', fontSize: '18px', letterSpacing: '2px' }}
                 />
-                {userOtp && userOtp === generatedOtp && (
-                  <small style={{ color: '#4caf50', display: 'block', textAlign: 'center', marginTop: '8px', fontWeight: 'bold' }}>
-                    ✓ OTP Verified!
-                  </small>
-                )}
-                {userOtp && userOtp !== generatedOtp && userOtp.length === 6 && (
-                  <small style={{ color: '#f44336', display: 'block', textAlign: 'center', marginTop: '8px' }}>
-                    ✗ Incorrect OTP
-                  </small>
-                )}
                 {(!userOtp || userOtp.length < 6) && (
                   <small style={{ color: '#999', display: 'block', textAlign: 'center', marginTop: '8px' }}>
                     Check your email for the OTP code
@@ -454,13 +493,13 @@ function AdminLogin() {
               <button 
                 type="submit" 
                 className="submit-btn forgot-submit-btn"
-                disabled={userOtp !== generatedOtp}
+                disabled={loading || userOtp.trim().length < 4}
                 style={{
-                  opacity: userOtp !== generatedOtp ? 0.5 : 1,
-                  cursor: userOtp !== generatedOtp ? 'not-allowed' : 'pointer'
+                  opacity: (loading || userOtp.trim().length < 4) ? 0.5 : 1,
+                  cursor: (loading || userOtp.trim().length < 4) ? 'not-allowed' : 'pointer'
                 }}
               >
-                {userOtp === generatedOtp ? '✓ Verify & Login' : 'Enter OTP to Continue'}
+                {loading ? 'Verifying...' : 'Verify & Login'}
               </button>
 
               <div style={{ textAlign: 'center', marginTop: '15px' }}>
@@ -486,6 +525,7 @@ function AdminLogin() {
                   setShowOtpVerification(false);
                   setUserOtp('');
                   setOtpError('');
+                  setOtpPreview('');
                 }}
                 className="cancel-btn"
               >

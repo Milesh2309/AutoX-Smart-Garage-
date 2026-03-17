@@ -28,6 +28,10 @@ const authMiddleware = require('../middleware/authMiddleware');
  */
 router.get('/vehicles', authMiddleware, vehicleController.getVehicles);
 router.get('/api/vehicles/me', authMiddleware, vehicleController.getVehicles);
+router.get('/api/vehicles', vehicleController.getAllVehicles);
+router.get('/api/get_vehicles.php', vehicleController.getAllVehicles);
+router.get('/vehicles/all', authMiddleware, vehicleController.getAllVehicles);
+router.get('/api/vehicles/user/:userId', vehicleController.getVehicles);
 
 /**
  * @swagger
@@ -66,12 +70,18 @@ router.get('/api/vehicles/me', authMiddleware, vehicleController.getVehicles);
 router.post(
   '/vehicles',
   authMiddleware,
-  body('make').notEmpty().withMessage('make is required'),
-  body('model').notEmpty().withMessage('model is required'),
-  body('year').isInt({ min: 1980 }).withMessage('year must be valid'),
-  body('plate').notEmpty().withMessage('plate is required'),
+  body('vehicle_number').optional().notEmpty().withMessage('vehicle_number is required when provided'),
+  body('plate').optional().notEmpty().withMessage('plate is required when provided'),
   validate,
   vehicleController.createVehicle
+);
+
+router.post(
+  '/api/vehicles',
+  body('vehicle_number').optional().notEmpty().withMessage('vehicle_number is required when provided'),
+  body('plate').optional().notEmpty().withMessage('plate is required when provided'),
+  validate,
+  vehicleController.createVehicleByAdmin
 );
 
 /**
@@ -99,6 +109,13 @@ router.post(
 router.get(
   '/vehicles/:id',
   authMiddleware,
+  param('id').isInt({ gt: 0 }).withMessage('id must be a positive integer'),
+  validate,
+  vehicleController.getVehicleById
+);
+
+router.get(
+  '/api/vehicles/:id',
   param('id').isInt({ gt: 0 }).withMessage('id must be a positive integer'),
   validate,
   vehicleController.getVehicleById
@@ -143,10 +160,17 @@ router.put(
   '/vehicles/:id',
   authMiddleware,
   param('id').isInt({ gt: 0 }).withMessage('id must be a positive integer'),
-  body('make').optional().notEmpty().withMessage('make is required'),
-  body('model').optional().notEmpty().withMessage('model is required'),
-  body('year').optional().isInt({ min: 1980 }).withMessage('year must be valid'),
-  body('plate').optional().notEmpty().withMessage('plate is required'),
+  body('vehicle_number').optional().notEmpty().withMessage('vehicle_number is required when provided'),
+  body('plate').optional().notEmpty().withMessage('plate is required when provided'),
+  validate,
+  vehicleController.updateVehicle
+);
+
+router.put(
+  '/api/vehicles/:id',
+  param('id').isInt({ gt: 0 }).withMessage('id must be a positive integer'),
+  body('vehicle_number').optional().notEmpty().withMessage('vehicle_number is required when provided'),
+  body('plate').optional().notEmpty().withMessage('plate is required when provided'),
   validate,
   vehicleController.updateVehicle
 );
@@ -174,6 +198,13 @@ router.put(
 router.delete(
   '/vehicles/:id',
   authMiddleware,
+  param('id').isInt({ gt: 0 }).withMessage('id must be a positive integer'),
+  validate,
+  vehicleController.deleteVehicle
+);
+
+router.delete(
+  '/api/vehicles/:id',
   param('id').isInt({ gt: 0 }).withMessage('id must be a positive integer'),
   validate,
   vehicleController.deleteVehicle

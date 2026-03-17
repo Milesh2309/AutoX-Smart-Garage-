@@ -1,385 +1,400 @@
-const jwt = require('jsonwebtoken');
+﻿const bcrypt = require("bcryptjs");
 const { getDB } = require('../config/db');
+const { generateAccessToken, generateRefreshToken } = require("../utils/jwt");
+const jwt = require('jsonwebtoken');
+const { ObjectId } = require('mongodb');
 
-const createToken = (user) => {
-  const payload = {
-    id: user.userId,
-    email: user.email,
+const sanitizeUser = (user) => {
+  if (!user) return null;
+  return {
+    id: user._id,
     name: user.name,
-    role: user.role || 'user'
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    phone: user.phone || '',
+    gender: user.gender || null,
+    address: user.address || '',
+    pincode: user.pincode || ''
   };
-  return jwt.sign(payload, process.env.JWT_SECRET || 'dev-secret', { expiresIn: '30d' });
 };
 
-const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
+const buildAuthResponse = (user) => {
+  const accessToken = generateAccessToken(user);
+  return {
+    success: true,
+    token: accessToken,
+    accessToken,
+    data: sanitizeUser(user),
+    user: sanitizeUser(user)
+  };
+};
 
-const getNextUserId = async (db) => {
-  const [lastUser] = await db
-    .collection('users')
-    .find({ userId: { $type: 'number' } })
-    .sort({ userId: -1 })
-    .limit(1)
-    .toArray();
+const createUniqueUsername = async (db, email, fallbackName = 'user') => {
+  const base = String(email || fallbackName || 'user')
+    .split('@')[0]
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '') || 'user';
 
-  return (lastUser?.userId || 0) + 1;
+  const baseCandidate = base.length >= 3 ? base : `${base}user`;
+  const exists = await db.collection('users').findOne({ username: baseCandidate });
+  if (!exists) {
+    return baseCandidate;
+  }
+
+  return `${baseCandidate}${Date.now().toString().slice(-5)}`;
+};
+
+const findUserForLogin = async (db, identifier) => {
+  if (!identifier) return null;
+  const trimmed = String(identifier).trim();
+
+  let user = await db.collection('users').findOne({ email: trimmed.toLowerCase() });
+  if (user) return user;
+
+  user = await db.collection('users').findOne({ username: trimmed });
+  if (user) return user;
+
+  if (trimmed.includes('@')) {
+    const usernameGuess = trimmed.split('@')[0];
+    user = await db.collection('users').findOne({ username: usernameGuess });
+    if (user) return user;
+  }
+
+  return null;
+};
+
+const loginUser = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const { username, email, password } = req.body;
+
+    const identifier = username || email;
+    const user = await findUserForLogin(db, identifier);
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid username or password"
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid username or password"
+      });
+    }
+
+    const refreshToken = generateRefreshToken(user);
+
+    await db.collection("users").updateOne(
+      { _id: user._id },
+      { $set: { refreshToken } }
+    );
+
+    res.json({
+      ...buildAuthResponse(user),
+      refreshToken
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const createRegister = async (req, res, next) => {
+  try {
+    const db = getDB();
+
+    const {
+      name,
+      username,
+      email,
+      password,
+      phone,
+      gender,
+      emailOtp,
+      address,
+      pincode,
+      role
+    } = req.body;
+
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    if (!normalizedEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+
+    const requestedUsername = String(username || '').trim();
+    if (requestedUsername) {
+      const existingUsername = await db.collection("users").findOne({ username: requestedUsername });
+      if (existingUsername) {
+        return res.status(400).json({
+          success: false,
+          message: "Username already exists"
+        });
+      }
+    }
+
+    const existingEmail = await db.collection("users").findOne({ email: normalizedEmail });
+
+    if (existingEmail) {
+      return res.status(409).json({
+        success: false,
+        message: "Email already registered"
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const finalUsername = requestedUsername || await createUniqueUsername(db, normalizedEmail, name);
+
+    const newRegister = {
+      name,
+      username: finalUsername,
+      email: normalizedEmail,
+      password: hashedPassword,
+      role: role || "user",
+      phone,
+      gender,
+      emailOtp: emailOtp || null,
+      address,
+      pincode,
+      status: "Active",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const insertResult = await db.collection("users").insertOne(newRegister);
+    const savedUser = {
+      ...newRegister,
+      _id: insertResult.insertedId
+    };
+
+    const refreshToken = generateRefreshToken(savedUser);
+    await db.collection('users').updateOne(
+      { _id: insertResult.insertedId },
+      { $set: { refreshToken } }
+    );
+
+    res.status(201).json({
+      ...buildAuthResponse(savedUser),
+      refreshToken,
+      message: "User registered successfully"
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 const register = async (req, res, next) => {
-  try {
-    const { name, email, password, role, phone } = req.body;
-    const db = getDB();
-    const emailLower = String(email).toLowerCase();
-
-    const exists = await db.collection('users').findOne({ email: emailLower });
-    if (exists) {
-      return res.status(409).json({
-        success: false,
-        message: 'Email already registered'
-      });
-    }
-
-    const user = {
-      userId: await getNextUserId(db),
-      name,
-      email: emailLower,
-      password,
-      phone: phone || '',
-      role: role === 'admin' ? 'admin' : 'user',
-      createdAt: new Date().toISOString()
-    };
-
-    await db.collection('users').insertOne(user);
-
-    const token = createToken(user);
-    return res.status(201).json({
-      success: true,
-      message: 'Account created',
-      token,
-      data: {
-        id: user.userId,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    return next(error);
-  }
+  return createRegister(req, res, next);
 };
 
 const login = async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
-    const db = getDB();
-    const emailLower = String(email).toLowerCase();
-
-    const user = await db.collection('users').findOne({ email: emailLower });
-    if (!user || user.password !== password) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
-
-    const token = createToken(user);
-    return res.status(200).json({
-      success: true,
-      message: 'Login successful',
-      token,
-      data: {
-        id: user.userId,
-        name: user.name,
-        email: user.email,
-        role: user.role || 'user'
-      }
-    });
-  } catch (error) {
-    return next(error);
-  }
-};
-
-const me = async (req, res, next) => {
-  try {
-    const db = getDB();
-    const user = await db.collection('users').findOne({ userId: Number(req.user.id) });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      data: {
-        id: user.userId,
-        name: user.name,
-        email: user.email,
-        role: user.role || 'user'
-      }
-    });
-  } catch (error) {
-    return next(error);
-  }
-};
-
-const updateProfile = async (req, res, next) => {
-  try {
-    const { name, email, password } = req.body;
-    const userId = Number(req.user.id);
-    const db = getDB();
-
-    const user = await db.collection('users').findOne({ userId });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    const updates = {};
-
-    if (email) {
-      const emailLower = String(email).toLowerCase();
-      const existing = await db.collection('users').findOne({ email: emailLower, userId: { $ne: userId } });
-      if (existing) {
-        return res.status(409).json({
-          success: false,
-          message: 'Email already in use'
-        });
-      }
-      updates.email = emailLower;
-    }
-
-    if (name) updates.name = name;
-    if (password) updates.password = password;
-
-    if (Object.keys(updates).length > 0) {
-      updates.updatedAt = new Date().toISOString();
-      await db.collection('users').updateOne({ userId }, { $set: updates });
-    }
-
-    const updatedUser = await db.collection('users').findOne({ userId });
-    const token = createToken(updatedUser);
-
-    return res.status(200).json({
-      success: true,
-      message: 'Profile updated',
-      token,
-      data: {
-        id: updatedUser.userId,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        role: updatedUser.role || 'user'
-      }
-    });
-  } catch (error) {
-    return next(error);
-  }
+  const { email, password } = req.body;
+  req.body = { username: email, email, password };
+  return loginUser(req, res, next);
 };
 
 const sendLoginOtp = async (req, res, next) => {
   try {
-    const { email } = req.body;
     const db = getDB();
-    const emailLower = String(email).toLowerCase();
-    const user = await db.collection('users').findOne({ email: emailLower });
+    const email = String(req.body?.email || '').trim().toLowerCase();
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
     }
 
-    const otp = generateOtp();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const user = await db.collection('users').findOne({ email });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
 
-    await db.collection('otp_codes').insertOne({
-      email: emailLower,
-      otp,
-      purpose: 'login',
-      used: false,
-      createdAt: new Date().toISOString(),
-      expiresAt
-    });
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-    return res.status(200).json({
+    await db.collection('loginOtps').updateOne(
+      { email },
+      {
+        $set: {
+          email,
+          otp,
+          expiresAt,
+          updatedAt: new Date()
+        },
+        $setOnInsert: { createdAt: new Date() }
+      },
+      { upsert: true }
+    );
+
+    return res.json({
       success: true,
-      message: 'OTP sent',
       data: {
-        email: emailLower,
+        email,
         expiresAt,
         otp
       }
     });
   } catch (error) {
-    return next(error);
+    next(error);
   }
 };
 
 const verifyLoginOtp = async (req, res, next) => {
   try {
-    const { email, otp } = req.body;
     const db = getDB();
-    const emailLower = String(email).toLowerCase();
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const otp = String(req.body?.otp || '').trim();
 
-    const record = await db.collection('otp_codes').findOne({
-      email: emailLower,
-      otp: String(otp),
-      purpose: 'login',
-      used: false
-    });
-
-    if (!record || new Date(record.expiresAt) < new Date()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired OTP'
-      });
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, message: 'Email and OTP are required' });
     }
 
-    const user = await db.collection('users').findOne({ email: emailLower });
+    const otpDoc = await db.collection('loginOtps').findOne({ email, otp });
+    if (!otpDoc || !otpDoc.expiresAt || new Date(otpDoc.expiresAt) < new Date()) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+    }
+
+    const user = await db.collection('users').findOne({ email });
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    await db.collection('otp_codes').updateOne(
-      { _id: record._id },
-      { $set: { used: true, verifiedAt: new Date().toISOString() } }
-    );
+    await db.collection('loginOtps').deleteOne({ _id: otpDoc._id });
 
-    const token = createToken(user);
-    return res.status(200).json({
-      success: true,
-      message: 'OTP verified',
-      token,
-      data: {
-        id: user.userId,
-        name: user.name,
-        email: user.email,
-        role: user.role || 'user'
-      }
+    const refreshToken = generateRefreshToken(user);
+    await db.collection('users').updateOne({ _id: user._id }, { $set: { refreshToken } });
+
+    return res.json({
+      ...buildAuthResponse(user),
+      refreshToken
     });
   } catch (error) {
-    return next(error);
+    next(error);
   }
 };
 
 const forgotPassword = async (req, res, next) => {
   try {
-    const { email } = req.body;
     const db = getDB();
-    const emailLower = String(email).toLowerCase();
-    const user = await db.collection('users').findOne({ email: emailLower });
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
 
+    const user = await db.collection('users').findOne({ email });
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    const resetToken = `RST-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-
-    await db.collection('password_resets').insertOne({
-      email: emailLower,
-      resetToken,
-      used: false,
-      createdAt: new Date().toISOString(),
-      expiresAt
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: 'Password reset token generated',
-      data: {
-        email: emailLower,
-        resetToken,
-        expiresAt
-      }
-    });
-  } catch (error) {
-    return next(error);
-  }
-};
-
-const resetPassword = async (req, res, next) => {
-  try {
-    const { email, resetToken, newPassword } = req.body;
-    const db = getDB();
-    const emailLower = String(email).toLowerCase();
-
-    const resetRecord = await db.collection('password_resets').findOne({
-      email: emailLower,
-      resetToken: String(resetToken),
-      used: false
-    });
-
-    if (!resetRecord || new Date(resetRecord.expiresAt) < new Date()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired reset token'
-      });
-    }
-
-    const result = await db.collection('users').updateOne(
-      { email: emailLower },
-      { $set: { password: newPassword, updatedAt: new Date().toISOString() } }
-    );
-
-    if (result.matchedCount === 0) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    await db.collection('password_resets').updateOne(
-      { _id: resetRecord._id },
-      { $set: { used: true, usedAt: new Date().toISOString() } }
-    );
-
-    return res.status(200).json({
+    return res.json({
       success: true,
-      message: 'Password reset successful'
+      message: 'Password reset request accepted',
+      data: {
+        email,
+        support: 'Contact support to reset password'
+      }
     });
   } catch (error) {
-    return next(error);
+    next(error);
   }
 };
 
-const deleteAccount = async (req, res, next) => {
-  try {
-    const userId = Number(req.user.id);
-    const db = getDB();
+const me = async (req, res) => {
+  return res.json({
+    success: true,
+    data: sanitizeUser(req.user)
+  });
+};
 
-    const result = await db.collection('users').deleteOne({ userId });
-    if (result.deletedCount === 0) {
-      return res.status(404).json({
+const updateMe = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const updates = {};
+    const { name, phone, address, pincode } = req.body;
+
+    if (name !== undefined) updates.name = name;
+    if (phone !== undefined) updates.phone = phone;
+    if (address !== undefined) updates.address = address;
+    if (pincode !== undefined) updates.pincode = pincode;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, message: 'No fields to update' });
+    }
+
+    updates.updatedAt = new Date();
+
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(req.user._id) },
+      { $set: updates }
+    );
+
+    const updatedUser = await db.collection('users').findOne({ _id: new ObjectId(req.user._id) });
+
+    return res.json({
+      success: true,
+      message: 'Profile updated',
+      data: sanitizeUser(updatedUser)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const refreshToken = async (req, res) => {
+  try {
+    const db = getDB();
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(401).json({
         success: false,
-        message: 'User not found'
+        message: "Refresh token required"
+      });
+    }
+    const decoded = jwt.verify(refreshToken, "qweuansdasdg123123");
+
+    const user = await db.collection("users").findOne({
+      _id: new ObjectId(decoded.id),
+      refreshToken
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid refresh token"
       });
     }
 
-    return res.status(200).json({
+    const accessToken = generateAccessToken(user);
+
+    res.json({
       success: true,
-      message: 'Account deleted'
+      token: accessToken,
+      accessToken
     });
   } catch (error) {
-    return next(error);
+    res.status(401).json({
+      success: false,
+      message: "Invalid refresh token"
+    });
   }
 };
 
 module.exports = {
   register,
   login,
-  me,
-  updateProfile,
-  deleteAccount,
   sendLoginOtp,
   verifyLoginOtp,
   forgotPassword,
-  resetPassword
+  me,
+  updateMe,
+  createRegister,
+  loginUser,
+  refreshToken
 };

@@ -8,6 +8,7 @@ function AdminNav({ currentPage, setCurrentPage, adminUsername, onLogout }) {
     { id: 'billing', label: 'Billing', icon: '💳' },
     { id: 'services', label: 'Services', icon: '🚗' },
     { id: 'bookings', label: 'Bookings', icon: '📅' },
+    { id: 'vehicles', label: 'Vehicles', icon: '🚙' },
     { id: 'breakdown', label: 'Breakdowns', icon: '🚘' },
     { id: 'mechanics', label: 'Mechanics', icon: '🔧' },
     { id: 'inventory', label: 'Inventory', icon: '📦' },

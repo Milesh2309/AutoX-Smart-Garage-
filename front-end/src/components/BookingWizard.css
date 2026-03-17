@@ -450,6 +450,14 @@
   display: block;
 }
 
+.saved-vehicle-bar {
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
 /* Time Slots Grid */
 .time-slots-grid {
   display: grid;

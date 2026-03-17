@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authApi } from '../utils/apiService';
 import { clearAuthToken, getAuthToken, setAuthToken } from '../utils/apiClient';
 
@@ -16,6 +16,9 @@ const AuthContext = createContext({
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+
+  const getAuthTokenFromResponse = (response) => response?.token || response?.accessToken;
+  const getUserFromResponse = (response) => response?.data || response?.user;
 
   useEffect(() => {
     let active = true;
@@ -71,13 +74,16 @@ export function AuthProvider({ children }) {
       password: payload?.password,
     });
 
-    if (!response?.success || !response?.data || !response?.token) {
+    const token = getAuthTokenFromResponse(response);
+    const authUser = getUserFromResponse(response);
+
+    if (!response?.success || !authUser || !token) {
       throw new Error(response?.message || 'Login failed');
     }
 
-    setAuthToken(response.token);
-    setUser(response.data);
-    return response.data;
+    setAuthToken(token);
+    setUser(authUser);
+    return authUser;
   };
 
   const register = async (payload) => {
@@ -89,13 +95,16 @@ export function AuthProvider({ children }) {
       role: payload?.role || 'user',
     });
 
-    if (!response?.success || !response?.data || !response?.token) {
+    const token = getAuthTokenFromResponse(response);
+    const authUser = getUserFromResponse(response);
+
+    if (!response?.success || !authUser || !token) {
       throw new Error(response?.message || 'Registration failed');
     }
 
-    setAuthToken(response.token);
-    setUser(response.data);
-    return response.data;
+    setAuthToken(token);
+    setUser(authUser);
+    return authUser;
   };
 
   const loginWithOtp = async (payload) => {
@@ -104,13 +113,16 @@ export function AuthProvider({ children }) {
       otp: payload?.otp,
     });
 
-    if (!response?.success || !response?.data || !response?.token) {
+    const token = getAuthTokenFromResponse(response);
+    const authUser = getUserFromResponse(response);
+
+    if (!response?.success || !authUser || !token) {
       throw new Error(response?.message || 'OTP login failed');
     }
 
-    setAuthToken(response.token);
-    setUser(response.data);
-    return response.data;
+    setAuthToken(token);
+    setUser(authUser);
+    return authUser;
   };
 
   const requestLoginOtp = async (email) => {
@@ -134,7 +146,7 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
-  const value = useMemo(() => ({
+  const value = {
     user,
     isAuthenticated: !!user,
     role: user?.role || null,
@@ -145,7 +157,7 @@ export function AuthProvider({ children }) {
     requestForgotPassword,
     logout,
     register,
-  }), [user, authLoading]);
+  };
 
   return (
     <AuthContext.Provider value={value}>

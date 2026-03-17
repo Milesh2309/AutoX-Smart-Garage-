@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
 import ManageServices from './pages/ManageServices';
 import ManageBookings from './pages/ManageBookings';
+import ManageVehicles from './pages/ManageVehicles';
 import ManageBreakdown from './pages/ManageBreakdown';
 import ManageMechanics from './pages/ManageMechanics';
 import ManageAssignments from './pages/ManageAssignments';
@@ -47,6 +48,7 @@ function AdminDashboard() {
         {currentPage === 'billing' && <ManageBilling />}
         {currentPage === 'services' && <ManageServices />}
         {currentPage === 'bookings' && <ManageBookings />}
+        {currentPage === 'vehicles' && <ManageVehicles />}
         {currentPage === 'breakdown' && <ManageBreakdown />}
         {currentPage === 'mechanics' && <ManageMechanics />}
         {currentPage === 'inventory' && <ManageInventory />}

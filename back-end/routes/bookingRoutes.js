@@ -29,8 +29,10 @@ const authMiddleware = require('../middleware/authMiddleware');
 router.get('/bookings', authMiddleware, bookingController.getBookings);
 
 router.get('/api/bookings', bookingController.getAllBookings);
+router.get('/api/get_bookings.php', bookingController.getAllBookings);
 
 router.get('/api/bookings/me', authMiddleware, bookingController.getMyBookings);
+router.get('/api/bookings/history/me', authMiddleware, bookingController.getMyServiceHistory);
 
 /**
  * @swagger
@@ -209,6 +211,21 @@ router.put(
   body('status').notEmpty().withMessage('status is required'),
   validate,
   bookingController.updateBookingStatus
+);
+
+router.put(
+  '/api/bookings/:id/status',
+  param('id').isInt({ gt: 0 }).withMessage('id must be a positive integer'),
+  body('status').notEmpty().withMessage('status is required'),
+  validate,
+  bookingController.updateBookingStatus
+);
+
+router.delete(
+  '/api/bookings/:id',
+  param('id').isInt({ gt: 0 }).withMessage('id must be a positive integer'),
+  validate,
+  bookingController.deleteBookingByAdmin
 );
 
 /**

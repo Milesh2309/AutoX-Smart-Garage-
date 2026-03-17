@@ -117,9 +117,28 @@ function CustomerDashboard() {
     } catch { /* no packages */ }
 
     try {
-      const bRes = await bookingApi.listMine();
-      const bookings = bRes?.data || bRes || [];
-      setServiceHistory(bookings.filter(b => b.status === 'Completed').map(b => ({
+      const [historyRes, bRes] = await Promise.allSettled([
+        bookingApi.listHistory(),
+        bookingApi.listMine(),
+      ]);
+
+      const historyBookings =
+        historyRes.status === 'fulfilled'
+          ? (historyRes.value?.data || historyRes.value || [])
+          : [];
+
+      const allBookings =
+        bRes.status === 'fulfilled'
+          ? (bRes.value?.data || bRes.value || [])
+          : [];
+
+      const completedFromAll = allBookings.filter((b) =>
+        String(b?.status || '').toLowerCase() === 'completed'
+      );
+
+      const completedBookings = historyBookings.length ? historyBookings : completedFromAll;
+
+      setServiceHistory(completedBookings.map(b => ({
         id: b._id || b.id,
         date: b.date || (b.scheduledAt ? new Date(b.scheduledAt).toISOString().split('T')[0] : ''),
         service: b.serviceName || b.service || '',
@@ -127,7 +146,11 @@ function CustomerDashboard() {
         status: b.status,
         mechanic: b.mechanicName || b.mechanic || '—',
       })));
-      setUpcomingBookings(bookings.filter(b => b.status !== 'Completed' && b.status !== 'Cancelled').map(b => ({
+
+      setUpcomingBookings(allBookings.filter((b) => {
+        const status = String(b?.status || '').toLowerCase();
+        return status !== 'completed' && status !== 'cancelled' && status !== 'canceled';
+      }).map(b => ({
         id: b._id || b.id,
         service: b.serviceName || b.service || '',
         date: b.date || (b.scheduledAt ? new Date(b.scheduledAt).toISOString().split('T')[0] : ''),
