@@ -316,7 +316,11 @@ function ManageBilling() {
             <div className="form-grid">
               <div className="form-group">
                 <label>Select Customer Type</label>
-                <select value={formData.customerType} onChange={(e) => handleCustomerTypeChange(e.target.value)}>
+                <select
+                  className="billing-select customer-type-select"
+                  value={formData.customerType}
+                  onChange={(e) => handleCustomerTypeChange(e.target.value)}
+                >
                   <option value="registered">Registered User</option>
                   <option value="offline">Offline Customer (Walk-in)</option>
                 </select>
@@ -326,7 +330,11 @@ function ManageBilling() {
                 <>
                   <div className="form-group">
                     <label>Registered User</label>
-                    <select value={formData.userId} onChange={(e) => handleRegisteredCustomerSelect(e.target.value)}>
+                    <select
+                      className="billing-select registered-user-select"
+                      value={formData.userId}
+                      onChange={(e) => handleRegisteredCustomerSelect(e.target.value)}
+                    >
                       <option value="">Select customer</option>
                       {registeredCustomers.map((user) => (
                         <option key={user.id} value={user.userId || user.id}>
@@ -348,6 +356,7 @@ function ManageBilling() {
                   <div className="form-group">
                     <label>Vehicle Number</label>
                     <select
+                      className="billing-select vehicle-number-select"
                       value={formData.vehicleDetails.number}
                       onChange={(e) => handleVehiclePick(e.target.value)}
                     >

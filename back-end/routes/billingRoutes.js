@@ -4,6 +4,7 @@ const router = express.Router();
 const billingController = require('../controllers/billingController');
 const validate = require('../middleware/validationMiddleware');
 const authMiddleware = require('../middleware/authMiddleware');
+const adminMiddleware = require('../middleware/adminMiddleware');
 
 /**
  * @swagger
@@ -43,6 +44,8 @@ const authMiddleware = require('../middleware/authMiddleware');
  */
 router.post(
   '/api/billing/create',
+  authMiddleware,
+  adminMiddleware,
   body('customerType').optional().isString().withMessage('customerType must be a string'),
   body('currency').optional().isLength({ min: 3, max: 3 }).withMessage('currency must be 3 letters'),
   validate,
@@ -112,7 +115,15 @@ router.get(
  *         description: Unauthorized
  */
 router.get('/api/billing/me', authMiddleware, (req, res, next) => {
-  req.params.userId = String(req.user.id);
+  // Use userId from authenticated user (fallback to _id if not available)
+  const userId = req.user.userId || String(req.user._id);
+  req.params.userId = String(userId);
+  return billingController.getBillingByUser(req, res, next);
+});
+
+router.get('/customer/invoices', authMiddleware, (req, res, next) => {
+  const userId = req.user.userId || String(req.user._id);
+  req.params.userId = String(userId);
   return billingController.getBillingByUser(req, res, next);
 });
 

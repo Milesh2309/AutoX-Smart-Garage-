@@ -7,7 +7,7 @@ import './CustomerBillingHistory.css';
 
 function CustomerBillingHistory() {
   const { user } = useAuth();
-  const { billingRecords, fetchUserBillingRecords, loading } = useBilling();
+  const { billingRecords, fetchMyBillingRecords, loading } = useBilling();
   const [userBillings, setUserBillings] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterDateRange, setFilterDateRange] = useState('all');
@@ -66,13 +66,15 @@ function CustomerBillingHistory() {
   // Fetch user billing records on mount
   useEffect(() => {
     const fetchBillings = async () => {
-      const records = await fetchUserBillingRecords(user?.id);
+      console.log('📊 Fetching billing records for authenticated user');
+      const records = await fetchMyBillingRecords();
+      console.log('✅ Billing records loaded:', records);
       setUserBillings(records);
     };
-    if (user?.id) {
+    if (user && fetchMyBillingRecords) {
       fetchBillings();
     }
-  }, [user?.id, fetchUserBillingRecords]);
+  }, [user, fetchMyBillingRecords]);
 
   // Filter billings based on status and date range
   const filteredBillings = useMemo(() => {

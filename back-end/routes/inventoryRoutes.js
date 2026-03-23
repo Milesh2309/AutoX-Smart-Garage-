@@ -3,6 +3,10 @@ const { param, body, query } = require('express-validator');
 const router = express.Router();
 const inventoryController = require('../controllers/inventoryController');
 const validate = require('../middleware/validationMiddleware');
+const authMiddleware = require('../middleware/authMiddleware');
+const adminMiddleware = require('../middleware/adminMiddleware');
+
+router.use('/api/inventory', authMiddleware, adminMiddleware);
 
 router.get('/api/inventory', inventoryController.listInventory);
 

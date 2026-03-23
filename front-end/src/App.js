@@ -27,6 +27,7 @@ import Gallery from "./components/Gallery";
 import LoadingAnimation from "./components/LoadingAnimation";
 import ServiceBooking from "./components/ServiceBooking";
 import PDFInvoiceGenerator from "./components/PDFInvoiceGenerator";
+import ServicePayment from "./components/ServicePayment";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { BillingProvider } from "./context/BillingContext";
 import { NotificationProvider } from "./context/NotificationContext";
@@ -139,6 +140,7 @@ function AnimatedRoutes() {
               <PDFInvoiceGenerator />
             </ProtectedCustomerRoute>
           } />
+          <Route path="/service-payment" element={<ServicePayment />} />
         </Routes>
       </div>
     </>

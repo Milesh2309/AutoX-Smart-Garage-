@@ -90,7 +90,57 @@ export const useBookings = () => {
     setError(null);
 
     try {
-      const response = await bookingApi.createPublic(bookingData);
+      const hasToken = !!getAuthToken();
+
+      const resolveScheduledAt = () => {
+        if (bookingData?.scheduledAt) return bookingData.scheduledAt;
+
+        const rawDate = bookingData?.date || bookingData?.bookingDate;
+        if (!rawDate) return null;
+
+        const slot = bookingData?.timeSlot || bookingData?.preferredSlot || bookingData?.preferredTime || '';
+        const firstSlotPart = String(slot).split(' - ')[0].trim();
+        const slotMatch = firstSlotPart.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+
+        const baseDate = new Date(rawDate);
+        if (Number.isNaN(baseDate.getTime())) return null;
+
+        let hours = 9;
+        let minutes = 0;
+
+        if (slotMatch) {
+          hours = Number(slotMatch[1]);
+          minutes = Number(slotMatch[2]);
+          const meridian = slotMatch[3].toUpperCase();
+          if (meridian === 'PM' && hours !== 12) hours += 12;
+          if (meridian === 'AM' && hours === 12) hours = 0;
+        }
+
+        baseDate.setHours(hours, minutes, 0, 0);
+        return baseDate.toISOString();
+      };
+
+      const response = hasToken
+        ? await bookingApi.createAuthenticated({
+            serviceId: Number(bookingData?.serviceId || 0),
+            serviceName: bookingData?.serviceName || '',
+            scheduledAt: resolveScheduledAt() || new Date().toISOString(),
+            notes: bookingData?.notes || bookingData?.message || bookingData?.specialInstructions || '',
+            amount: Number(bookingData?.amount || bookingData?.servicePrice || 0),
+            paymentMethod: bookingData?.paymentMethod || '',
+            paymentStatus: bookingData?.paymentStatus || '',
+            paymentDate: bookingData?.paymentDate || '',
+            transactionId: bookingData?.transactionId || '',
+            razorpayOrderId: bookingData?.razorpayOrderId || '',
+            razorpayPaymentId: bookingData?.razorpayPaymentId || '',
+            razorpaySignature: bookingData?.razorpaySignature || '',
+            vehicleNumber: bookingData?.vehicleNumber || '',
+            vehicleCompany: bookingData?.vehicleCompany || bookingData?.vehicleBrand || '',
+            vehicleModel: bookingData?.vehicleModel || '',
+            vehicleType: bookingData?.vehicleType || 'Car',
+          })
+        : await bookingApi.createPublic(bookingData);
+
       const booking = response?.data || bookingData;
 
       setBookings((prev) => {

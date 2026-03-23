@@ -31,7 +31,12 @@ const auth = async (req, res, next) => {
       });
     }
 
-    if (user.status !== "Active") {
+    const status = String(user.status || '').trim().toLowerCase();
+    const hasStatusField = Boolean(String(user.status || '').trim());
+    const isActiveFlag = user.isActive;
+    const isAccountActive = (hasStatusField ? status === 'active' : true) && isActiveFlag !== false;
+
+    if (!isAccountActive) {
       return res.status(401).json({
         success: false,
         message: 'Account is not active.'

@@ -3,6 +3,7 @@ const { body, param } = require('express-validator');
 const router = express.Router();
 const packageController = require('../controllers/packageController');
 const authMiddleware = require('../middleware/authMiddleware');
+const adminMiddleware = require('../middleware/adminMiddleware');
 const validate = require('../middleware/validationMiddleware');
 
 /**
@@ -23,6 +24,45 @@ const validate = require('../middleware/validationMiddleware');
  *         description: All packages
  */
 router.get('/api/packages', packageController.listAllPackages);
+router.get('/api/packages/:id', packageController.getPackageById);
+
+router.post(
+  '/api/packages',
+  authMiddleware,
+  adminMiddleware,
+  body('name').notEmpty().withMessage('package name is required'),
+  body('description').notEmpty().withMessage('description is required'),
+  body('price').isFloat({ gt: 0 }).withMessage('price must be greater than 0'),
+  body('duration').notEmpty().withMessage('duration is required'),
+  body('features').isArray({ min: 1 }).withMessage('features must be a non-empty list'),
+  body('status').optional().isIn(['active', 'inactive', 'Active', 'Inactive']).withMessage('status must be active or inactive'),
+  validate,
+  packageController.createPackage
+);
+
+router.put(
+  '/api/packages/:id',
+  authMiddleware,
+  adminMiddleware,
+  param('id').notEmpty().withMessage('package id is required'),
+  body('name').optional().notEmpty().withMessage('package name cannot be empty'),
+  body('description').optional().notEmpty().withMessage('description cannot be empty'),
+  body('price').optional().isFloat({ gt: 0 }).withMessage('price must be greater than 0'),
+  body('duration').optional().notEmpty().withMessage('duration cannot be empty'),
+  body('features').optional().isArray().withMessage('features must be a list'),
+  body('status').optional().isIn(['active', 'inactive', 'Active', 'Inactive']).withMessage('status must be active or inactive'),
+  validate,
+  packageController.updatePackage
+);
+
+router.delete(
+  '/api/packages/:id',
+  authMiddleware,
+  adminMiddleware,
+  param('id').notEmpty().withMessage('package id is required'),
+  validate,
+  packageController.deletePackage
+);
 
 /**
  * @swagger

@@ -164,14 +164,35 @@ const getAllBookings = async (req, res, next) => {
 
 const createBooking = async (req, res, next) => {
   try {
-    const { serviceId, serviceName, scheduledAt, notes, vehicleNumber, vehicleCompany, vehicleModel, vehicleType } = req.body;
+    const {
+      serviceId,
+      serviceName,
+      scheduledAt,
+      notes,
+      amount,
+      paymentMethod,
+      paymentStatus,
+      paymentDate,
+      transactionId,
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+      vehicleNumber,
+      vehicleCompany,
+      vehicleModel,
+      vehicleType,
+    } = req.body;
     const db = getDB();
-    const parsedUserId = Number(req.user.userId || req.user.id);
-    const currentUserId = Number.isFinite(parsedUserId) ? parsedUserId : null;
+    
+    // Extract user IDs from authenticated user
+    const currentUserId = Number(req.user.userId) || null;  // Numeric ID (may be null for older users)
+    const currentUserObjectId = String(req.user._id || '').trim();  // MongoDB ObjectId
+    
     const booking = {
       id: await getNextBookingId(db),
       userId: currentUserId,
       user_id: currentUserId,
+      userObjectId: currentUserObjectId,
       serviceId: Number(serviceId),
       serviceName: serviceName || '',
       scheduledAt,
@@ -179,6 +200,14 @@ const createBooking = async (req, res, next) => {
       customerName: req.user.name || req.user.fullName || req.user.email || 'Customer',
       phone: req.user.phone || '',
       email: req.user.email || '',
+      amount: amount ? Number(amount) : 0,
+      paymentMethod: paymentMethod || '',
+      paymentStatus: paymentStatus || '',
+      paymentDate: paymentDate || null,
+      transactionId: transactionId || '',
+      razorpayOrderId: razorpayOrderId || '',
+      razorpayPaymentId: razorpayPaymentId || '',
+      razorpaySignature: razorpaySignature || '',
       vehicleNumber,
       vehicleCompany,
       vehicleModel,

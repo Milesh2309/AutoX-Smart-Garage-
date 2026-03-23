@@ -5,6 +5,7 @@ const userController = require('../controllers/userController');
 const authController = require('../controllers/authController');
 const validate = require('../middleware/validationMiddleware');
 const authMiddleware = require('../middleware/authMiddleware');
+const adminMiddleware = require('../middleware/adminMiddleware');
 
 /**
  * @swagger
@@ -23,7 +24,7 @@ const authMiddleware = require('../middleware/authMiddleware');
  *       200:
  *         description: List of users
  */
-router.get('/users', userController.getUsers);
+router.get('/users', authMiddleware, adminMiddleware, userController.getUsers);
 
 /**
  * @swagger
@@ -44,7 +45,7 @@ router.get('/users', userController.getUsers);
  *       404:
  *         description: User not found
  */
-router.get('/users/:id', userController.getUserById);
+router.get('/users/:id', authMiddleware, adminMiddleware, userController.getUserById);
 
 /**
  * @swagger
@@ -70,6 +71,8 @@ router.get('/users/:id', userController.getUserById);
  */
 router.post(
   '/users',
+  authMiddleware,
+  adminMiddleware,
   body('name')
     .notEmpty().withMessage('Name is required')
     .isLength({ min: 3 }).withMessage('Name must be at least 3 characters'),
@@ -105,6 +108,8 @@ router.post(
  */
 router.put(
   '/users/:id',
+  authMiddleware,
+  adminMiddleware,
   body('name')
     .notEmpty().withMessage('Name is required')
     .isLength({ min: 3 }).withMessage('Name must be at least 3 characters'),
@@ -128,7 +133,7 @@ router.put(
  *       200:
  *         description: User deleted
  */
-router.delete('/users/:id', userController.deleteUser);
+router.delete('/users/:id', authMiddleware, adminMiddleware, userController.deleteUser);
 
 /**
  * @swagger

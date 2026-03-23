@@ -18,7 +18,6 @@ import Reports from './pages/Reports';
 import ManageBilling from './pages/ManageBilling';
 import ManageContacts from './pages/ManageContacts';
 import ManageNotifications from './pages/ManageNotifications';
-import ManagePackages from './pages/ManagePackages';
 import ManageRepairs from './pages/ManageRepairs';
 import { useAuth } from '../context/AuthContext';
 
@@ -57,7 +56,6 @@ function AdminDashboard() {
         {currentPage === 'repairs' && <ManageRepairs />}
         {currentPage === 'contacts' && <ManageContacts />}
         {currentPage === 'notifications' && <ManageNotifications />}
-        {currentPage === 'packages' && <ManagePackages />}
         {currentPage === 'users' && <ManageUsers />}
         {currentPage === 'settings' && <AdminSettings />}
       </div>

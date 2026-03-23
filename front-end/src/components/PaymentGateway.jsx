@@ -1,8 +1,23 @@
 import React, { useState } from 'react';
-import { useBilling } from '../context/BillingContext';
 import { useAuth, usePayments } from '../context';
 import InvoiceGenerator from './InvoiceGenerator';
 import './PaymentGateway.css';
+
+const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
+
+const loadRazorpayScript = () =>
+  new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 
 function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOpen, bookingId }) {
   const { makePayment } = usePayments();
@@ -179,29 +194,26 @@ function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOp
 
     setIsProcessing(true);
 
-    // Simulate payment processing
-    setTimeout(async () => {
-      // Create payment record using PaymentContext
+    if (paymentMethod === 'cash_on_delivery') {
       const paymentData = {
-        bookingId: bookingId,
+        bookingId,
         customerId: user?.id,
         customerName: user?.name || cardDetails.cardName || cashDetails.fullName,
-        amount: amount,
+        amount,
         method: paymentMethod,
         status: 'completed'
       };
 
       const result = await makePayment(paymentData);
-      
       setIsProcessing(false);
-      
+
       if (result.success) {
         setProcessedPayment(true);
-        
+
         const completePaymentData = {
           ...result.data,
-          method: paymentMethods.find(m => m.id === paymentMethod)?.name || paymentMethod,
-          serviceName: serviceName,
+          method: paymentMethods.find((m) => m.id === paymentMethod)?.name || paymentMethod,
+          serviceName,
           timestamp: new Date().toLocaleString(),
           transactionId: result.transactionId
         };
@@ -209,14 +221,114 @@ function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOp
         setPaymentDetails(completePaymentData);
         setShowInvoice(true);
 
-        // Call success callback
         if (onPaymentComplete) {
           onPaymentComplete(completePaymentData);
         }
       } else {
-        alert('Payment failed: ' + result.error);
+        alert(`Payment failed: ${result.error}`);
       }
-    }, 2000);
+
+      return;
+    }
+
+    try {
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        throw new Error('Unable to load Razorpay checkout script');
+      }
+
+      const createPaymentResponse = await fetch(`${API_BASE_URL}/create-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          service_name: serviceName,
+          amount: Number(amount),
+        }),
+      });
+
+      const createPaymentResult = await createPaymentResponse.json();
+      if (!createPaymentResponse.ok || !createPaymentResult?.success) {
+        throw new Error(createPaymentResult?.message || 'Failed to create payment order');
+      }
+
+      const orderData = createPaymentResult.data;
+
+      const options = {
+        key: orderData.key,
+        amount: orderData.amount,
+        currency: 'INR',
+        name: 'AUTOX Service Payment',
+        description: serviceName,
+        order_id: orderData.order_id,
+        prefill: {
+          name: user?.name || cardDetails.cardName || cashDetails.fullName || '',
+          email: user?.email || '',
+          contact: cashDetails.phone || '',
+        },
+        handler: async (response) => {
+          try {
+            const verifyResponse = await fetch(`${API_BASE_URL}/verify-payment`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                service_name: serviceName,
+                amount: Number(amount),
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            });
+
+            const verifyResult = await verifyResponse.json();
+            if (!verifyResponse.ok || !verifyResult?.success) {
+              throw new Error(verifyResult?.message || 'Payment verification failed');
+            }
+
+            const completePaymentData = {
+              method: 'Razorpay',
+              serviceName,
+              amount,
+              timestamp: new Date().toLocaleString(),
+              transactionId: response.razorpay_payment_id,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpaySignature: response.razorpay_signature,
+            };
+
+            setProcessedPayment(true);
+            setPaymentDetails(completePaymentData);
+            setShowInvoice(true);
+
+            if (onPaymentComplete) {
+              onPaymentComplete(completePaymentData);
+            }
+          } catch (verifyError) {
+            alert(verifyError.message || 'Payment verification failed');
+          } finally {
+            setIsProcessing(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessing(false);
+          },
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.on('payment.failed', (response) => {
+        const msg = response?.error?.description || 'Payment failed';
+        setIsProcessing(false);
+        alert(msg);
+      });
+      razorpay.open();
+    } catch (error) {
+      setIsProcessing(false);
+      alert(error.message || 'Unable to start payment');
+    }
   };
 
   if (!isOpen) return null;

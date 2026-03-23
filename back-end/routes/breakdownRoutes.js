@@ -36,7 +36,7 @@ const validate = require('../middleware/validationMiddleware');
  */
 router.post(
   '/api/breakdown-calls',
-  body('userId').isInt({ gt: 0 }).withMessage('userId must be a positive integer'),
+  body('userId').optional().isInt({ gt: 0 }).withMessage('userId must be a positive integer'),
   body('location').notEmpty().withMessage('location is required'),
   validate,
   breakdownController.createBreakdownCall

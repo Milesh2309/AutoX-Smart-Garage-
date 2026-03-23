@@ -6,7 +6,7 @@ function AdminNav({ currentPage, setCurrentPage, adminUsername, onLogout }) {
     { id: 'analytics', label: 'Analytics', icon: '📈' },
     { id: 'reports', label: 'Reports', icon: '📊' },
     { id: 'billing', label: 'Billing', icon: '💳' },
-    { id: 'services', label: 'Services', icon: '🚗' },
+    { id: 'services', label: 'Packages', icon: '📦' },
     { id: 'bookings', label: 'Bookings', icon: '📅' },
     { id: 'vehicles', label: 'Vehicles', icon: '🚙' },
     { id: 'breakdown', label: 'Breakdowns', icon: '🚘' },
@@ -17,7 +17,6 @@ function AdminNav({ currentPage, setCurrentPage, adminUsername, onLogout }) {
     { id: 'repairs', label: 'Repairs', icon: '🔧' },
     { id: 'contacts', label: 'Contacts', icon: '📩' },
     { id: 'notifications', label: 'Notifications', icon: '🔔' },
-    { id: 'packages', label: 'Packages', icon: '📦' },
     { id: 'users', label: 'Users', icon: '👥' },
     { id: 'settings', label: 'Settings', icon: '🛠️' },
   ];

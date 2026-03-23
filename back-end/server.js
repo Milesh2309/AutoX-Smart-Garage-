@@ -38,6 +38,10 @@ const repairRoutes = require('./routes/repairRoutes');
 const packageRoutes = require('./routes/packageRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const mechanicRoutes = require('./routes/mechanicRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const authMiddleware = require('./middleware/authMiddleware');
+const bookingController = require('./controllers/bookingController');
+const billingController = require('./controllers/billingController');
 
 
 
@@ -59,6 +63,16 @@ app.use('/', repairRoutes);
 app.use('/', packageRoutes);
 app.use('/', uploadRoutes);
 app.use('/', mechanicRoutes);
+app.use('/', paymentRoutes);
+
+// Customer dashboard aliases
+app.get('/customer/bookings', authMiddleware, bookingController.getMyBookings);
+app.get('/customer/service-history', authMiddleware, bookingController.getMyServiceHistory);
+app.get('/customer/invoices', authMiddleware, (req, res, next) => {
+  const userId = req.user.userId || String(req.user._id);
+  req.params.userId = String(userId);
+  return billingController.getBillingByUser(req, res, next);
+});
 
 // Swagger Setup
 const options = {

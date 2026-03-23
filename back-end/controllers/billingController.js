@@ -84,9 +84,23 @@ const getRegisteredCustomerSnapshot = async (db, rawUserId) => {
   if (!user) return null;
 
   const numericUserId = Number(user.userId);
-  const vehicleFilter = Number.isFinite(numericUserId)
-    ? { userId: numericUserId }
-    : { userId: toSafeString(user._id) };
+  const userObjectId = toSafeString(user._id);
+  const vehicleFilters = [];
+
+  if (Number.isFinite(numericUserId)) {
+    vehicleFilters.push({ userId: numericUserId });
+    vehicleFilters.push({ userId: String(numericUserId) });
+    vehicleFilters.push({ user_id: numericUserId });
+    vehicleFilters.push({ user_id: String(numericUserId) });
+  }
+
+  if (userObjectId) {
+    vehicleFilters.push({ userId: userObjectId });
+    vehicleFilters.push({ user_id: userObjectId });
+    vehicleFilters.push({ userObjectId });
+  }
+
+  const vehicleFilter = vehicleFilters.length ? { $or: vehicleFilters } : { userId: userObjectId };
 
   const vehicles = await db
     .collection('vehicles')
@@ -106,6 +120,14 @@ const getRegisteredCustomerSnapshot = async (db, rawUserId) => {
     },
   };
 };
+
+const vehicleNumberOf = (vehicle = {}) =>
+  toSafeString(vehicle?.plate || vehicle?.vehicle_number || vehicle?.vehicleNumber).toUpperCase();
+
+const vehicleModelOf = (vehicle = {}) => toSafeString(vehicle?.model || vehicle?.vehicle_model);
+
+const vehicleCompanyOf = (vehicle = {}) =>
+  toSafeString(vehicle?.make || vehicle?.vehicle_company || vehicle?.vehicleCompany);
 
 const normalizeLineItems = (lineItems = []) => {
   if (!Array.isArray(lineItems)) return [];
@@ -172,7 +194,7 @@ const resolveBillingPayload = async (db, payload = {}, existingRecord = null) =>
 
     const chosenVehicleNumber = toSafeString(payload.vehicleDetails?.number || payload.vehicleNumber);
     const selectedVehicle =
-      customerSnapshot.vehicles.find((v) => toSafeString(v.plate).toUpperCase() === chosenVehicleNumber.toUpperCase()) ||
+      customerSnapshot.vehicles.find((v) => vehicleNumberOf(v) === chosenVehicleNumber.toUpperCase()) ||
       customerSnapshot.vehicles[0] ||
       null;
 
@@ -185,9 +207,9 @@ const resolveBillingPayload = async (db, payload = {}, existingRecord = null) =>
       email: toSafeString(payload.customerDetails?.email) || customerSnapshot.customerDetails.email,
     };
     billingData.vehicleDetails = {
-      number: toSafeString(payload.vehicleDetails?.number) || toSafeString(selectedVehicle?.plate),
-      model: toSafeString(payload.vehicleDetails?.model) || toSafeString(selectedVehicle?.model),
-      company: toSafeString(payload.vehicleDetails?.company) || toSafeString(selectedVehicle?.make),
+      number: toSafeString(payload.vehicleDetails?.number) || vehicleNumberOf(selectedVehicle),
+      model: toSafeString(payload.vehicleDetails?.model) || vehicleModelOf(selectedVehicle),
+      company: toSafeString(payload.vehicleDetails?.company) || vehicleCompanyOf(selectedVehicle),
     };
   } else {
     const customerDetails = payload.customerDetails || {};
@@ -387,9 +409,9 @@ const getRegisteredCustomerProfile = async (req, res, next) => {
 
     const vehicles = (snapshot.vehicles || []).map((v) => ({
       id: v.id || v._id,
-      number: toSafeString(v.plate),
-      model: toSafeString(v.model),
-      company: toSafeString(v.make),
+      number: vehicleNumberOf(v),
+      model: vehicleModelOf(v),
+      company: vehicleCompanyOf(v),
       year: v.year,
     }));
 

@@ -15,6 +15,19 @@ export function NotificationProvider({ children }) {
   const { user, role } = useAuth();
   const [notifications, setNotifications] = useState([]);
 
+  const normalizeNotification = (record = {}) => ({
+    ...record,
+    id: record.id ?? record._id ?? Date.now(),
+    timestamp: record.timestamp || record.createdAt || new Date().toISOString(),
+  });
+
+  const resolveNumericUserId = (authUser) => {
+    const preferred = Number(authUser?.userId);
+    if (Number.isFinite(preferred)) return preferred;
+    const fallback = Number(authUser?.id);
+    return Number.isFinite(fallback) ? fallback : null;
+  };
+
   // Load notifications from localStorage on mount
   useEffect(() => {
     let active = true;
@@ -31,15 +44,16 @@ export function NotificationProvider({ children }) {
         const response = await notificationApi.listMine();
         const records = Array.isArray(response?.data) ? response.data : [];
         if (active) {
-          setNotifications(records);
+          setNotifications(records.map(normalizeNotification));
         }
       } catch (_error) {
-        const storageKey = `notifications_${role}_${user.id}`;
+        const storageKey = `notifications_${role}_${user.userId || user.id}`;
         const stored = localStorage.getItem(storageKey);
         if (stored) {
           try {
             if (active) {
-              setNotifications(JSON.parse(stored));
+              const parsed = JSON.parse(stored);
+              setNotifications(Array.isArray(parsed) ? parsed.map(normalizeNotification) : []);
             }
           } catch (_e) {
             if (active) {
@@ -62,7 +76,7 @@ export function NotificationProvider({ children }) {
   // Save notifications to localStorage whenever they change
   useEffect(() => {
     if (user) {
-      const storageKey = `notifications_${role}_${user.id}`;
+      const storageKey = `notifications_${role}_${user.userId || user.id}`;
       localStorage.setItem(storageKey, JSON.stringify(notifications));
     }
   }, [notifications, user, role]);
@@ -169,15 +183,18 @@ export function NotificationProvider({ children }) {
     };
 
     try {
-      if (user?.id) {
+      const numericUserId = resolveNumericUserId(user);
+      if (numericUserId !== null) {
         const response = await notificationApi.send({
-          userId: Number(user.id),
+          userId: numericUserId,
           title: newNotification.title,
           message: newNotification.message,
           type: newNotification.type,
         });
 
-        const createdNotification = response?.id ? response : newNotification;
+        const createdNotification = response?.data
+          ? normalizeNotification(response.data)
+          : newNotification;
         setNotifications((prev) => [createdNotification, ...prev]);
         return createdNotification;
       }
@@ -197,7 +214,7 @@ export function NotificationProvider({ children }) {
     }
 
     setNotifications((prev) => prev.map((notif) =>
-      notif.id === notificationId ? { ...notif, read: true } : notif
+      String(notif.id) === String(notificationId) ? { ...notif, read: true } : notif
     ));
   };
 
@@ -205,7 +222,7 @@ export function NotificationProvider({ children }) {
     try {
       const response = await notificationApi.markAllRead();
       if (response?.success && Array.isArray(response?.data)) {
-        setNotifications(response.data);
+        setNotifications(response.data.map(normalizeNotification));
         return;
       }
     } catch (_error) {

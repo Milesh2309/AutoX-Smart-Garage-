@@ -8,14 +8,22 @@ const sanitizeUser = (user) => {
   if (!user) return null;
   return {
     id: user._id,
-    name: user.name,
+    userId: user.userId,
+    name: user.name || user.fullName,
+    fullName: user.fullName || user.name,
     username: user.username,
     email: user.email,
     role: user.role,
     phone: user.phone || '',
     gender: user.gender || null,
     address: user.address || '',
-    pincode: user.pincode || ''
+    pincode: user.pincode || '',
+    city: user.city || '',
+    vehicle: user.vehicle || '',
+    registration: user.registration || '',
+    profilePhotoUrl: user.profilePhotoUrl || '',
+    rating: user.rating || null,
+    createdAt: user.createdAt || null,
   };
 };
 
@@ -153,7 +161,17 @@ const createRegister = async (req, res, next) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const finalUsername = requestedUsername || await createUniqueUsername(db, normalizedEmail, name);
 
+    // Generate numeric userId
+    const [lastUser] = await db
+      .collection('users')
+      .find({ userId: { $type: 'number' } })
+      .sort({ userId: -1 })
+      .limit(1)
+      .toArray();
+    const nextUserId = (lastUser?.userId || 999) + 1;
+
     const newRegister = {
+      userId: nextUserId,
       name,
       username: finalUsername,
       email: normalizedEmail,
@@ -316,12 +334,15 @@ const updateMe = async (req, res, next) => {
   try {
     const db = getDB();
     const updates = {};
-    const { name, phone, address, pincode } = req.body;
+    const { name, phone, address, pincode, city, vehicle, registration } = req.body;
 
     if (name !== undefined) updates.name = name;
     if (phone !== undefined) updates.phone = phone;
     if (address !== undefined) updates.address = address;
     if (pincode !== undefined) updates.pincode = pincode;
+    if (city !== undefined) updates.city = city;
+    if (vehicle !== undefined) updates.vehicle = vehicle;
+    if (registration !== undefined) updates.registration = registration;
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ success: false, message: 'No fields to update' });

@@ -19,7 +19,7 @@ function DataGrid() {
         const apiMap = {
           users: usersApi.list,
           mechanics: mechanicsApi.list,
-          vehicles: vehiclesApi.listMine,
+          vehicles: vehiclesApi.listAll,
           bookings: bookingApi.listAll,
           parts: inventoryApi.list,
         };

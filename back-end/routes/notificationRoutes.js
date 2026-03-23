@@ -4,6 +4,7 @@ const router = express.Router();
 const notificationController = require('../controllers/notificationController');
 const validate = require('../middleware/validationMiddleware');
 const authMiddleware = require('../middleware/authMiddleware');
+const adminMiddleware = require('../middleware/adminMiddleware');
 
 /**
  * @swagger
@@ -22,7 +23,7 @@ const authMiddleware = require('../middleware/authMiddleware');
  *       200:
  *         description: All notifications
  */
-router.get('/api/notifications/all', notificationController.listAllNotifications);
+router.get('/api/notifications/all', authMiddleware, adminMiddleware, notificationController.listAllNotifications);
 
 /**
  * @swagger

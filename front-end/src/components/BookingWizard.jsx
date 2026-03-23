@@ -4,10 +4,27 @@ import { useBookings } from '../context';
 import { useAuth } from '../context/AuthContext';
 import { vehiclesApi } from '../utils/apiService';
 
+const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
+
+const loadRazorpayScript = () =>
+  new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+
 const BookingWizard = () => {
   const { createBooking } = useBookings();
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [savedVehicles, setSavedVehicles] = useState([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState('new');
   const [bookingData, setBookingData] = useState({
@@ -29,7 +46,7 @@ const BookingWizard = () => {
     preferredSlot: '',
     
     // Step 4: Payment Method
-    paymentMethod: '',
+    paymentMethod: 'Razorpay',
     
     // Additional info
     specialInstructions: '',
@@ -143,7 +160,7 @@ const BookingWizard = () => {
     '03:00 PM - 05:00 PM',
     '05:00 PM - 07:00 PM',
   ];
-  const paymentMethods = ['Cash', 'Credit Card', 'Debit Card', 'UPI', 'Net Banking'];
+  const paymentMethods = ['Razorpay'];
 
   const handleInputChange = (field, value) => {
     setBookingData(prev => ({
@@ -258,60 +275,162 @@ const BookingWizard = () => {
   };
 
   const handleSubmit = async () => {
-    const selectedStartSlot = bookingData.preferredSlot?.split(' - ')[0] || '09:00 AM';
-    const [timePart, period] = selectedStartSlot.split(' ');
-    let [hours, minutes] = timePart.split(':').map(Number);
-    if (period === 'PM' && hours !== 12) hours += 12;
-    if (period === 'AM' && hours === 12) hours = 0;
+    if (isProcessing) return;
 
-    const slotDate = bookingData.bookingDate ? new Date(bookingData.bookingDate) : new Date();
-    slotDate.setHours(hours, Number(minutes || 0), 0, 0);
-    const scheduledAt = slotDate.toISOString();
+    const resetWizard = () => {
+      setBookingData({
+        serviceId: '',
+        serviceName: '',
+        servicePrice: 0,
+        vehicleType: '',
+        vehicleBrand: '',
+        vehicleModel: '',
+        vehicleNumber: '',
+        vehicleYear: '',
+        bookingDate: '',
+        bookingTime: '',
+        preferredSlot: '',
+        paymentMethod: 'Razorpay',
+        specialInstructions: '',
+      });
+      setSelectedVehicleId('new');
+      setCurrentStep(1);
+    };
 
-    const result = await createBooking({
-      userId: user?.userId || user?.id,
-      serviceId: bookingData.serviceId,
-      serviceName: bookingData.serviceName,
-      customerName: user?.name || user?.fullName || user?.email || 'Customer',
-      email: user?.email || '',
-      phone: user?.phone || '',
-      date: bookingData.bookingDate,
-      timeSlot: bookingData.preferredSlot,
-      scheduledAt,
-      notes: bookingData.specialInstructions,
-      amount: bookingData.servicePrice,
-      vehicleNumber: bookingData.vehicleNumber,
-      vehicleCompany: bookingData.vehicleBrand,
-      vehicleModel: bookingData.vehicleModel,
-      vehicleType: bookingData.vehicleType,
-    });
+    const submitBooking = async (paymentDetails) => {
+      const selectedStartSlot = bookingData.preferredSlot?.split(' - ')[0] || '09:00 AM';
+      const [timePart, period] = selectedStartSlot.split(' ');
+      let [hours, minutes] = timePart.split(':').map(Number);
+      if (period === 'PM' && hours !== 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
 
-    if (!result.success) {
-      alert(`Booking failed: ${result.error}`);
-      return;
+      const slotDate = bookingData.bookingDate ? new Date(bookingData.bookingDate) : new Date();
+      slotDate.setHours(hours, Number(minutes || 0), 0, 0);
+      const scheduledAt = slotDate.toISOString();
+
+      const result = await createBooking({
+        userId: user?.userId || user?.id,
+        serviceId: bookingData.serviceId,
+        serviceName: bookingData.serviceName,
+        customerName: user?.name || user?.fullName || user?.email || 'Customer',
+        email: user?.email || '',
+        phone: user?.phone || '',
+        date: bookingData.bookingDate,
+        timeSlot: bookingData.preferredSlot,
+        scheduledAt,
+        notes: bookingData.specialInstructions,
+        amount: bookingData.servicePrice,
+        paymentMethod: 'Razorpay',
+        paymentStatus: 'completed',
+        paymentDate: new Date().toISOString(),
+        transactionId: paymentDetails?.razorpay_payment_id || '',
+        razorpayOrderId: paymentDetails?.razorpay_order_id || '',
+        razorpayPaymentId: paymentDetails?.razorpay_payment_id || '',
+        razorpaySignature: paymentDetails?.razorpay_signature || '',
+        vehicleNumber: bookingData.vehicleNumber,
+        vehicleCompany: bookingData.vehicleBrand,
+        vehicleModel: bookingData.vehicleModel,
+        vehicleType: bookingData.vehicleType,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Booking failed after successful payment');
+      }
+
+      return result.data?.id || 'N/A';
+    };
+
+    try {
+      setIsProcessing(true);
+
+      const amount = Number(bookingData.servicePrice);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error('Invalid booking amount for payment');
+      }
+
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        throw new Error('Unable to load Razorpay checkout script');
+      }
+
+      const createPaymentResponse = await fetch(`${API_BASE_URL}/create-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          service_name: bookingData.serviceName,
+          amount,
+        }),
+      });
+
+      const createPaymentResult = await createPaymentResponse.json();
+      if (!createPaymentResponse.ok || !createPaymentResult?.success) {
+        throw new Error(createPaymentResult?.message || 'Failed to create payment order');
+      }
+
+      const orderData = createPaymentResult.data;
+
+      const options = {
+        key: orderData.key,
+        amount: orderData.amount,
+        currency: 'INR',
+        name: 'AUTOX Service Payment',
+        description: bookingData.serviceName,
+        order_id: orderData.order_id,
+        prefill: {
+          name: user?.name || user?.fullName || user?.email || 'Customer',
+          email: user?.email || '',
+          contact: user?.phone || '',
+        },
+        handler: async (response) => {
+          try {
+            const verifyResponse = await fetch(`${API_BASE_URL}/verify-payment`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                service_name: bookingData.serviceName,
+                amount,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            });
+
+            const verifyResult = await verifyResponse.json();
+            if (!verifyResponse.ok || !verifyResult?.success) {
+              throw new Error(verifyResult?.message || 'Payment verification failed');
+            }
+
+            const bookingId = await submitBooking(response);
+            alert(`Payment successful and booking confirmed! Booking ID: ${bookingId}`);
+            resetWizard();
+          } catch (verificationError) {
+            alert(verificationError.message || 'Payment verification failed');
+          } finally {
+            setIsProcessing(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessing(false);
+          },
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.on('payment.failed', (response) => {
+        const errorMessage = response?.error?.description || 'Payment failed';
+        setIsProcessing(false);
+        alert(errorMessage);
+      });
+      razorpay.open();
+    } catch (error) {
+      setIsProcessing(false);
+      alert(error.message || 'Unable to start payment process');
     }
-
-    // Show success message
-    alert('Booking confirmed successfully! Booking ID: ' + (result.data?.id || 'N/A'));
-
-    // Reset form
-    setBookingData({
-      serviceId: '',
-      serviceName: '',
-      servicePrice: 0,
-      vehicleType: '',
-      vehicleBrand: '',
-      vehicleModel: '',
-      vehicleNumber: '',
-      vehicleYear: '',
-      bookingDate: '',
-      bookingTime: '',
-      preferredSlot: '',
-      paymentMethod: '',
-      specialInstructions: '',
-    });
-    setSelectedVehicleId('new');
-    setCurrentStep(1);
   };
 
   const getProgressPercentage = () => {
@@ -511,11 +630,7 @@ const BookingWizard = () => {
                   onClick={() => handleInputChange('paymentMethod', method)}
                 >
                   <div className="payment-icon">
-                    {method === 'Cash' && '💵'}
-                    {method === 'Credit Card' && '💳'}
-                    {method === 'Debit Card' && '💳'}
-                    {method === 'UPI' && '📱'}
-                    {method === 'Net Banking' && '🏦'}
+                    {method === 'Razorpay' && '💳'}
                   </div>
                   <span>{method}</span>
                 </div>
@@ -654,7 +769,7 @@ const BookingWizard = () => {
           <button
             className="btn btn-secondary"
             onClick={handleBack}
-            disabled={currentStep === 1}
+              disabled={currentStep === 1 || isProcessing}
           >
             ← Back
           </button>
@@ -663,6 +778,7 @@ const BookingWizard = () => {
             <button
               className="btn btn-primary"
               onClick={handleNext}
+              disabled={isProcessing}
             >
               Next →
             </button>
@@ -670,8 +786,9 @@ const BookingWizard = () => {
             <button
               className="btn btn-success"
               onClick={handleSubmit}
+              disabled={isProcessing}
             >
-              Confirm Booking ✓
+              {isProcessing ? 'Processing Payment...' : 'Pay & Confirm Booking ✓'}
             </button>
           )}
         </div>

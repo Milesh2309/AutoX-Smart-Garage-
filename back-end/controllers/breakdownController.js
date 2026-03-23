@@ -7,22 +7,42 @@ const getNextBreakdownId = async (db) => {
 
 exports.createBreakdownCall = async (req, res, next) => {
   try {
-    const { userId, location, description, vehicleId, latitude, longitude } = req.body;
+    const {
+      userId,
+      location,
+      description,
+      vehicleId,
+      latitude,
+      longitude,
+      customerName,
+      phone,
+      vehicle,
+      status,
+      mechanic,
+      amount,
+    } = req.body;
     const db = getDB();
 
-    if (!userId || !location) {
-      return res.status(400).json({ error: 'userId and location are required' });
+    if (!location) {
+      return res.status(400).json({ error: 'location is required' });
     }
+
+    const normalizedUserId = Number(userId);
 
     const newCall = {
       id: await getNextBreakdownId(db),
-      userId: Number(userId),
+      userId: Number.isFinite(normalizedUserId) && normalizedUserId > 0 ? normalizedUserId : null,
       vehicleId,
       location,
       description,
+      customerName: customerName || '',
+      phone: phone || '',
+      vehicle: vehicle || '',
       latitude,
       longitude,
-      status: 'pending',
+      status: status || 'pending',
+      assignedMechanicName: mechanic || '',
+      amount: amount || '',
       createdAt: new Date().toISOString()
     };
 

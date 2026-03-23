@@ -13,16 +13,24 @@ export const authApi = {
 
 /* ─── Bookings ─── */
 export const bookingApi = {
-  listAll: () => apiGet('/api/bookings', { auth: false }),
-  listAdmin: (queryString = '') => apiGet(`/api/get_bookings.php${queryString ? `?${queryString}` : ''}`, { auth: false }),
+  listAll: () => apiGet('/api/bookings'),
+  listAdmin: (queryString = '') => apiGet(`/api/get_bookings.php${queryString ? `?${queryString}` : ''}`),
   listMine: () => apiGet('/api/bookings/me'),
   listHistory: () => apiGet('/api/bookings/history/me'),
+  createAuthenticated: (payload) => apiPost('/bookings', payload),
   createPublic: (payload) => apiPost('/api/bookings', payload, { auth: false }),
   cancel: (id) => apiPut(`/api/bookings/${id}/cancel`),
   reschedule: (id, payload) => apiPost(`/api/bookings/${id}/reschedule`, payload),
   getStats: () => apiGet('/bookings/stats', { auth: false }),
-  updateStatus: (id, payload) => apiPut(`/api/bookings/${id}/status`, payload, { auth: false }),
-  delete: (id) => apiDelete(`/api/bookings/${id}`, { auth: false }),
+  updateStatus: (id, payload) => apiPut(`/api/bookings/${id}/status`, payload),
+  delete: (id) => apiDelete(`/api/bookings/${id}`),
+};
+
+/* ─── Customer Dashboard ─── */
+export const customerApi = {
+  bookings: () => apiGet('/customer/bookings'),
+  serviceHistory: () => apiGet('/customer/service-history'),
+  invoices: () => apiGet('/customer/invoices'),
 };
 
 /* ─── Billing ─── */
@@ -41,7 +49,7 @@ export const billingApi = {
 
 /* ─── Notifications ─── */
 export const notificationApi = {
-  listAll: () => apiGet('/api/notifications/all', { auth: false }),
+  listAll: () => apiGet('/api/notifications/all'),
   listMine: () => apiGet('/api/notifications'),
   send: (payload) => apiPost('/api/notifications/send', payload),
   markRead: (id) => apiPut(`/api/notifications/${id}/read`),
@@ -66,9 +74,9 @@ export const breakdownApi = {
 export const servicesApi = {
   list: () => apiGet('/api/services', { auth: false }),
   getById: (id) => apiGet(`/api/services/${id}`, { auth: false }),
-  create: (payload) => apiPost('/api/services', payload, { auth: false }),
-  update: (id, payload) => apiPut(`/api/services/${id}`, payload, { auth: false }),
-  delete: (id) => apiDelete(`/api/services/${id}`, { auth: false }),
+  create: (payload) => apiPost('/api/services', payload),
+  update: (id, payload) => apiPut(`/api/services/${id}`, payload),
+  delete: (id) => apiDelete(`/api/services/${id}`),
 };
 
 /* ─── Mechanics ─── */
@@ -100,24 +108,24 @@ export const modificationsApi = {
 
 /* ─── Inventory ─── */
 export const inventoryApi = {
-  list: () => apiGet('/api/inventory', { auth: false }),
-  create: (payload) => apiPost('/api/inventory', payload, { auth: false }),
-  update: (id, payload) => apiPut(`/api/inventory/${id}`, payload, { auth: false }),
-  delete: (id) => apiDelete(`/api/inventory/${id}`, { auth: false }),
-  lowStock: () => apiGet('/api/inventory/low-stock', { auth: false }),
-  stockHistory: (partId) => apiGet(partId ? `/api/inventory/stock-history?partId=${partId}` : '/api/inventory/stock-history', { auth: false }),
-  useInService: (payload) => apiPost('/api/inventory/use', payload, { auth: false }),
-  report: () => apiGet('/api/inventory/report', { auth: false }),
-  createOrder: (payload) => apiPost('/api/inventory/orders', payload, { auth: false }),
+  list: () => apiGet('/api/inventory'),
+  create: (payload) => apiPost('/api/inventory', payload),
+  update: (id, payload) => apiPut(`/api/inventory/${id}`, payload),
+  delete: (id) => apiDelete(`/api/inventory/${id}`),
+  lowStock: () => apiGet('/api/inventory/low-stock'),
+  stockHistory: (partId) => apiGet(partId ? `/api/inventory/stock-history?partId=${partId}` : '/api/inventory/stock-history'),
+  useInService: (payload) => apiPost('/api/inventory/use', payload),
+  report: () => apiGet('/api/inventory/report'),
+  createOrder: (payload) => apiPost('/api/inventory/orders', payload),
 };
 
 /* ─── Users ─── */
 export const usersApi = {
-  list: () => apiGet('/users', { auth: false }),
-  getById: (id) => apiGet(`/users/${id}`, { auth: false }),
-  create: (payload) => apiPost('/users', payload, { auth: false }),
-  update: (id, payload) => apiPut(`/users/${id}`, payload, { auth: false }),
-  delete: (id) => apiDelete(`/users/${id}`, { auth: false }),
+  list: () => apiGet('/users'),
+  getById: (id) => apiGet(`/users/${id}`),
+  create: (payload) => apiPost('/users', payload),
+  update: (id, payload) => apiPut(`/users/${id}`, payload),
+  delete: (id) => apiDelete(`/users/${id}`),
 };
 
 /* ─── Vehicles ─── */
@@ -126,13 +134,13 @@ export const vehiclesApi = {
     const query = queryString ? `?${queryString}` : '';
 
     try {
-      return await apiGet(`/api/get_vehicles.php${query}`, { auth: false });
+      return await apiGet(`/api/get_vehicles.php${query}`);
     } catch (error) {
       if (error?.status !== 404) throw error;
     }
 
     try {
-      return await apiGet(`/api/vehicles${query}`, { auth: false });
+      return await apiGet(`/api/vehicles${query}`);
     } catch (error) {
       if (error?.status !== 404) throw error;
     }
@@ -146,10 +154,10 @@ export const vehiclesApi = {
     return { success: true, data: [] };
   },
   listMine: () => apiGet('/api/vehicles/me'),
-  listByUser: (userId) => apiGet(`/api/vehicles/user/${userId}`, { auth: false }),
-  createAdmin: (payload) => apiPost('/api/vehicles', payload, { auth: false }),
-  updateAdmin: (id, payload) => apiPut(`/api/vehicles/${id}`, payload, { auth: false }),
-  deleteAdmin: (id) => apiDelete(`/api/vehicles/${id}`, { auth: false }),
+  listByUser: (userId) => apiGet(`/api/vehicles/user/${userId}`),
+  createAdmin: (payload) => apiPost('/api/vehicles', payload),
+  updateAdmin: (id, payload) => apiPut(`/api/vehicles/${id}`, payload),
+  deleteAdmin: (id) => apiDelete(`/api/vehicles/${id}`),
   create: (payload) => apiPost('/vehicles', payload),
   getById: (id) => apiGet(`/vehicles/${id}`),
   update: (id, payload) => apiPut(`/vehicles/${id}`, payload),
@@ -174,7 +182,11 @@ export const settingsApi = {
 
 /* ─── Packages ─── */
 export const packagesApi = {
-  listAll: () => apiGet('/api/packages', { auth: false }),
+  listAll: (query = '') => apiGet(`/api/packages${query ? `?${query}` : ''}`, { auth: false }),
+  getById: (id) => apiGet(`/api/packages/${id}`, { auth: false }),
+  create: (payload) => apiPost('/api/packages', payload),
+  update: (id, payload) => apiPut(`/api/packages/${id}`, payload),
+  delete: (id) => apiDelete(`/api/packages/${id}`),
   getMyPackages: () => apiGet('/api/packages/me'),
   renew: (id) => apiPost(`/api/packages/${id}/renew`),
   subscribe: (payload) => apiPost('/api/packages/subscribe', payload),

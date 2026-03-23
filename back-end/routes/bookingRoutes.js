@@ -4,6 +4,7 @@ const router = express.Router();
 const bookingController = require('../controllers/bookingController');
 const validate = require('../middleware/validationMiddleware');
 const authMiddleware = require('../middleware/authMiddleware');
+const adminMiddleware = require('../middleware/adminMiddleware');
 
 /**
  * @swagger
@@ -28,11 +29,13 @@ const authMiddleware = require('../middleware/authMiddleware');
  */
 router.get('/bookings', authMiddleware, bookingController.getBookings);
 
-router.get('/api/bookings', bookingController.getAllBookings);
-router.get('/api/get_bookings.php', bookingController.getAllBookings);
+router.get('/api/bookings', authMiddleware, adminMiddleware, bookingController.getAllBookings);
+router.get('/api/get_bookings.php', authMiddleware, adminMiddleware, bookingController.getAllBookings);
 
 router.get('/api/bookings/me', authMiddleware, bookingController.getMyBookings);
 router.get('/api/bookings/history/me', authMiddleware, bookingController.getMyServiceHistory);
+router.get('/customer/bookings', authMiddleware, bookingController.getMyBookings);
+router.get('/customer/service-history', authMiddleware, bookingController.getMyServiceHistory);
 
 /**
  * @swagger
@@ -215,6 +218,8 @@ router.put(
 
 router.put(
   '/api/bookings/:id/status',
+  authMiddleware,
+  adminMiddleware,
   param('id').isInt({ gt: 0 }).withMessage('id must be a positive integer'),
   body('status').notEmpty().withMessage('status is required'),
   validate,
@@ -223,6 +228,8 @@ router.put(
 
 router.delete(
   '/api/bookings/:id',
+  authMiddleware,
+  adminMiddleware,
   param('id').isInt({ gt: 0 }).withMessage('id must be a positive integer'),
   validate,
   bookingController.deleteBookingByAdmin

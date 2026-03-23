@@ -33,6 +33,7 @@ function ManageBreakdown() {
 
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
+    userId: '',
     customer: '',
     location: '',
     vehicle: '',
@@ -62,9 +63,22 @@ function ManageBreakdown() {
     e.preventDefault();
     if (formData.customer && formData.location && formData.vehicle && formData.issue) {
       try {
-        await breakdownApi.createCall(formData);
+        const payload = {
+          userId: formData.userId ? Number(formData.userId) : undefined,
+          customerName: formData.customer,
+          location: formData.location,
+          vehicle: formData.vehicle,
+          description: formData.issue,
+          phone: formData.phone,
+          status: formData.status,
+          mechanic: formData.mechanic,
+          amount: formData.amount,
+        };
+
+        await breakdownApi.createCall(payload);
         await loadBreakdowns();
         setFormData({
+          userId: '',
           customer: '',
           location: '',
           vehicle: '',
@@ -98,6 +112,12 @@ function ManageBreakdown() {
           <h3>Add New Breakdown Request</h3>
           <form className="breakdown-form" onSubmit={handleAddBreakdown}>
             <div className="form-row">
+              <input
+                type="number"
+                placeholder="User ID (optional)"
+                value={formData.userId}
+                onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+              />
               <input
                 type="text"
                 placeholder="Customer Name"

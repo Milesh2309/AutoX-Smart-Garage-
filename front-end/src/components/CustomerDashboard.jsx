@@ -6,7 +6,7 @@ import PaymentGateway from './PaymentGateway';
 import CustomerBillingHistory from './CustomerBillingHistory';
 import BookingWizard from './BookingWizard';
 import BreakdownCall from './BreakdownCall';
-import { servicesApi, packagesApi, bookingApi, authApi, uploadApi } from '../utils/apiService';
+import { servicesApi, packagesApi, bookingApi, authApi, uploadApi, customerApi } from '../utils/apiService';
 import './CustomerDashboard.css';
 
 function CustomerDashboard() {
@@ -72,10 +72,18 @@ function CustomerDashboard() {
   const [upcomingBookings, setUpcomingBookings] = useState([]);
   const [memberSince, setMemberSince] = useState('');
   const [userRating, setUserRating] = useState('—');
+  const [loadingData, setLoadingData] = useState(true);
+  const [apiErrors, setApiErrors] = useState({});
 
   // Load data from APIs
   const loadDashboardData = useCallback(async () => {
     try {
+      setLoadingData(true);
+      setApiErrors({});
+      
+      // Debug: Log user info
+      console.log('🔍 Loading dashboard data for user:', user);
+
       const svcRes = await servicesApi.list();
       const svcList = svcRes?.data || svcRes || [];
       // Preserve local images/icons as fallback
@@ -97,56 +105,65 @@ function CustomerDashboard() {
         features: s.features || [],
         image: s.image || defaultImages[i % defaultImages.length],
       })));
-    } catch { /* keep empty on failure */ }
+    } catch (error) {
+      console.error('❌ Services API error:', error);
+      setApiErrors(prev => ({ ...prev, services: error.message }));
+    }
 
     try {
-      const pkgRes = await packagesApi.getMyPackages();
+      const pkgRes = await packagesApi.listAll('status=active');
       const pkgs = pkgRes?.data || pkgRes || [];
       const colors = ['#0EA5E9', '#F59E0B', '#DC2626'];
       setServicePackages(pkgs.map((p, i) => ({
         ...p,
         id: p._id || p.id || p.packageId || i,
+        packageId: p.packageId || p._id,
         color: p.color || colors[i % colors.length],
         services: p.services || p.features || [],
         servicesUsed: p.servicesUsed || 0,
-        totalServices: p.totalServices || p.services?.length || 5,
-        nextDue: p.nextDue || '—',
-        status: p.status || 'Active',
+        totalServices: p.totalServices || p.features?.length || 0,
+        nextDue: p.duration || '—',
+        status: (p.status || 'active').toLowerCase() === 'inactive' ? 'Inactive' : 'Active',
+        validity: p.duration || p.validity || '—',
         originalPrice: p.originalPrice || p.price,
       })));
-    } catch { /* no packages */ }
+    } catch (error) {
+      console.warn('⚠️ Packages API (optional):', error.message);
+    }
 
     try {
-      const [historyRes, bRes] = await Promise.allSettled([
-        bookingApi.listHistory(),
-        bookingApi.listMine(),
-      ]);
+      console.log('📊 Fetching bookings...');
+      const bookingsRes = await customerApi.bookings();
+      const historyRes = await customerApi.serviceHistory();
 
-      const historyBookings =
-        historyRes.status === 'fulfilled'
-          ? (historyRes.value?.data || historyRes.value || [])
-          : [];
+      console.log('📋 Bookings API response:', bookingsRes);
+      console.log('📋 Service History API response:', historyRes);
 
-      const allBookings =
-        bRes.status === 'fulfilled'
-          ? (bRes.value?.data || bRes.value || [])
-          : [];
+      const allBookings = Array.isArray(bookingsRes?.data) 
+        ? bookingsRes.data 
+        : Array.isArray(bookingsRes) 
+        ? bookingsRes 
+        : [];
 
-      const completedFromAll = allBookings.filter((b) =>
-        String(b?.status || '').toLowerCase() === 'completed'
-      );
+      const historyBookings = Array.isArray(historyRes?.data) 
+        ? historyRes.data 
+        : Array.isArray(historyRes) 
+        ? historyRes 
+        : [];
 
-      const completedBookings = historyBookings.length ? historyBookings : completedFromAll;
+      console.log('✅ Parsed bookings:', { allBookings, historyBookings });
 
-      setServiceHistory(completedBookings.map(b => ({
+      // Set completed bookings as service history
+      setServiceHistory(historyBookings.map(b => ({
         id: b._id || b.id,
         date: b.date || (b.scheduledAt ? new Date(b.scheduledAt).toISOString().split('T')[0] : ''),
         service: b.serviceName || b.service || '',
         amount: b.amount ? `₹${b.amount}` : '—',
-        status: b.status,
+        status: b.status || 'completed',
         mechanic: b.mechanicName || b.mechanic || '—',
       })));
 
+      // Set upcoming bookings (non-completed)
       setUpcomingBookings(allBookings.filter((b) => {
         const status = String(b?.status || '').toLowerCase();
         return status !== 'completed' && status !== 'cancelled' && status !== 'canceled';
@@ -158,7 +175,17 @@ function CustomerDashboard() {
         status: b.status || 'Confirmed',
         mechanic: b.mechanicName || b.mechanic || '—',
       })));
-    } catch { /* keep empty */ }
+
+      console.log('✅ Bookings and history data set successfully');
+    } catch (error) {
+      console.error('❌ Bookings API error:', error);
+      console.error('Error message:', error?.message);
+      console.error('Error response:', error?.response);
+      setApiErrors(prev => ({ ...prev, bookings: error?.message || 'Failed to load bookings' }));
+      // Set empty arrays on error so UI shows "No data found"
+      setServiceHistory([]);
+      setUpcomingBookings([]);
+    }
 
     try {
       const meRes = await authApi.me();
@@ -179,10 +206,50 @@ function CustomerDashboard() {
         setProfileData(pd);
         setSavedProfileData(pd);
       }
-    } catch { /* profile load failed */ }
-  }, []);
+    } catch (error) {
+      console.error('❌ Profile API error:', error);
+      setApiErrors(prev => ({ ...prev, profile: error.message }));
+    }
+    
+    setLoadingData(false);
+  }, [user]);
 
   useEffect(() => { loadDashboardData(); }, [loadDashboardData]);
+
+  useEffect(() => {
+    // Load dashboard data on mount and when activeTab changes
+    if (activeTab === 'bookings' || activeTab === 'history' || activeTab === 'overview' || activeTab === 'billing') {
+      loadDashboardData();
+    }
+  }, [activeTab, loadDashboardData]);
+
+  // Also load key data on component mount
+  useEffect(() => {
+    const loadInitialData = async () => {
+      console.log('🚀 Component mounted, loading initial data...');
+      setLoadingData(true);
+      try {
+        // Pre-fetch bookings so they're visible immediately
+        console.log('📥 Pre-fetching bookings data...');
+        await Promise.all([
+          customerApi.bookings().then(res => {
+            const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+            console.log('✓ Bookings pre-loaded:', data.length, 'records');
+          }).catch(e => console.warn('⚠️ Pre-fetch bookings error:', e.message)),
+          customerApi.serviceHistory().then(res => {
+            const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+            console.log('✓ Service history pre-loaded:', data.length, 'records');
+          }).catch(e => console.warn('⚠️ Pre-fetch history error:', e.message)),
+        ]);
+      } catch (e) {
+        console.error('⚠️ Initial data load error:', e.message);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
+    loadInitialData();
+  }, [user]);
 
   if (!user) {
     navigate('/login', { replace: true });
@@ -192,7 +259,7 @@ function CustomerDashboard() {
   const navItems = [
     { id: 'overview', label: 'Dashboard', icon: '📊' },
     { id: 'browse-services', label: 'Browse Services', icon: '🛠' },
-    { id: 'packages', label: 'My Packages', icon: '📦' },
+    { id: 'packages', label: 'Packages', icon: '📦' },
     { id: 'history', label: 'Service History', icon: '✓' },
     { id: 'bookings', label: 'My Bookings', icon: '📅' },
     { id: 'new-booking', label: 'New Booking', icon: '🔧' },
@@ -208,7 +275,11 @@ function CustomerDashboard() {
       reader.onloadend = async () => {
         setProfilePhoto(reader.result);
         try {
-          await uploadApi.profilePhoto({ photo: reader.result });
+          await uploadApi.profilePhoto({
+            imageBase64: reader.result,
+            fileName: file.name,
+            mimeType: file.type,
+          });
         } catch { /* upload failed – photo still shown locally */ }
       };
       reader.readAsDataURL(file);
@@ -336,11 +407,11 @@ function CustomerDashboard() {
 
             {/* Active Packages */}
             <div className="content-card">
-              <h2>Your Active Packages</h2>
+              <h2>Available Packages</h2>
               <div className="packages-grid-overview">
                 {servicePackages.length === 0 && (
                   <div style={{ textAlign: 'center', padding: '30px', color: '#6B7280' }}>
-                    <p>No active packages. <span style={{ color: '#0EA5E9', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => navigate('/view-packages')}>Browse packages</span></p>
+                    <p>No packages available right now.</p>
                   </div>
                 )}
                 {servicePackages.map(pkg => (
@@ -458,16 +529,16 @@ function CustomerDashboard() {
         {activeTab === 'packages' && (
           <div className="content-section">
             <div className="section-header">
-              <h1>My Service Packages</h1>
-              <p>Manage and monitor your active service packages</p>
+              <h1>Packages</h1>
+              <p>Explore the latest service packages managed by admin</p>
             </div>
 
             <div className="packages-container">
               {servicePackages.length === 0 && (
                 <div className="empty-state" style={{ textAlign: 'center', padding: '60px 20px', gridColumn: '1 / -1' }}>
                   <div style={{ fontSize: '64px', marginBottom: '16px' }}>📦</div>
-                  <h3 style={{ marginBottom: '8px', color: '#374151' }}>No Active Packages</h3>
-                  <p style={{ color: '#6B7280', marginBottom: '24px' }}>You haven't subscribed to any service packages yet.</p>
+                  <h3 style={{ marginBottom: '8px', color: '#374151' }}>No Packages Available</h3>
+                  <p style={{ color: '#6B7280', marginBottom: '24px' }}>Admin has not published any active package yet.</p>
                   <button
                     className="btn-primary"
                     style={{ padding: '12px 32px', fontSize: '16px', borderRadius: '12px', cursor: 'pointer' }}
@@ -499,21 +570,21 @@ function CustomerDashboard() {
                       <span className="savings-badge">Save ₹{Math.max(0, parseInt(String(pkg.originalPrice).replace(/[^0-9]/g, '') || '0') - parseInt(String(pkg.price).replace(/[^0-9]/g, '') || '0'))}</span>
                     </div>
                     <div className="validity-badge">
-                      <span className="validity-icon">⏰</span>
-                      <span>{pkg.validity}</span>
+                        <span className="validity-icon">⏰</span>
+                        <span>{pkg.validity}</span>
                     </div>
                   </div>
 
                   <div className="package-usage-section">
                     <div className="usage-header">
-                      <span className="usage-label">Services Used</span>
-                      <span className="usage-count">{pkg.servicesUsed} / {pkg.totalServices}</span>
+                      <span className="usage-label">Included Features</span>
+                      <span className="usage-count">{pkg.totalServices}</span>
                     </div>
                     <div className="usage-progress-bar">
                       <div 
                         className="usage-progress-fill" 
                         style={{ 
-                          width: `${pkg.totalServices === 'Unlimited' ? 0 : (pkg.servicesUsed / pkg.totalServices) * 100}%`,
+                          width: `${pkg.totalServices > 0 ? 100 : 0}%`,
                           background: `linear-gradient(90deg, ${pkg.color} 0%, ${pkg.color}dd 100%)`
                         }}
                       ></div>
@@ -522,7 +593,7 @@ function CustomerDashboard() {
 
                   <div className="package-next-due">
                     <span className="due-icon">📅</span>
-                    <span className="due-label">Next Service Due:</span>
+                    <span className="due-label">Duration:</span>
                     <span className="due-date">{pkg.nextDue}</span>
                   </div>
 
@@ -539,17 +610,13 @@ function CustomerDashboard() {
                   </div>
 
                   <div className="package-action-buttons">
-                    <button 
-                      className="btn-package-action primary" 
+                    <button
+                      className="btn-package-action primary"
                       style={{ background: `linear-gradient(135deg, ${pkg.color} 0%, ${pkg.color}dd 100%)` }}
-                      onClick={() => {
-                        setSelectedPackage(pkg);
-                        setModalType('renew');
-                        setShowModal(true);
-                      }}
+                      onClick={() => navigate('/view-packages')}
                     >
-                      <span className="btn-icon">🔄</span>
-                      Renew Package
+                      <span className="btn-icon">🛒</span>
+                      Browse & Subscribe
                     </button>
                     <button 
                       className="btn-package-action secondary" 
@@ -579,12 +646,20 @@ function CustomerDashboard() {
             </div>
 
             <div className="content-card">
-              <CommonTable 
-                columns={historyColumns} 
-                data={serviceHistory} 
-                fileName="service-history"
-                showSelection={false}
-              />
+              {loadingData ? (
+                <div style={{ textAlign: 'center', padding: '24px' }}>Loading data...</div>
+              ) : serviceHistory.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px' }}>
+                  {apiErrors.bookings ? 'No data found (API error)' : 'No data found'}
+                </div>
+              ) : (
+                <CommonTable 
+                  columns={historyColumns} 
+                  data={serviceHistory} 
+                  fileName="service-history"
+                  showSelection={false}
+                />
+              )}
             </div>
           </div>
         )}
@@ -598,12 +673,20 @@ function CustomerDashboard() {
             </div>
 
             <div className="content-card">
-              <CommonTable 
-                columns={bookingColumns} 
-                data={upcomingBookings} 
-                fileName="my-bookings"
-                showSelection={false}
-              />
+              {loadingData ? (
+                <div style={{ textAlign: 'center', padding: '24px' }}>Loading data...</div>
+              ) : upcomingBookings.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px' }}>
+                  {apiErrors.bookings ? 'No data found (API error)' : 'No data found'}
+                </div>
+              ) : (
+                <CommonTable 
+                  columns={bookingColumns} 
+                  data={upcomingBookings} 
+                  fileName="my-bookings"
+                  showSelection={false}
+                />
+              )}
             </div>
           </div>
         )}

@@ -4,6 +4,7 @@ const router = express.Router();
 const vehicleController = require('../controllers/vehicleController');
 const validate = require('../middleware/validationMiddleware');
 const authMiddleware = require('../middleware/authMiddleware');
+const adminMiddleware = require('../middleware/adminMiddleware');
 
 /**
  * @swagger
@@ -28,10 +29,10 @@ const authMiddleware = require('../middleware/authMiddleware');
  */
 router.get('/vehicles', authMiddleware, vehicleController.getVehicles);
 router.get('/api/vehicles/me', authMiddleware, vehicleController.getVehicles);
-router.get('/api/vehicles', vehicleController.getAllVehicles);
-router.get('/api/get_vehicles.php', vehicleController.getAllVehicles);
+router.get('/api/vehicles', authMiddleware, adminMiddleware, vehicleController.getAllVehicles);
+router.get('/api/get_vehicles.php', authMiddleware, adminMiddleware, vehicleController.getAllVehicles);
 router.get('/vehicles/all', authMiddleware, vehicleController.getAllVehicles);
-router.get('/api/vehicles/user/:userId', vehicleController.getVehicles);
+router.get('/api/vehicles/user/:userId', authMiddleware, adminMiddleware, vehicleController.getVehicles);
 
 /**
  * @swagger
@@ -78,6 +79,8 @@ router.post(
 
 router.post(
   '/api/vehicles',
+  authMiddleware,
+  adminMiddleware,
   body('vehicle_number').optional().notEmpty().withMessage('vehicle_number is required when provided'),
   body('plate').optional().notEmpty().withMessage('plate is required when provided'),
   validate,
@@ -168,6 +171,8 @@ router.put(
 
 router.put(
   '/api/vehicles/:id',
+  authMiddleware,
+  adminMiddleware,
   param('id').isInt({ gt: 0 }).withMessage('id must be a positive integer'),
   body('vehicle_number').optional().notEmpty().withMessage('vehicle_number is required when provided'),
   body('plate').optional().notEmpty().withMessage('plate is required when provided'),
@@ -205,6 +210,8 @@ router.delete(
 
 router.delete(
   '/api/vehicles/:id',
+  authMiddleware,
+  adminMiddleware,
   param('id').isInt({ gt: 0 }).withMessage('id must be a positive integer'),
   validate,
   vehicleController.deleteVehicle

@@ -40,7 +40,10 @@ const validate = require('../middleware/validationMiddleware');
 router.post(
   '/api/uploads/profile-photo',
   authMiddleware,
-  body('imageBase64').notEmpty().withMessage('imageBase64 is required'),
+  body('imageBase64').custom((value, { req }) => {
+    if (value || req.body?.photo) return true;
+    throw new Error('imageBase64 is required');
+  }),
   validate,
   uploadController.uploadProfilePhoto
 );

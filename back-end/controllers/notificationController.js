@@ -36,7 +36,7 @@ exports.getNotifications = async (req, res, next) => {
 exports.getMyNotifications = async (req, res, next) => {
   try {
     const db = getDB();
-    const userId = Number(req.user.id);
+    const userId = Number(req.user.userId || req.user.id);
     const records = await db.collection('notifications').find({ userId }).sort({ id: -1 }).toArray();
     return res.json({ success: true, data: records, count: records.length });
   } catch (error) {
@@ -98,7 +98,7 @@ exports.markAsRead = async (req, res, next) => {
 exports.markAllAsRead = async (req, res, next) => {
   try {
     const db = getDB();
-    const userId = Number(req.user.id);
+    const userId = Number(req.user.userId || req.user.id);
 
     await db.collection('notifications').updateMany(
       { userId, read: false },

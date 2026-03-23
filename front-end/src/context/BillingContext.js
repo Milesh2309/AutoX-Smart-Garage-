@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useState } from 'react';
-import { billingApi, usersApi } from '../utils/apiService';
+import { billingApi, customerApi, usersApi } from '../utils/apiService';
 
 const BillingContext = createContext();
 
@@ -180,6 +180,31 @@ export const BillingProvider = ({ children }) => {
     }
   }, [normalizeBillingRecord]);
 
+  const fetchMyBillingRecords = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log('📊 Fetching authenticated user billing records via /customer/invoices');
+      const response = await customerApi.invoices();
+      console.log('📋 Billing response:', response);
+      
+      const raw = Array.isArray(response?.data) ? response.data : [];
+      const records = raw.map((record) => normalizeBillingRecord(record));
+
+      console.log('✅ Billing records processed:', records);
+      setBillingRecords(records);
+      setInvoices(records);
+      return records;
+    } catch (err) {
+      console.error('❌ Billing API error:', err);
+      setError(err.message);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [normalizeBillingRecord]);
+
   const fetchAllBillingRecords = useCallback(async (filters = {}) => {
     try {
       setLoading(true);
@@ -287,6 +312,7 @@ export const BillingProvider = ({ children }) => {
     fetchRegisteredCustomers,
     fetchRegisteredCustomerProfile,
     fetchUserBillingRecords,
+    fetchMyBillingRecords,
     fetchAllBillingRecords,
     processRefund,
     verifyInvoice,

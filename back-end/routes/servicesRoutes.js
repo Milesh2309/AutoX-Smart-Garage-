@@ -3,6 +3,8 @@ const { body, param } = require('express-validator');
 const router = express.Router();
 const servicesController = require('../controllers/servicesController');
 const validate = require('../middleware/validationMiddleware');
+const authMiddleware = require('../middleware/authMiddleware');
+const adminMiddleware = require('../middleware/adminMiddleware');
 
 /**
  * @swagger
@@ -81,12 +83,14 @@ router.get('/api/services/:id', servicesController.getServiceById);
  */
 router.post(
   '/services',
+  authMiddleware,
+  adminMiddleware,
   body('name').notEmpty().withMessage('name is required'),
   body('description').notEmpty().withMessage('description is required'),
   validate,
   servicesController.createService
 );
-router.post('/api/services', servicesController.createService);
+router.post('/api/services', authMiddleware, adminMiddleware, servicesController.createService);
 
 /**
  * @swagger
@@ -121,11 +125,13 @@ router.post('/api/services', servicesController.createService);
  */
 router.put(
   '/services/:id',
+  authMiddleware,
+  adminMiddleware,
   param('id').isInt({ gt: 0 }).withMessage('id must be a positive integer'),
   validate,
   servicesController.updateService
 );
-router.put('/api/services/:id', servicesController.updateService);
+router.put('/api/services/:id', authMiddleware, adminMiddleware, servicesController.updateService);
 
 /**
  * @swagger
@@ -145,11 +151,13 @@ router.put('/api/services/:id', servicesController.updateService);
  */
 router.delete(
   '/services/:id',
+  authMiddleware,
+  adminMiddleware,
   param('id').isInt({ gt: 0 }).withMessage('id must be a positive integer'),
   validate,
   servicesController.deleteService
 );
-router.delete('/api/services/:id', servicesController.deleteService);
+router.delete('/api/services/:id', authMiddleware, adminMiddleware, servicesController.deleteService);
 
 /**
  * @swagger
