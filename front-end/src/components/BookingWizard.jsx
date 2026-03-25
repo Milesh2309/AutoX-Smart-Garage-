@@ -360,6 +360,7 @@ const BookingWizard = () => {
         },
         body: JSON.stringify({
           service_name: bookingData.serviceName,
+          email: user?.email || undefined,
           amount,
         }),
       });
@@ -392,6 +393,7 @@ const BookingWizard = () => {
               },
               body: JSON.stringify({
                 service_name: bookingData.serviceName,
+                email: user?.email || undefined,
                 amount,
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,

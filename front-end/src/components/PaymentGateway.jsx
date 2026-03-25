@@ -244,6 +244,7 @@ function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOp
         },
         body: JSON.stringify({
           service_name: serviceName,
+          email: user?.email || undefined,
           amount: Number(amount),
         }),
       });
@@ -276,6 +277,7 @@ function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOp
               },
               body: JSON.stringify({
                 service_name: serviceName,
+                email: user?.email || undefined,
                 amount: Number(amount),
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,

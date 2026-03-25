@@ -14,7 +14,7 @@ function AdminNav({ currentPage, setCurrentPage, adminUsername, onLogout }) {
     { id: 'inventory', label: 'Inventory', icon: '📦' },
     { id: 'assignments', label: 'Assignments', icon: '📋' },
     { id: 'modifications', label: 'Modifications', icon: '⚙️' },
-    { id: 'repairs', label: 'Repairs', icon: '🔧' },
+    { id: 'repairs', label: 'Payment History', icon: '💳' },
     { id: 'contacts', label: 'Contacts', icon: '📩' },
     { id: 'notifications', label: 'Notifications', icon: '🔔' },
     { id: 'users', label: 'Users', icon: '👥' },

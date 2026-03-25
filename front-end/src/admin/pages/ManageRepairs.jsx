@@ -1,126 +1,341 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import CommonTable from '../../components/CommonTable.jsx';
-import { repairApi } from '../../utils/apiService';
+import { getAuthToken } from '../../utils/apiClient';
+
+const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
+
+const toDisplayStatus = (status) => {
+  const raw = String(status || '').toLowerCase();
+  if (raw === 'success' || raw === 'paid' || raw === 'captured') return 'success';
+  if (raw === 'failed' || raw === 'failure') return 'failed';
+  if (raw === 'pending' || raw === 'created') return 'failed';
+  return 'failed';
+};
 
 function ManageRepairs() {
-  const [repairs, setRepairs] = useState([]);
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [payments, setPayments] = useState([]);
+  const [statusFilter, setStatusFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [selectedPayment, setSelectedPayment] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [counts, setCounts] = useState({ total: 0, success: 0, failed: 0 });
 
-  const loadRepairs = async () => {
+  const loadPayments = async (pageOverride = page) => {
     try {
-      const res = await repairApi.listAll();
-      const raw = res?.data || res || [];
-      setRepairs(raw.map(item => ({
-        id: item.repairId || item._id || '',
-        name: item.name || 'N/A',
-        phone: item.phone || 'N/A',
-        email: item.email || 'N/A',
-        vehicle: item.vehicle || 'N/A',
-        registration: item.registration || 'N/A',
-        issue: item.issue || 'N/A',
-        preferredDate: item.preferredDate || 'N/A',
-        preferredTime: item.preferredTime || 'N/A',
-        pickupDrop: item.pickupDrop ? 'Yes' : 'No',
-        status: item.status || 'pending',
-        eta: item.eta || '—',
-        lastUpdate: item.lastUpdate || '—',
-        date: item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-IN') : 'N/A',
-      })));
+      setLoading(true);
+      setError('');
+
+      const token = getAuthToken();
+      const query = new URLSearchParams({
+        page: String(pageOverride),
+        limit: '20',
+        status: statusFilter,
+      });
+
+      if (searchTerm.trim()) {
+        query.set('search', searchTerm.trim());
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/payments?${query.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+      const isJson = contentType.includes('application/json');
+      const result = isJson ? await response.json() : null;
+
+      if (!isJson) {
+        const responseText = await response.text();
+        if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
+          throw new Error('Payments API returned HTML instead of JSON. Check backend server and API base URL.');
+        }
+        throw new Error('Payments API did not return JSON response.');
+      }
+
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || 'Failed to load payment history');
+      }
+
+      const records = Array.isArray(result?.data) ? result.data : [];
+      setTotalPages(Number(result?.totalPages || 1));
+      setPage(Number(result?.page || pageOverride));
+      setCounts({
+        total: Number(result?.counts?.total || 0),
+        success: Number(result?.counts?.success || 0),
+        failed: Number(result?.counts?.failed || 0),
+      });
+
+      const normalized = records
+        .map((item) => {
+          const dateValue = item.created_at || item.createdAt || item.verifiedAt || item.updatedAt || null;
+          const parsedDate = dateValue ? new Date(dateValue) : null;
+          const timestamp = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate : null;
+
+          return {
+            transactionId: item.razorpay_payment_id || 'N/A',
+            orderId: item.razorpay_order_id || 'N/A',
+            serviceName: item.service_name || 'N/A',
+            email: item.email || 'N/A',
+            amount: Number(item.amount || 0),
+            status: toDisplayStatus(item.status),
+            signature: item.razorpay_signature || 'N/A',
+            rawResponse: item.raw_response || null,
+            dateTime: timestamp ? timestamp.toLocaleString('en-IN') : 'N/A',
+            sortTime: timestamp ? timestamp.getTime() : 0,
+          };
+        })
+        .sort((a, b) => b.sortTime - a.sortTime);
+
+      setPayments(normalized);
     } catch (err) {
-      console.error('Error loading repairs:', err);
+      setError(err?.message || 'Unable to fetch payment history');
+      setPayments([]);
+      setTotalPages(1);
+      setPage(1);
+      setCounts({ total: 0, success: 0, failed: 0 });
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => { loadRepairs(); }, []);
+  useEffect(() => {
+    setPage(1);
+    loadPayments(1);
+  }, [statusFilter, searchTerm]);
 
-  const filteredRepairs = useMemo(() => {
+  useEffect(() => {
+    loadPayments(page);
+  }, [page]);
+
+  const filteredPayments = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
-    return repairs.filter(item => {
-      const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
-      const matchesSearch = !search ||
-        item.name.toLowerCase().includes(search) ||
-        item.phone.includes(search) ||
-        item.vehicle.toLowerCase().includes(search) ||
-        item.registration.toLowerCase().includes(search) ||
-        item.id.toLowerCase().includes(search);
+    return payments.filter((item) => {
+      const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+      const matchesSearch =
+        !search ||
+        item.email.toLowerCase().includes(search) ||
+        item.transactionId.toLowerCase().includes(search);
       return matchesStatus && matchesSearch;
     });
-  }, [repairs, statusFilter, searchTerm]);
+  }, [payments, statusFilter, searchTerm]);
 
-  const repairColumns = useMemo(() => [
-    { accessorKey: 'id', header: 'Repair ID' },
-    { accessorKey: 'name', header: 'Customer' },
-    { accessorKey: 'phone', header: 'Phone' },
-    { accessorKey: 'vehicle', header: 'Vehicle' },
-    { accessorKey: 'registration', header: 'Reg. No.' },
-    { accessorKey: 'issue', header: 'Issue' },
-    { accessorKey: 'preferredDate', header: 'Pref. Date' },
-    { accessorKey: 'preferredTime', header: 'Pref. Time' },
-    { accessorKey: 'pickupDrop', header: 'Pickup/Drop' },
-    { accessorKey: 'status', header: 'Status' },
-    { accessorKey: 'eta', header: 'ETA' },
-    { accessorKey: 'date', header: 'Created' },
-  ], []);
+  const paymentColumns = useMemo(
+    () => [
+      { accessorKey: 'transactionId', header: 'Transaction ID' },
+      { accessorKey: 'serviceName', header: 'Service Name' },
+      { accessorKey: 'email', header: 'User Email' },
+      {
+        accessorKey: 'amount',
+        header: 'Amount',
+        Cell: ({ cell }) => `₹${Number(cell.getValue() || 0).toLocaleString('en-IN')}`,
+      },
+      {
+        accessorKey: 'status',
+        header: 'Payment Status',
+        Cell: ({ cell }) => {
+          const value = String(cell.getValue() || '').toLowerCase();
+          return value === 'success' ? 'Success' : 'Failed';
+        },
+      },
+      { accessorKey: 'dateTime', header: 'Date & Time' },
+      {
+        id: 'actions',
+        header: 'Action',
+        Cell: ({ row }) => (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setSelectedPayment(row.original);
+            }}
+            style={{
+              border: '1px solid #dc2626',
+              borderRadius: '6px',
+              padding: '6px 10px',
+              background: 'white',
+              color: '#dc2626',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 600,
+            }}
+          >
+            View Details
+          </button>
+        ),
+      },
+    ],
+    []
+  );
+
+  const successCount = counts.success;
+  const failedCount = counts.failed;
 
   return (
     <div className="admin-page">
       <div className="page-header">
         <div>
-          <h1>🔧 Manage Repairs</h1>
-          <p className="header-subtitle">Total Repair Requests: {repairs.length}</p>
+          <h1>💳 Payment History</h1>
+          <p className="header-subtitle">Total Transactions: {payments.length}</p>
         </div>
       </div>
 
       <div className="controls-bar">
         <div className="filter-tabs">
-          {['All', 'pending', 'in-progress', 'completed', 'cancelled'].map((status) => (
+          {[
+            { id: 'all', label: 'All', count: counts.total },
+            { id: 'success', label: 'Success', count: successCount },
+            { id: 'failed', label: 'Failed', count: failedCount },
+          ].map((status) => (
             <button
-              key={status}
-              className={`filter-tab ${statusFilter === status ? 'active' : ''}`}
-              onClick={() => setStatusFilter(status)}
+              key={status.id}
+              className={`filter-tab ${statusFilter === status.id ? 'active' : ''}`}
+              onClick={() => setStatusFilter(status.id)}
             >
-              {status === 'All' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}{' '}
-              <span className="badge-count">
-                {status === 'All' ? repairs.length : repairs.filter(r => r.status === status).length}
-              </span>
+              {status.label} <span className="badge-count">{status.count}</span>
             </button>
           ))}
         </div>
+
         <input
           type="text"
-          placeholder="Search by name, phone, vehicle or repair ID..."
+          placeholder="Search by email or transaction ID..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="search-input"
         />
       </div>
 
-      <div style={{ padding: '20px' }}>
-        <CommonTable
-          columns={repairColumns}
-          data={filteredRepairs}
-          fileName="repairs-data"
-          showSelection={true}
-        />
-      </div>
+      {loading && <div className="empty-state">Loading payment history...</div>}
+      {!loading && error && <div className="empty-state">{error}</div>}
+
+      {!loading && !error && filteredPayments.length === 0 ? (
+        <div className="empty-state">No payment records found.</div>
+      ) : null}
+
+      {!loading && !error && filteredPayments.length > 0 && (
+        <div style={{ padding: '20px' }}>
+          <CommonTable
+            columns={paymentColumns}
+            data={filteredPayments}
+            fileName="payment-history"
+            showSelection={true}
+          />
+
+          <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' }}>
+            <button
+              type="button"
+              className="filter-tab"
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              disabled={page <= 1 || loading}
+            >
+              Previous
+            </button>
+            <span style={{ fontSize: '13px', color: '#4a4a4a' }}>Page {page} of {totalPages}</span>
+            <button
+              type="button"
+              className="filter-tab"
+              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={page >= totalPages || loading}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {selectedPayment && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.45)',
+            zIndex: 1200,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+          }}
+          onClick={() => setSelectedPayment(null)}
+        >
+          <div
+            style={{
+              width: 'min(860px, 100%)',
+              maxHeight: '85vh',
+              overflow: 'auto',
+              padding: '16px',
+              border: '1px solid #e5e5e5',
+              borderRadius: '12px',
+              background: '#ffffff',
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', color: '#dc2626' }}>Payment Details</h3>
+              <button
+                type="button"
+                onClick={() => setSelectedPayment(null)}
+                style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer' }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+              <div><strong>Transaction ID:</strong> {selectedPayment.transactionId}</div>
+              <div><strong>Order ID:</strong> {selectedPayment.orderId}</div>
+              <div><strong>Service:</strong> {selectedPayment.serviceName}</div>
+              <div><strong>Email:</strong> {selectedPayment.email}</div>
+              <div><strong>Amount:</strong> ₹{Number(selectedPayment.amount || 0).toLocaleString('en-IN')}</div>
+              <div><strong>Status:</strong> {selectedPayment.status === 'success' ? 'Success' : 'Failed'}</div>
+              <div><strong>Date & Time:</strong> {selectedPayment.dateTime}</div>
+            </div>
+
+            <div style={{ marginTop: '12px' }}>
+              <strong>Signature:</strong>
+              <div style={{ marginTop: '4px', wordBreak: 'break-all' }}>{selectedPayment.signature || 'N/A'}</div>
+            </div>
+
+            <div style={{ marginTop: '12px' }}>
+              <strong>Raw Response:</strong>
+              <pre
+                style={{
+                  marginTop: '6px',
+                  padding: '10px',
+                  borderRadius: '8px',
+                  background: '#f7f7f7',
+                  border: '1px solid #ececec',
+                  maxHeight: '220px',
+                  overflow: 'auto',
+                  fontSize: '12px',
+                }}
+              >
+                {JSON.stringify(selectedPayment.rawResponse || {}, null, 2)}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="booking-stats">
         <div className="stat-item">
-          <label>Total Repairs</label>
-          <span>{repairs.length}</span>
+          <label>Total Payments</label>
+          <span>{counts.total}</span>
         </div>
         <div className="stat-item">
-          <label>Pending</label>
-          <span>{repairs.filter(r => r.status === 'pending').length}</span>
+          <label>Success</label>
+          <span>{successCount}</span>
         </div>
         <div className="stat-item">
-          <label>In Progress</label>
-          <span>{repairs.filter(r => r.status === 'in-progress').length}</span>
-        </div>
-        <div className="stat-item">
-          <label>Completed</label>
-          <span>{repairs.filter(r => r.status === 'completed').length}</span>
+          <label>Failed</label>
+          <span>{failedCount}</span>
         </div>
       </div>
     </div>

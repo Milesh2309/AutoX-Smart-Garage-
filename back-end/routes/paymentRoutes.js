@@ -3,10 +3,15 @@ const { body } = require('express-validator');
 const router = express.Router();
 const paymentController = require('../controllers/paymentController');
 const validate = require('../middleware/validationMiddleware');
+const authMiddleware = require('../middleware/authMiddleware');
+const adminMiddleware = require('../middleware/adminMiddleware');
+
+router.get('/api/payments', authMiddleware, adminMiddleware, paymentController.getPayments);
 
 router.post(
   '/create-payment',
   body('service_name').notEmpty().withMessage('service_name is required'),
+  body('email').optional({ nullable: true }).isEmail().withMessage('email must be valid'),
   body('amount').isFloat({ gt: 0 }).withMessage('amount must be greater than 0'),
   validate,
   paymentController.createPayment
@@ -15,6 +20,7 @@ router.post(
 router.post(
   '/verify-payment',
   body('service_name').notEmpty().withMessage('service_name is required'),
+  body('email').optional({ nullable: true }).isEmail().withMessage('email must be valid'),
   body('amount').isFloat({ gt: 0 }).withMessage('amount must be greater than 0'),
   body('razorpay_order_id').notEmpty().withMessage('razorpay_order_id is required'),
   body('razorpay_payment_id').notEmpty().withMessage('razorpay_payment_id is required'),

@@ -169,15 +169,6 @@ function Navbar() {
             </li>
             <li>
               <Link 
-                to="/service-payment" 
-                className={`nav-link ${isActive('/service-payment') ? 'active' : ''}`}
-                onClick={closeMobile}
-              >
-                Pay
-              </Link>
-            </li>
-            <li>
-              <Link 
                 to="/gallery" 
                 className={`nav-link ${isActive('/gallery') ? 'active' : ''}`}
                 onClick={closeMobile}
