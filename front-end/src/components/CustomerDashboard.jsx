@@ -42,6 +42,7 @@ function CustomerDashboard() {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentData, setPaymentData] = useState(null);
   const [activeBrowseService, setActiveBrowseService] = useState(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   // Profile states
   const [profilePhoto, setProfilePhoto] = useState(null);
@@ -323,10 +324,25 @@ function CustomerDashboard() {
   return (
     <div className="customer-dashboard">
       {/* Sidebar Navigation */}
-      <nav className="customer-nav">
+      <nav className={`customer-nav ${isSidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="customer-nav-header">
-          <h2>AutoX</h2>
-          <p>Customer Portal</p>
+          <div className="customer-nav-title-wrap">
+            <h2>{isSidebarCollapsed ? 'AX' : 'AutoX'}</h2>
+            {!isSidebarCollapsed && <p>Customer Portal</p>}
+          </div>
+          <button
+            type="button"
+            className="sidebar-toggle-btn"
+            onClick={() => setIsSidebarCollapsed((prev) => !prev)}
+            aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <span className="split-view-icon" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
+          </button>
         </div>
 
         <ul className="customer-nav-menu">
@@ -335,6 +351,7 @@ function CustomerDashboard() {
               <button
                 className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
                 onClick={() => setActiveTab(item.id)}
+                title={item.label}
               >
                 <span className="nav-icon">{item.icon}</span>
                 <span className="nav-label">{item.label}</span>

@@ -1,267 +1,319 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { MantineReactTable, useMantineReactTable } from 'mantine-react-table';
+import { Button, Menu } from '@mantine/core';
+import { IconDownload } from '@tabler/icons-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import './Reports.css';
 import { analyticsApi } from '../../utils/apiService';
 
 function Reports() {
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    totalMechanics: 0,
-    totalVehicles: 0,
-    totalParts: 0,
-    totalBookings: 0,
-    totalServices: 0,
-    totalBreakdowns: 0,
-    totalModifications: 0,
+  const [reportType, setReportType] = useState('bookings');
+  const [filters, setFilters] = useState({
+    search: '',
+    fromDate: '',
+    toDate: '',
+    status: '',
+  });
+  const [appliedFilters, setAppliedFilters] = useState({
+    search: '',
+    fromDate: '',
+    toDate: '',
+    status: '',
   });
 
-  const [keyMetrics, setKeyMetrics] = useState({
-    efficiency: '0%',
-    avgBookingValue: '₹0',
-    satisfaction: '0/5',
-    inventoryUsage: '0%',
-    avgCompletionTime: '0 hrs',
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [reportTitle, setReportTitle] = useState('Report');
+  const [columnsMeta, setColumnsMeta] = useState([]);
+  const [records, setRecords] = useState([]);
+  const [summary, setSummary] = useState({
+    totalRecords: 0,
+    totalAmount: 0,
+    generatedAt: '',
+    fromDate: null,
+    toDate: null,
   });
+  const [statuses, setStatuses] = useState([]);
+  const [pageSize, setPageSize] = useState(10);
 
-  const [revenue, setRevenue] = useState({
-    thisMonth: '₹0',
-    lastMonth: '₹0',
-    growth: '0%',
-    projected: '₹0',
-  });
+  const reportTypeOptions = [
+    { value: 'bookings', label: 'Bookings' },
+    { value: 'users', label: 'Users' },
+    { value: 'payments', label: 'Payments' },
+    { value: 'billing', label: 'Billing' },
+    { value: 'contacts', label: 'Contacts' },
+  ];
 
-  const [goals, setGoals] = useState({
-    userAcquisition: 0,
-    mechanicUtilization: 0,
-    serviceBookings: 0,
-    customerRetention: 0,
+  const formatDate = (value) => {
+    if (!value) return 'N/A';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? 'N/A' : date.toLocaleString('en-IN');
+  };
+
+  const formatAmount = (value) => {
+    const num = Number(value || 0);
+    return `Rs ${num.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+  };
+
+  const fetchReportData = useCallback(async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const params = new URLSearchParams();
+      params.set('reportType', reportType);
+      params.set('limit', '5000');
+      if (appliedFilters.search) params.set('search', appliedFilters.search);
+      if (appliedFilters.fromDate) params.set('fromDate', appliedFilters.fromDate);
+      if (appliedFilters.toDate) params.set('toDate', appliedFilters.toDate);
+      if (appliedFilters.status) params.set('status', appliedFilters.status);
+
+      const res = await analyticsApi.reportData(params.toString());
+      const payload = res?.data || res || {};
+      const rows = Array.isArray(payload.records) ? payload.records : [];
+
+      setReportTitle(payload.title || 'Report');
+      setColumnsMeta(Array.isArray(payload.columns) ? payload.columns : []);
+      setRecords(rows);
+      setSummary(payload.summary || {
+        totalRecords: rows.length,
+        totalAmount: 0,
+        generatedAt: new Date().toISOString(),
+      });
+      setStatuses(Array.isArray(payload.statuses) ? payload.statuses : []);
+    } catch (err) {
+      setError(err?.message || 'Failed to load report data');
+      setRecords([]);
+      setColumnsMeta([]);
+      setSummary({ totalRecords: 0, totalAmount: 0, generatedAt: new Date().toISOString() });
+      setStatuses([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [reportType, appliedFilters]);
+
+  useEffect(() => {
+    fetchReportData();
+  }, [fetchReportData]);
+
+  useEffect(() => {
+    setFilters((prev) => ({ ...prev, status: '' }));
+    setAppliedFilters((prev) => ({ ...prev, status: '' }));
+  }, [reportType]);
+
+  const columns = useMemo(() => {
+    return columnsMeta.map((col) => ({
+      accessorKey: col.key,
+      header: col.header,
+      enableSorting: true,
+      Cell: ({ cell }) => {
+        const value = cell.getValue();
+        if (col.key === 'date') return formatDate(value);
+        if (col.key === 'amount') return formatAmount(value);
+        return value || 'N/A';
+      },
+    }));
+  }, [columnsMeta]);
+
+  const table = useMantineReactTable({
+    columns,
+    data: records,
+    enableSorting: true,
+    enablePagination: true,
+    enableColumnFilters: false,
+    enableGlobalFilter: false,
+    paginationDisplayMode: 'pages',
+    initialState: {
+      pagination: { pageIndex: 0, pageSize },
+      density: 'md',
+      sorting: [{ id: 'date', desc: true }],
+    },
+    state: {
+      isLoading: loading,
+      showAlertBanner: !!error,
+    },
   });
 
   useEffect(() => {
-    const fetchReports = async () => {
-      try {
-        const [dashRes, revRes] = await Promise.allSettled([
-          analyticsApi.dashboard(),
-          analyticsApi.revenue(),
-        ]);
+    table.setPageSize(pageSize);
+  }, [pageSize, table]);
 
-        if (dashRes.status === 'fulfilled') {
-          const d = dashRes.value?.data || dashRes.value || {};
-          setStats({
-            totalUsers: d.totalUsers || 0,
-            totalMechanics: d.totalMechanics || 0,
-            totalVehicles: d.totalVehicles || 0,
-            totalParts: d.totalParts || 0,
-            totalBookings: d.totalBookings || 0,
-            totalServices: d.totalServices || 0,
-            totalBreakdowns: d.totalBreakdowns || 0,
-            totalModifications: d.totalModifications || 0,
-          });
-          if (d.keyMetrics) setKeyMetrics(d.keyMetrics);
-          if (d.goals) setGoals(d.goals);
-        }
+  const handleApplyFilters = () => {
+    setAppliedFilters({ ...filters });
+  };
 
-        if (revRes.status === 'fulfilled') {
-          const r = revRes.value?.data || revRes.value || {};
-          setRevenue({
-            thisMonth: r.thisMonth || '₹0',
-            lastMonth: r.lastMonth || '₹0',
-            growth: r.growth || '0%',
-            projected: r.projected || '₹0',
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching reports:', error);
-      }
-    };
+  const handleExportPdf = () => {
+    const visibleRows = table.getFilteredRowModel().rows;
+    const headerRow = columnsMeta.map((col) => col.header);
+    const bodyRows = visibleRows.map((row) => {
+      const original = row.original;
+      return columnsMeta.map((col) => {
+        const value = original[col.key];
+        if (col.key === 'date') return formatDate(value);
+        if (col.key === 'amount') return formatAmount(value);
+        return value || 'N/A';
+      });
+    });
 
-    fetchReports();
-  }, []);
+    const doc = new jsPDF('landscape');
+    doc.setFontSize(16);
+    doc.text(reportTitle, 14, 16);
 
-  const reportCards = [
-    {
-      id: 'users',
-      title: 'Total Users',
-      value: stats.totalUsers,
-      icon: '👥',
-      color: '#3b82f6',
-      description: 'Registered customers',
-    },
-    {
-      id: 'mechanics',
-      title: 'Total Mechanics',
-      value: stats.totalMechanics,
-      icon: '🔧',
-      color: '#10b981',
-      description: 'Active mechanics',
-    },
-    {
-      id: 'vehicles',
-      title: 'Total Vehicles',
-      value: stats.totalVehicles,
-      icon: '🚗',
-      color: '#f59e0b',
-      description: 'Registered vehicles',
-    },
-    {
-      id: 'parts',
-      title: 'Total Parts',
-      value: stats.totalParts,
-      icon: '📦',
-      color: '#8b5cf6',
-      description: 'In inventory',
-    },
-    {
-      id: 'bookings',
-      title: 'Total Bookings',
-      value: stats.totalBookings,
-      icon: '📅',
-      color: '#ec4899',
-      description: 'Service bookings',
-    },
-    {
-      id: 'services',
-      title: 'Total Services',
-      value: stats.totalServices,
-      icon: '🛠',
-      color: '#06b6d4',
-      description: 'Services offered',
-    },
-    {
-      id: 'breakdowns',
-      title: 'Total Breakdowns',
-      value: stats.totalBreakdowns,
-      icon: '🚘',
-      color: '#dc2626',
-      description: 'Handled requests',
-    },
-    {
-      id: 'modifications',
-      title: 'Total Modifications',
-      value: stats.totalModifications,
-      icon: '⚙️',
-      color: '#6366f1',
-      description: 'Completed mods',
-    },
-  ];
+    doc.setFontSize(10);
+    const selectedRange = `${appliedFilters.fromDate || 'Any'} to ${appliedFilters.toDate || 'Any'}`;
+    doc.text(`Date Range: ${selectedRange}`, 14, 24);
+    doc.text(`Generated At: ${new Date().toLocaleString('en-IN')}`, 14, 30);
+    doc.text(`Total Records: ${visibleRows.length}`, 14, 36);
+
+    if (summary.totalAmount > 0) {
+      doc.text(`Total Amount: ${formatAmount(summary.totalAmount)}`, 14, 42);
+    }
+
+    autoTable(doc, {
+      startY: summary.totalAmount > 0 ? 48 : 42,
+      head: [headerRow],
+      body: bodyRows,
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: [220, 38, 38] },
+      theme: 'striped',
+    });
+
+    doc.save(`${reportType}-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
 
   return (
     <div className="reports-container">
       <div className="reports-header">
-        <h1>📊 System Reports</h1>
-        <p>Complete overview of all system statistics and metrics</p>
+        <h1>System Reports Data Grid</h1>
+        <p>Filter, sort, paginate, and export the exact data shown below.</p>
       </div>
 
-      <div className="reports-grid">
-        {reportCards.map((card) => (
-          <div key={card.id} className="report-card">
-            <div className="report-card-header">
-              <div className="report-icon" style={{ backgroundColor: card.color }}>
-                {card.icon}
-              </div>
-              <h3>{card.title}</h3>
-            </div>
-            <div className="report-card-value">
-              {card.value}
-            </div>
-            <p className="report-card-description">{card.description}</p>
+      <div className="reports-toolbar">
+        <div className="reports-filter-grid">
+          <div className="field-group">
+            <label>Report Type</label>
+            <select
+              value={reportType}
+              onChange={(e) => setReportType(e.target.value)}
+            >
+              {reportTypeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
-        ))}
+
+          <div className="field-group">
+            <label>Global Search</label>
+            <input
+              type="text"
+              value={filters.search}
+              onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+              placeholder="Search by name, email, ID, vehicle..."
+            />
+          </div>
+
+          <div className="field-group">
+            <label>From Date</label>
+            <input
+              type="date"
+              value={filters.fromDate}
+              onChange={(e) => setFilters((prev) => ({ ...prev, fromDate: e.target.value }))}
+            />
+          </div>
+
+          <div className="field-group">
+            <label>To Date</label>
+            <input
+              type="date"
+              value={filters.toDate}
+              onChange={(e) => setFilters((prev) => ({ ...prev, toDate: e.target.value }))}
+            />
+          </div>
+
+          <div className="field-group">
+            <label>Status</label>
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
+              disabled={statuses.length === 0}
+            >
+              <option value="">All Statuses</option>
+              {statuses.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field-group">
+            <label>Page Size</label>
+            <select
+              value={String(pageSize)}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+            >
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="reports-actions">
+          <Button
+            className="apply-filter-btn"
+            onClick={handleApplyFilters}
+            loading={loading}
+          >
+            Apply Filter
+          </Button>
+
+          <Menu shadow="md" width={200}>
+            <Menu.Target>
+              <Button
+                leftSection={<IconDownload size={16} />}
+                variant="filled"
+                color="red"
+                disabled={records.length === 0}
+              >
+                Download PDF
+              </Button>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item onClick={handleExportPdf}>Export Filtered Data</Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
+        </div>
       </div>
 
-      <div className="reports-summary">
-        <div className="summary-section">
-          <h2>📈 Key Metrics</h2>
-          <div className="metrics-grid">
-            <div className="metric-item">
-              <label>Active Users This Month</label>
-              <span className="metric-value">{Math.round(stats.totalUsers * 0.65)}</span>
-            </div>
-            <div className="metric-item">
-              <label>Mechanics Efficiency Rate</label>
-              <span className="metric-value">{keyMetrics.efficiency}</span>
-            </div>
-            <div className="metric-item">
-              <label>Average Booking Value</label>
-              <span className="metric-value">{keyMetrics.avgBookingValue}</span>
-            </div>
-            <div className="metric-item">
-              <label>Customer Satisfaction</label>
-              <span className="metric-value">{keyMetrics.satisfaction}</span>
-            </div>
-            <div className="metric-item">
-              <label>Parts Inventory Usage</label>
-              <span className="metric-value">{keyMetrics.inventoryUsage}</span>
-            </div>
-            <div className="metric-item">
-              <label>Avg Service Completion Time</label>
-              <span className="metric-value">{keyMetrics.avgCompletionTime}</span>
-            </div>
-          </div>
+      <div className="reports-summary-strip">
+        <div className="summary-pill">
+          <span>Total Records</span>
+          <strong>{summary.totalRecords || 0}</strong>
         </div>
+        <div className="summary-pill">
+          <span>Total Amount</span>
+          <strong>{formatAmount(summary.totalAmount || 0)}</strong>
+        </div>
+        <div className="summary-pill">
+          <span>Date Range</span>
+          <strong>{`${appliedFilters.fromDate || 'Any'} to ${appliedFilters.toDate || 'Any'}`}</strong>
+        </div>
+      </div>
 
-        <div className="summary-section">
-          <h2>💰 Revenue Summary</h2>
-          <div className="revenue-grid">
-            <div className="revenue-item">
-              <label>This Month</label>
-              <span className="revenue-value">{revenue.thisMonth}</span>
+      <div className="reports-grid-wrapper">
+        {error ? (
+          <div className="reports-error">{error}</div>
+        ) : (
+          <>
+            <div className="report-title-row">
+              <h2>{reportTitle}</h2>
+              <p>Generated: {formatDate(summary.generatedAt)}</p>
             </div>
-            <div className="revenue-item">
-              <label>Last Month</label>
-              <span className="revenue-value">{revenue.lastMonth}</span>
-            </div>
-            <div className="revenue-item">
-              <label>Growth</label>
-              <span className="revenue-value">{revenue.growth}</span>
-            </div>
-            <div className="revenue-item">
-              <label>Projected Annual</label>
-              <span className="revenue-value">{revenue.projected}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="summary-section">
-          <h2>🎯 Performance Goals</h2>
-          <div className="goals-list">
-            <div className="goal-item">
-              <div className="goal-header">
-                <span>User Acquisition</span>
-                <span className="goal-progress">{goals.userAcquisition}%</span>
-              </div>
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${goals.userAcquisition}%` }}></div>
-              </div>
-            </div>
-            <div className="goal-item">
-              <div className="goal-header">
-                <span>Mechanic Utilization</span>
-                <span className="goal-progress">{goals.mechanicUtilization}%</span>
-              </div>
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${goals.mechanicUtilization}%` }}></div>
-              </div>
-            </div>
-            <div className="goal-item">
-              <div className="goal-header">
-                <span>Service Bookings</span>
-                <span className="goal-progress">{goals.serviceBookings}%</span>
-              </div>
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${goals.serviceBookings}%` }}></div>
-              </div>
-            </div>
-            <div className="goal-item">
-              <div className="goal-header">
-                <span>Customer Retention</span>
-                <span className="goal-progress">{goals.customerRetention}%</span>
-              </div>
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${goals.customerRetention}%` }}></div>
-              </div>
-            </div>
-          </div>
-        </div>
+            <MantineReactTable table={table} />
+          </>
+        )}
       </div>
     </div>
   );

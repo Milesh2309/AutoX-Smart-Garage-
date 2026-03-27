@@ -122,12 +122,26 @@ body, .admin-dashboard, .admin-login-page {
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
   border-right: 1px solid rgba(220, 38, 38, 0.3);
   backdrop-filter: blur(6px) saturate(110%);
+  transition: width 0.25s ease, padding 0.25s ease;
+}
+
+.admin-nav.collapsed {
+  width: 88px;
+  padding: 24px 12px;
 }
 
 .admin-nav-header {
   margin-bottom: 30px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   padding-bottom: 15px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-nav-title-wrap {
+  min-width: 0;
 }
 
 .admin-nav-header h2 {
@@ -153,6 +167,43 @@ body, .admin-dashboard, .admin-login-page {
 
 .admin-nav-menu li {
   margin-bottom: 12px;
+}
+
+.sidebar-toggle-btn {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.sidebar-toggle-btn:hover {
+  background: rgba(220, 38, 38, 0.3);
+  border-color: rgba(220, 38, 38, 0.8);
+}
+
+.split-view-icon {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.split-view-icon span {
+  display: block;
+  width: 2px;
+  height: 100%;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.85;
 }
 
 .nav-item {
@@ -195,7 +246,39 @@ body, .admin-dashboard, .admin-login-page {
 
 .nav-icon {
   font-size: 22px;
+  display: inline-flex;
+  line-height: 1;
+}
+
+.admin-nav.collapsed .admin-nav-header {
+  margin-bottom: 20px;
+}
+
+.admin-nav.collapsed .admin-nav-title-wrap {
   display: none;
+}
+
+.admin-nav.collapsed .admin-nav-menu {
+  margin-bottom: 20px;
+}
+
+.admin-nav.collapsed .nav-item {
+  justify-content: center;
+  padding: 12px;
+}
+
+.admin-nav.collapsed .nav-item.active {
+  border-left: none;
+  padding-left: 12px;
+}
+
+.admin-nav.collapsed .nav-label {
+  display: none;
+}
+
+.admin-nav.collapsed .logout-btn {
+  padding: 10px;
+  font-size: 12px;
 }
 
 .admin-nav-footer {
@@ -754,6 +837,19 @@ body, .admin-dashboard, .admin-login-page {
     padding: 15px;
   }
 
+  .admin-nav.collapsed {
+    width: 100%;
+    padding: 15px;
+  }
+
+  .admin-nav-header {
+    align-items: center;
+  }
+
+  .admin-nav-title-wrap {
+    display: block !important;
+  }
+
   .admin-nav-menu {
     display: flex;
     gap: 10px;
@@ -767,10 +863,6 @@ body, .admin-dashboard, .admin-login-page {
 
   .nav-item {
     white-space: nowrap;
-  }
-
-  .nav-label {
-    display: none;
   }
 
   .admin-content {

@@ -1,6 +1,6 @@
 import React from 'react';
 
-function AdminNav({ currentPage, setCurrentPage, adminUsername, onLogout }) {
+function AdminNav({ currentPage, setCurrentPage, adminUsername, onLogout, isSidebarCollapsed, onToggleSidebar }) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'analytics', label: 'Analytics', icon: '📈' },
@@ -22,10 +22,25 @@ function AdminNav({ currentPage, setCurrentPage, adminUsername, onLogout }) {
   ];
 
   return (
-    <nav className="admin-nav">
+    <nav className={`admin-nav ${isSidebarCollapsed ? 'collapsed' : ''}`}>
       <div className="admin-nav-header">
-        <h2>AutoX Admin</h2>
-        <p>Welcome, {adminUsername}</p>
+        <div className="admin-nav-title-wrap">
+          <h2>{isSidebarCollapsed ? 'AX' : 'AutoX Admin'}</h2>
+          {!isSidebarCollapsed && <p>Welcome, {adminUsername}</p>}
+        </div>
+        <button
+          type="button"
+          className="sidebar-toggle-btn"
+          onClick={onToggleSidebar}
+          aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          <span className="split-view-icon" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
+        </button>
       </div>
 
       <ul className="admin-nav-menu">
@@ -34,7 +49,9 @@ function AdminNav({ currentPage, setCurrentPage, adminUsername, onLogout }) {
             <button
               className={`nav-item ${currentPage === item.id ? 'active' : ''}`}
               onClick={() => setCurrentPage(item.id)}
+              title={item.label}
             >
+              <span className="nav-icon">{item.icon}</span>
               <span className="nav-label">{item.label}</span>
             </button>
           </li>

@@ -170,6 +170,7 @@ export const analyticsApi = {
   revenue: () => apiGet('/api/analytics/revenue', { auth: false }),
   bookings: () => apiGet('/api/analytics/bookings', { auth: false }),
   customerSatisfaction: () => apiGet('/api/analytics/customer-satisfaction', { auth: false }),
+  reportData: (queryString = '') => apiGet(`/api/reports/data${queryString ? `?${queryString}` : ''}`, { auth: false }),
   generateReport: (payload) => apiPost('/api/reports/generate', payload, { auth: false }),
 };
 

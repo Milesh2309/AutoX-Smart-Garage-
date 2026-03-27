@@ -273,6 +273,269 @@ exports.generateReport = async (req, res, next) => {
   }
 };
 
+exports.getReportData = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const {
+      reportType = 'bookings',
+      fromDate,
+      toDate,
+      status,
+      search,
+      limit: limitRaw,
+    } = req.query;
+
+    const limit = Math.min(Math.max(Number(limitRaw) || 2000, 1), 10000);
+    const lowerType = String(reportType).toLowerCase();
+
+    const reportConfigs = {
+      users: {
+        title: 'Users Report',
+        collection: 'users',
+        dateField: 'createdAt',
+        statusField: 'isActive',
+        searchableFields: ['fullName', 'name', 'email', 'phone'],
+        columns: [
+          { key: 'id', header: 'ID' },
+          { key: 'name', header: 'Name' },
+          { key: 'email', header: 'Email' },
+          { key: 'phone', header: 'Phone' },
+          { key: 'status', header: 'Status' },
+          { key: 'date', header: 'Date' },
+        ],
+        project: {
+          _id: 0,
+          id: { $toString: '$_id' },
+          name: { $ifNull: ['$fullName', { $ifNull: ['$name', 'N/A'] }] },
+          email: { $ifNull: ['$email', 'N/A'] },
+          phone: { $ifNull: ['$phone', 'N/A'] },
+          status: { $cond: [{ $eq: ['$isActive', true] }, 'active', 'inactive'] },
+          date: '$__reportDate',
+        },
+        amountField: null,
+      },
+      bookings: {
+        title: 'Bookings Report',
+        collection: 'bookings',
+        dateField: 'scheduledAt',
+        statusField: 'status',
+        searchableFields: ['customerName', 'name', 'email', 'vehicleNumber', 'serviceName', 'serviceType'],
+        columns: [
+          { key: 'id', header: 'ID' },
+          { key: 'name', header: 'Name' },
+          { key: 'email', header: 'Email' },
+          { key: 'service', header: 'Service' },
+          { key: 'amount', header: 'Amount' },
+          { key: 'status', header: 'Status' },
+          { key: 'date', header: 'Date' },
+        ],
+        project: {
+          _id: 0,
+          id: { $ifNull: ['$bookingNo', { $toString: '$_id' }] },
+          name: { $ifNull: ['$customerName', { $ifNull: ['$name', 'N/A'] }] },
+          email: { $ifNull: ['$email', 'N/A'] },
+          service: { $ifNull: ['$serviceName', { $ifNull: ['$serviceType', 'N/A'] }] },
+          amount: { $ifNull: ['$amount', 0] },
+          status: { $ifNull: ['$status', 'pending'] },
+          date: '$__reportDate',
+        },
+        amountField: 'amount',
+      },
+      payments: {
+        title: 'Payments Report',
+        collection: 'payments',
+        dateField: 'createdAt',
+        statusField: 'status',
+        searchableFields: ['paymentId', 'method'],
+        columns: [
+          { key: 'id', header: 'Payment ID' },
+          { key: 'name', header: 'Method' },
+          { key: 'amount', header: 'Amount' },
+          { key: 'status', header: 'Status' },
+          { key: 'date', header: 'Date' },
+        ],
+        project: {
+          _id: 0,
+          id: { $ifNull: ['$paymentId', { $toString: '$_id' }] },
+          name: { $ifNull: ['$method', 'N/A'] },
+          amount: { $ifNull: ['$amount', 0] },
+          status: { $ifNull: ['$status', 'pending'] },
+          date: '$__reportDate',
+        },
+        amountField: 'amount',
+      },
+      billing: {
+        title: 'Billing Report',
+        collection: 'billing_records',
+        dateField: 'createdAt',
+        statusField: 'status',
+        searchableFields: ['invoiceNumber', 'currency'],
+        columns: [
+          { key: 'id', header: 'Invoice No' },
+          { key: 'amount', header: 'Amount' },
+          { key: 'currency', header: 'Currency' },
+          { key: 'status', header: 'Status' },
+          { key: 'date', header: 'Date' },
+        ],
+        project: {
+          _id: 0,
+          id: { $ifNull: ['$invoiceNumber', { $toString: '$_id' }] },
+          amount: { $ifNull: ['$amount', 0] },
+          currency: { $ifNull: ['$currency', 'INR'] },
+          status: { $ifNull: ['$status', 'issued'] },
+          date: '$__reportDate',
+        },
+        amountField: 'amount',
+      },
+      contacts: {
+        title: 'Contact Submissions Report',
+        collection: 'contact_submissions',
+        dateField: 'createdAt',
+        statusField: 'status',
+        searchableFields: ['name', 'email', 'phone', 'service'],
+        columns: [
+          { key: 'id', header: 'ID' },
+          { key: 'name', header: 'Name' },
+          { key: 'email', header: 'Email' },
+          { key: 'service', header: 'Service' },
+          { key: 'status', header: 'Status' },
+          { key: 'date', header: 'Date' },
+        ],
+        project: {
+          _id: 0,
+          id: { $toString: '$_id' },
+          name: { $ifNull: ['$name', 'N/A'] },
+          email: { $ifNull: ['$email', 'N/A'] },
+          service: { $ifNull: ['$service', 'N/A'] },
+          status: { $ifNull: ['$status', 'new'] },
+          date: '$__reportDate',
+        },
+        amountField: null,
+      },
+    };
+
+    const config = reportConfigs[lowerType];
+    if (!config) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid reportType. Use one of: users, bookings, payments, billing, contacts',
+      });
+    }
+
+    const match = {};
+    const searchText = String(search || '').trim();
+    if (searchText) {
+      const regex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      match.$or = config.searchableFields.map((field) => ({ [field]: regex }));
+    }
+
+    const statusText = String(status || '').trim().toLowerCase();
+    if (statusText && config.statusField) {
+      if (lowerType === 'users') {
+        if (statusText === 'active') match.isActive = true;
+        if (statusText === 'inactive') match.isActive = false;
+      } else {
+        match[config.statusField] = statusText;
+      }
+    }
+
+    const from = fromDate ? new Date(fromDate) : null;
+    const to = toDate ? new Date(toDate) : null;
+    if (to && !Number.isNaN(to.getTime())) {
+      to.setHours(23, 59, 59, 999);
+    }
+
+    const validFrom = from && !Number.isNaN(from.getTime()) ? from : null;
+    const validTo = to && !Number.isNaN(to.getTime()) ? to : null;
+
+    const pipelineBase = [
+      {
+        $addFields: {
+          __reportDate: {
+            $convert: {
+              input: `$${config.dateField}`,
+              to: 'date',
+              onError: null,
+              onNull: null,
+            },
+          },
+        },
+      },
+      {
+        $match: {
+          ...match,
+          ...(validFrom || validTo
+            ? {
+                __reportDate: {
+                  ...(validFrom ? { $gte: validFrom } : {}),
+                  ...(validTo ? { $lte: validTo } : {}),
+                },
+              }
+            : {}),
+        },
+      },
+    ];
+
+    const collection = db.collection(config.collection);
+
+    const [records, countAgg, amountAgg, statusAgg] = await Promise.all([
+      collection
+        .aggregate([
+          ...pipelineBase,
+          { $sort: { __reportDate: -1, _id: -1 } },
+          { $project: config.project },
+          { $limit: limit },
+        ])
+        .toArray(),
+      collection.aggregate([...pipelineBase, { $count: 'total' }]).toArray(),
+      config.amountField
+        ? collection
+            .aggregate([
+              ...pipelineBase,
+              { $group: { _id: null, totalAmount: { $sum: { $ifNull: [`$${config.amountField}`, 0] } } } },
+            ])
+            .toArray()
+        : Promise.resolve([]),
+      config.statusField
+        ? collection
+            .aggregate([
+              ...pipelineBase,
+              {
+                $group: {
+                  _id:
+                    lowerType === 'users'
+                      ? { $cond: [{ $eq: ['$isActive', true] }, 'active', 'inactive'] }
+                      : { $toString: `$${config.statusField}` },
+                },
+              },
+              { $sort: { _id: 1 } },
+            ])
+            .toArray()
+        : Promise.resolve([]),
+    ]);
+
+    return res.json({
+      success: true,
+      data: {
+        reportType: lowerType,
+        title: config.title,
+        columns: config.columns,
+        records,
+        summary: {
+          totalRecords: countAgg[0]?.total || 0,
+          totalAmount: amountAgg[0]?.totalAmount || 0,
+          fromDate: validFrom,
+          toDate: validTo,
+          generatedAt: new Date().toISOString(),
+        },
+        statuses: statusAgg.map((item) => String(item._id || '').toLowerCase()).filter(Boolean),
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 exports.scheduleReport = async (req, res, next) => {
   try {
     const db = getDB();

@@ -61,6 +61,42 @@ router.get('/api/analytics/customer-satisfaction', analyticsController.getCustom
 
 /**
  * @swagger
+ * /api/reports/data:
+ *   get:
+ *     summary: Get report data for data grid
+ *     tags: [Analytics]
+ *     parameters:
+ *       - in: query
+ *         name: reportType
+ *         schema:
+ *           type: string
+ *           example: bookings
+ *       - in: query
+ *         name: fromDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: toDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Filtered report data
+ */
+router.get('/api/reports/data', analyticsController.getReportData);
+
+/**
+ * @swagger
  * /api/reports/generate:
  *   post:
  *     summary: Generate custom report

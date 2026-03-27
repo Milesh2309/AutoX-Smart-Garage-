@@ -25,6 +25,7 @@ function AdminDashboard() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [currentPage, setCurrentPage] = useState('analytics');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -38,9 +39,11 @@ function AdminDashboard() {
         setCurrentPage={setCurrentPage}
         adminUsername={user?.name || 'Admin'}
         onLogout={handleLogout}
+        isSidebarCollapsed={isSidebarCollapsed}
+        onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
       />
       
-      <div className="admin-content">
+      <div className={`admin-content ${isSidebarCollapsed ? 'expanded' : ''}`}>
         {currentPage === 'dashboard' && <Dashboard onNavigate={setCurrentPage} />}
         {currentPage === 'analytics' && <Analytics />}
         {currentPage === 'reports' && <Reports />}
