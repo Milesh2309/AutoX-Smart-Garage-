@@ -95,40 +95,25 @@ export function AuthProvider({ children }) {
       role: payload?.role || 'user',
     });
 
-    const token = getAuthTokenFromResponse(response);
-    const authUser = getUserFromResponse(response);
-
-    if (!response?.success || !authUser || !token) {
+    if (!response?.success) {
       throw new Error(response?.message || 'Registration failed');
     }
 
-    setAuthToken(token);
-    setUser(authUser);
-    return authUser;
+    return response?.data || response;
   };
 
-  const loginWithOtp = async (payload) => {
-    const response = await authApi.verifyLoginOtp({
-      email: payload?.email,
-      otp: payload?.otp,
-    });
-
-    const token = getAuthTokenFromResponse(response);
-    const authUser = getUserFromResponse(response);
-
-    if (!response?.success || !authUser || !token) {
-      throw new Error(response?.message || 'OTP login failed');
-    }
-
-    setAuthToken(token);
-    setUser(authUser);
-    return authUser;
-  };
-
-  const requestLoginOtp = async (email) => {
-    const response = await authApi.sendLoginOtp({ email });
+  const requestRegisterOtp = async (email) => {
+    const response = await authApi.sendOtp({ email });
     if (!response?.success) {
       throw new Error(response?.message || 'Failed to send OTP');
+    }
+    return response?.data;
+  };
+
+  const verifyRegisterOtp = async ({ email, otp }) => {
+    const response = await authApi.verifyOtp({ email, otp });
+    if (!response?.success) {
+      throw new Error(response?.message || 'OTP verification failed');
     }
     return response?.data;
   };
@@ -152,8 +137,8 @@ export function AuthProvider({ children }) {
     role: user?.role || null,
     authLoading,
     login,
-    loginWithOtp,
-    requestLoginOtp,
+    requestRegisterOtp,
+    verifyRegisterOtp,
     requestForgotPassword,
     logout,
     register,

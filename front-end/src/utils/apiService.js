@@ -4,8 +4,8 @@ import { apiGet, apiDelete, apiPatch, apiPost, apiPut } from './apiClient';
 export const authApi = {
   register: (payload) => apiPost('/auth/register', payload, { auth: false }),
   login: (payload) => apiPost('/auth/login', payload, { auth: false }),
-  sendLoginOtp: (payload) => apiPost('/auth/login/send-otp', payload, { auth: false }),
-  verifyLoginOtp: (payload) => apiPost('/auth/login/verify-otp', payload, { auth: false }),
+  sendOtp: (payload) => apiPost('/send-otp', payload, { auth: false }),
+  verifyOtp: (payload) => apiPost('/verify-otp', payload, { auth: false }),
   forgotPassword: (payload) => apiPost('/auth/forgot-password', payload, { auth: false }),
   me: () => apiGet('/auth/me'),
   updateProfile: (payload) => apiPut('/auth/me', payload),
@@ -45,6 +45,11 @@ export const billingApi = {
   getRegisteredCustomerProfile: (userId) => apiGet(`/api/billing/customers/registered/${userId}`),
   refund: (payload) => apiPost('/api/billing/refund', payload),
   verify: (invoiceNumber) => apiPatch(`/api/billing/verify/${invoiceNumber}`),
+};
+
+/* ─── Payments ─── */
+export const paymentApi = {
+  getInvoiceByBookingId: (bookingId) => apiGet(`/payment-invoice/${bookingId}`),
 };
 
 /* ─── Notifications ─── */

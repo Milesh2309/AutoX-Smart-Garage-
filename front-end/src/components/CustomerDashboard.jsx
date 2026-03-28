@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useBilling } from '../context/BillingContext';
 import CommonTable from './CommonTable.jsx';
 import PaymentGateway from './PaymentGateway';
 import CustomerBillingHistory from './CustomerBillingHistory';
@@ -11,7 +12,20 @@ import './CustomerDashboard.css';
 
 function CustomerDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
+  const { fetchMyBillingRecords } = useBilling();
+
+  const normalizePaymentStatus = (status) => {
+    const value = String(status || '').trim().toLowerCase();
+    if (value === 'paid' || value === 'completed' || value === 'success' || value === 'successful') {
+      return 'completed';
+    }
+    if (value === 'failed' || value === 'failure') {
+      return 'failed';
+    }
+    return 'pending';
+  };
   
   // Booking table columns - defined before conditional rendering
   const bookingColumns = useMemo(() => [
@@ -32,7 +46,7 @@ function CustomerDashboard() {
     { accessorKey: 'status', header: 'Status' },
   ], []);
   
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(() => location.state?.activeTab || 'overview');
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('details'); // 'details' or 'renew'
@@ -75,6 +89,7 @@ function CustomerDashboard() {
   const [userRating, setUserRating] = useState('—');
   const [loadingData, setLoadingData] = useState(true);
   const [apiErrors, setApiErrors] = useState({});
+  const [recentPaymentSuccess, setRecentPaymentSuccess] = useState(null);
 
   // Load data from APIs
   const loadDashboardData = useCallback(async () => {
@@ -189,6 +204,27 @@ function CustomerDashboard() {
     }
 
     try {
+      const billingRecords = await fetchMyBillingRecords();
+      const successfulRecords = (Array.isArray(billingRecords) ? billingRecords : []).filter(
+        (record) => normalizePaymentStatus(record.paymentStatus) === 'completed'
+      );
+
+      if (successfulRecords.length > 0) {
+        const latest = [...successfulRecords].sort((a, b) => {
+          const aTime = new Date(a.paymentDate || a.createdAt || 0).getTime();
+          const bTime = new Date(b.paymentDate || b.createdAt || 0).getTime();
+          return bTime - aTime;
+        })[0];
+        setRecentPaymentSuccess(latest);
+      } else {
+        setRecentPaymentSuccess(null);
+      }
+    } catch (error) {
+      console.warn('⚠️ Billing API (optional):', error?.message || error);
+      setRecentPaymentSuccess(null);
+    }
+
+    try {
       const meRes = await authApi.me();
       const profile = meRes?.data || meRes;
       if (profile) {
@@ -213,7 +249,7 @@ function CustomerDashboard() {
     }
     
     setLoadingData(false);
-  }, [user]);
+  }, [user, fetchMyBillingRecords]);
 
   useEffect(() => { loadDashboardData(); }, [loadDashboardData]);
 
@@ -421,6 +457,41 @@ function CustomerDashboard() {
                 </div>
               </div>
             </div>
+
+            {recentPaymentSuccess && (
+              <div className="content-card overview-payment-success-card">
+                <div className="overview-payment-success-head">
+                  <h2>Recent Payment Success</h2>
+                  <span className="overview-payment-success-pill">PAID</span>
+                </div>
+                <p className="overview-payment-success-note">
+                  This booking payment was successful.
+                </p>
+                <div className="overview-payment-success-grid">
+                  <div>
+                    <span className="label">Service Name</span>
+                    <span className="value">{recentPaymentSuccess.serviceName || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="label">Transaction ID</span>
+                    <span className="value">{recentPaymentSuccess.transactionId || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="label">Invoice Number</span>
+                    <span className="value">{recentPaymentSuccess.invoiceNumber || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="label">Amount Paid</span>
+                    <span className="value">₹{recentPaymentSuccess.totalAmount || recentPaymentSuccess.amount || 0}</span>
+                  </div>
+                </div>
+                <div className="overview-payment-success-actions">
+                  <button className="overview-view-btn" onClick={() => setActiveTab('billing')}>
+                    Open Billing & Invoice →
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Active Packages */}
             <div className="content-card">

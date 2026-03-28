@@ -5,12 +5,24 @@ import { downloadInvoicePDF } from '../utils/invoiceGenerator';
 import CommonTable from './CommonTable';
 import './CustomerBillingHistory.css';
 
+const normalizePaymentStatus = (status) => {
+  const value = String(status || '').trim().toLowerCase();
+  if (value === 'paid' || value === 'completed' || value === 'success' || value === 'successful') {
+    return 'completed';
+  }
+  if (value === 'failed' || value === 'failure') {
+    return 'failed';
+  }
+  return 'pending';
+};
+
 function CustomerBillingHistory() {
   const { user } = useAuth();
-  const { billingRecords, fetchMyBillingRecords, loading } = useBilling();
+  const { fetchMyBillingRecords, loading } = useBilling();
   const [userBillings, setUserBillings] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterDateRange, setFilterDateRange] = useState('all');
+
 
   const billingColumns = useMemo(
     () => [
@@ -40,7 +52,7 @@ function CustomerBillingHistory() {
         header: 'Status',
         size: 100,
         cell: ({ getValue }) => {
-          const status = getValue() || 'pending';
+          const status = normalizePaymentStatus(getValue());
           return (
             <span className={`status-badge status-${status}`}>
               {status.toUpperCase()}
@@ -82,7 +94,7 @@ function CustomerBillingHistory() {
 
     // Filter by status
     if (filterStatus !== 'all') {
-      filtered = filtered.filter(b => b.paymentStatus === filterStatus);
+      filtered = filtered.filter((b) => normalizePaymentStatus(b.paymentStatus) === filterStatus);
     }
 
     // Filter by date range
@@ -125,15 +137,30 @@ function CustomerBillingHistory() {
 
     userBillings.forEach(billing => {
       stats.totalAmount += billing.totalAmount;
-      if (billing.paymentStatus === 'completed') {
+      const normalizedStatus = normalizePaymentStatus(billing.paymentStatus);
+      if (normalizedStatus === 'completed') {
         stats.completedPayments += 1;
-      } else if (billing.paymentStatus === 'pending') {
+      } else if (normalizedStatus === 'pending') {
         stats.pendingPayments += 1;
       }
       stats.totalRefunds += billing.refundAmount || 0;
     });
 
     return stats;
+  }, [userBillings]);
+
+  const latestSuccessfulPayment = useMemo(() => {
+    const successfulRecords = userBillings.filter(
+      (billing) => normalizePaymentStatus(billing.paymentStatus) === 'completed'
+    );
+
+    if (successfulRecords.length === 0) return null;
+
+    return [...successfulRecords].sort((a, b) => {
+      const aTime = new Date(a.paymentDate || a.createdAt || 0).getTime();
+      const bTime = new Date(b.paymentDate || b.createdAt || 0).getTime();
+      return bTime - aTime;
+    })[0];
   }, [userBillings]);
 
   const handleDownloadInvoice = (billing) => {
@@ -161,8 +188,8 @@ function CustomerBillingHistory() {
       b.serviceName,
       b.totalAmount,
       b.paymentMethod,
-      b.paymentStatus,
-      new Date(b.paymentDate).toLocaleDateString('en-IN'),
+      normalizePaymentStatus(b.paymentStatus),
+      b.paymentDate ? new Date(b.paymentDate).toLocaleDateString('en-IN') : '—',
     ]);
 
     const csv = [
@@ -185,6 +212,56 @@ function CustomerBillingHistory() {
         <h2>📄 Billing & Invoice History</h2>
         <p>Manage and download your invoices and billing records</p>
       </div>
+
+      {latestSuccessfulPayment && (
+        <div className="payment-success-invoice-card">
+          <div className="payment-success-invoice-head">
+            <h3>Payment Successful For This Booking</h3>
+            <span className="payment-success-pill">SUCCESS</span>
+          </div>
+          <p className="payment-success-message-line">
+            This booking payment is successful. You can view invoice details below.
+          </p>
+          <div className="payment-success-invoice-grid">
+            <div>
+              <span className="label">Booking ID</span>
+              <span className="value">{latestSuccessfulPayment.bookingId || 'N/A'}</span>
+            </div>
+            <div>
+              <span className="label">Service Name</span>
+              <span className="value">{latestSuccessfulPayment.serviceName || 'N/A'}</span>
+            </div>
+            <div>
+              <span className="label">Transaction ID</span>
+              <span className="value">{latestSuccessfulPayment.transactionId || 'N/A'}</span>
+            </div>
+            <div>
+              <span className="label">Invoice Number</span>
+              <span className="value">{latestSuccessfulPayment.invoiceNumber || 'N/A'}</span>
+            </div>
+            <div>
+              <span className="label">Amount Paid</span>
+              <span className="value">₹{latestSuccessfulPayment.totalAmount || latestSuccessfulPayment.amount || 0}</span>
+            </div>
+            <div>
+              <span className="label">Payment Date</span>
+              <span className="value">
+                {latestSuccessfulPayment.paymentDate || latestSuccessfulPayment.createdAt
+                  ? new Date(
+                      latestSuccessfulPayment.paymentDate || latestSuccessfulPayment.createdAt
+                    ).toLocaleString('en-IN', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : 'N/A'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Statistics Cards */}
       <div className="billing-statistics">

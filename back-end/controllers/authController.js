@@ -3,6 +3,54 @@ const { getDB } = require('../config/db');
 const { generateAccessToken, generateRefreshToken } = require("../utils/jwt");
 const jwt = require('jsonwebtoken');
 const { ObjectId } = require('mongodb');
+const generateOTP = require("../utils/otp");
+const sendEmail = require('../utils/sendEmail');
+
+const OTP_EXPIRY_MINUTES = 5;
+
+const isEmailVerified = (status) => status === true || String(status).toLowerCase() === 'true';
+
+const buildOtpEmailTemplate = (name, otp) => {
+  const safeName = String(name || 'Customer').trim();
+  const safeOtp = String(otp || '').trim();
+
+  return `
+    <div style="margin:0;padding:0;background:#f3f6fb;font-family:Arial,sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 0;">
+        <tr>
+          <td align="center">
+            <table width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;background:#ffffff;border-radius:14px;box-shadow:0 8px 28px rgba(15,23,42,0.08);overflow:hidden;">
+              <tr>
+                <td style="background:#111827;padding:20px 28px;color:#ffffff;">
+                  <h1 style="margin:0;font-size:20px;line-height:1.4;">Email Verification OTP</h1>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:26px 28px;">
+                  <p style="margin:0 0 12px;color:#374151;font-size:15px;">Hello <strong>${safeName}</strong>,</p>
+                  <p style="margin:0 0 16px;color:#4b5563;font-size:14px;line-height:1.6;">
+                    Thank you for registering with AUTOX. Use the following OTP to verify your email address.
+                  </p>
+                  <div style="margin:14px 0 20px;padding:18px;border:1px solid #e5e7eb;border-radius:10px;background:#f9fafb;text-align:center;">
+                    <div style="font-size:12px;color:#6b7280;letter-spacing:1px;margin-bottom:8px;">YOUR OTP CODE</div>
+                    <div style="font-size:30px;font-weight:700;letter-spacing:6px;color:#111827;">${safeOtp}</div>
+                  </div>
+                  <p style="margin:0 0 10px;color:#6b7280;font-size:13px;">This OTP is valid for <strong>${OTP_EXPIRY_MINUTES} minutes</strong>.</p>
+                  <p style="margin:0;color:#6b7280;font-size:13px;">If you did not request this, you can ignore this email.</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:14px 28px;background:#f9fafb;color:#9ca3af;font-size:12px;">
+                  AUTOX Vehicle Service Booking System
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+};
 
 const sanitizeUser = (user) => {
   if (!user) return null;
@@ -97,6 +145,13 @@ const loginUser = async (req, res, next) => {
       });
     }
 
+    if (!isEmailVerified(user.status)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Please verify your email'
+      });
+    }
+
     const refreshToken = generateRefreshToken(user);
 
     await db.collection("users").updateOne(
@@ -127,6 +182,7 @@ const createRegister = async (req, res, next) => {
       emailOtp,
       address,
       pincode,
+      status,
       role
     } = req.body;
 
@@ -169,7 +225,8 @@ const createRegister = async (req, res, next) => {
       .limit(1)
       .toArray();
     const nextUserId = (lastUser?.userId || 999) + 1;
-
+    const otp = generateOTP();
+    const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
     const newRegister = {
       userId: nextUserId,
       name,
@@ -179,10 +236,12 @@ const createRegister = async (req, res, next) => {
       role: role || "user",
       phone,
       gender,
-      emailOtp: emailOtp || null,
+      emailOtp: otp,
+      otp,
+      otp_expiry: otpExpiry,
       address,
       pincode,
-      status: "Active",
+      status: false,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -199,10 +258,119 @@ const createRegister = async (req, res, next) => {
       { $set: { refreshToken } }
     );
 
+    await sendEmail(
+      normalizedEmail,
+      'Verify your email - AUTOX OTP',
+      buildOtpEmailTemplate(name || finalUsername || 'Customer', otp)
+    );
+
     res.status(201).json({
       ...buildAuthResponse(savedUser),
       refreshToken,
-      message: "User registered successfully"
+      message: "User registered successfully. Please verify your email with OTP.",
+      data: {
+        ...sanitizeUser(savedUser),
+        otpExpiresAt: otpExpiry
+      },
+      user: {
+        ...sanitizeUser(savedUser),
+        otpExpiresAt: otpExpiry
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const sendOtp = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const email = String(req.body?.email || '').trim().toLowerCase();
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const user = await db.collection('users').findOne({ email });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const otp = generateOTP();
+    const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          otp,
+          otp_expiry: otpExpiry,
+          emailOtp: otp,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    await sendEmail(
+      email,
+      'Verify your email - AUTOX OTP',
+      buildOtpEmailTemplate(user?.name || user?.fullName || user?.username || 'Customer', otp)
+    );
+
+    return res.json({
+      success: true,
+      message: 'OTP sent successfully',
+      data: {
+        email,
+        otpExpiresAt: otpExpiry,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const verifyOtp = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const otp = String(req.body?.otp || '').trim();
+
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, message: 'Email and OTP are required' });
+    }
+
+    const user = await db.collection('users').findOne({ email });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (!user.otp || String(user.otp) !== otp) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
+
+    if (!user.otp_expiry || new Date(user.otp_expiry) < new Date()) {
+      return res.status(400).json({ success: false, message: 'OTP expired' });
+    }
+
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          status: true,
+          updatedAt: new Date(),
+        },
+        $unset: {
+          otp: '',
+          otp_expiry: '',
+          emailOtp: '',
+        },
+      }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Email verified successfully',
     });
   } catch (error) {
     next(error);
@@ -217,84 +385,6 @@ const login = async (req, res, next) => {
   const { email, password } = req.body;
   req.body = { username: email, email, password };
   return loginUser(req, res, next);
-};
-
-const sendLoginOtp = async (req, res, next) => {
-  try {
-    const db = getDB();
-    const email = String(req.body?.email || '').trim().toLowerCase();
-
-    if (!email) {
-      return res.status(400).json({ success: false, message: 'Email is required' });
-    }
-
-    const user = await db.collection('users').findOne({ email });
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-
-    await db.collection('loginOtps').updateOne(
-      { email },
-      {
-        $set: {
-          email,
-          otp,
-          expiresAt,
-          updatedAt: new Date()
-        },
-        $setOnInsert: { createdAt: new Date() }
-      },
-      { upsert: true }
-    );
-
-    return res.json({
-      success: true,
-      data: {
-        email,
-        expiresAt,
-        otp
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const verifyLoginOtp = async (req, res, next) => {
-  try {
-    const db = getDB();
-    const email = String(req.body?.email || '').trim().toLowerCase();
-    const otp = String(req.body?.otp || '').trim();
-
-    if (!email || !otp) {
-      return res.status(400).json({ success: false, message: 'Email and OTP are required' });
-    }
-
-    const otpDoc = await db.collection('loginOtps').findOne({ email, otp });
-    if (!otpDoc || !otpDoc.expiresAt || new Date(otpDoc.expiresAt) < new Date()) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
-    }
-
-    const user = await db.collection('users').findOne({ email });
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    await db.collection('loginOtps').deleteOne({ _id: otpDoc._id });
-
-    const refreshToken = generateRefreshToken(user);
-    await db.collection('users').updateOne({ _id: user._id }, { $set: { refreshToken } });
-
-    return res.json({
-      ...buildAuthResponse(user),
-      refreshToken
-    });
-  } catch (error) {
-    next(error);
-  }
 };
 
 const forgotPassword = async (req, res, next) => {
@@ -410,8 +500,8 @@ const refreshToken = async (req, res) => {
 module.exports = {
   register,
   login,
-  sendLoginOtp,
-  verifyLoginOtp,
+  sendOtp,
+  verifyOtp,
   forgotPassword,
   me,
   updateMe,

@@ -28,6 +28,7 @@ import LoadingAnimation from "./components/LoadingAnimation";
 import ServiceBooking from "./components/ServiceBooking";
 import PDFInvoiceGenerator from "./components/PDFInvoiceGenerator";
 import ServicePayment from "./components/ServicePayment";
+import PaymentSuccess from "./components/PaymentSuccess";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { BillingProvider } from "./context/BillingContext";
 import { NotificationProvider } from "./context/NotificationContext";
@@ -141,6 +142,11 @@ function AnimatedRoutes() {
             </ProtectedCustomerRoute>
           } />
           <Route path="/service-payment" element={<ServicePayment />} />
+          <Route path="/payment-success/:bookingId" element={
+            <ProtectedCustomerRoute>
+              <PaymentSuccess />
+            </ProtectedCustomerRoute>
+          } />
         </Routes>
       </div>
     </>

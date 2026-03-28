@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import logoImage from '../logo.jpeg';
 
 // ──────────────────────────────────────────────
 // Helpers
@@ -36,8 +37,8 @@ const safeStr = (v, fallback = '—') => {
   return String(v);
 };
 
-/** Draw the AUTOX logo icon (a small steering-wheel shape) */
-const drawLogoIcon = (doc, x, y, size) => {
+/** Draw fallback AUTOX icon when image logo cannot be embedded */
+const drawFallbackLogoIcon = (doc, x, y, size) => {
   const cx = x + size / 2;
   const cy = y + size / 2;
   const r = size / 2;
@@ -62,6 +63,50 @@ const drawLogoIcon = (doc, x, y, size) => {
   spoke(90);
   spoke(210);
   spoke(330);
+};
+
+/** Try drawing actual project logo, fallback to vector icon if not available */
+const drawBrandLogo = (doc, x, y, width, height) => {
+  try {
+    if (typeof doc.addImage === 'function' && logoImage) {
+      doc.addImage(logoImage, 'JPEG', x, y, width, height);
+      return;
+    }
+  } catch (_err) {
+    // Fallback icon below
+  }
+
+  const fallbackSize = Math.min(width, height);
+  drawFallbackLogoIcon(doc, x + (width - fallbackSize) / 2, y + (height - fallbackSize) / 2, fallbackSize);
+};
+
+const signatureImageSrc = encodeURI(
+  `${process.env.PUBLIC_URL || ''}/img/web images/logo/sign.png`
+);
+
+let signatureImageEl = null;
+if (typeof Image !== 'undefined') {
+  signatureImageEl = new Image();
+  signatureImageEl.src = signatureImageSrc;
+}
+
+/** Draw signature image from public path, fallback to text when unavailable */
+const drawSignatureImage = (doc, x, y, width, height) => {
+  try {
+    if (
+      signatureImageEl &&
+      signatureImageEl.complete &&
+      signatureImageEl.naturalWidth > 0 &&
+      typeof doc.addImage === 'function'
+    ) {
+      doc.addImage(signatureImageEl, 'PNG', x, y, width, height);
+      return true;
+    }
+  } catch (_err) {
+    // Fallback handled below
+  }
+
+  return false;
 };
 
 // ──────────────────────────────────────────────
@@ -144,29 +189,33 @@ export const generateInvoicePDF = (billingData = {}, customerData = {}) => {
   doc.setFillColor(...COLORS.primary);
   doc.rect(0, 0, pageWidth, headerH, 'F');
 
-  // Logo icon
-  drawLogoIcon(doc, margin, 6, 16);
+  // Keep content section explicitly white for consistent rendering in viewers
+  doc.setFillColor(...COLORS.white);
+  doc.rect(0, headerH, pageWidth, pageHeight - headerH, 'F');
+
+  // Brand logo (uses project logo image)
+  drawBrandLogo(doc, margin, 5, 18, 18);
 
   // Brand name
   doc.setTextColor(...COLORS.white);
-  doc.setFontSize(22);
+  doc.setFontSize(18);
   doc.setFont(undefined, 'bold');
-  doc.text('AUTOX', margin + 21, 17);
+  doc.text('AUTOX', margin + 23, 16);
 
   // Tagline
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setFont(undefined, 'normal');
-  doc.text('Smart Garage, Breakdown & Modification', margin + 21, 24);
+  doc.text('Smart Garage, Breakdown & Modification', margin + 23, 22);
 
   // Right side: INVOICE title
-  doc.setFontSize(20);
+  doc.setFontSize(16);
   doc.setFont(undefined, 'bold');
-  doc.text('INVOICE', pageWidth - margin, 16, { align: 'right' });
+  doc.text('INVOICE', pageWidth - margin, 15, { align: 'right' });
 
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setFont(undefined, 'normal');
-  doc.text(`# ${invoiceNo}`, pageWidth - margin, 24, { align: 'right' });
-  doc.text(`Date: ${paymentDate}`, pageWidth - margin, 31, { align: 'right' });
+  doc.text(`# ${invoiceNo}`, pageWidth - margin, 22, { align: 'right' });
+  doc.text(`Date: ${paymentDate}`, pageWidth - margin, 29, { align: 'right' });
 
   // ── 2. STATUS PILL ────────────────────────────
   let statusColor = COLORS.green;
@@ -194,7 +243,7 @@ export const generateInvoicePDF = (billingData = {}, customerData = {}) => {
   doc.text(statusUpper, pageWidth - margin - pillW + 5, pillY + 1);
 
   // ── 3. CUSTOMER DETAILS BOX ──────────────────
-  const custStartY = pillY + 12;
+  const custStartY = pillY + 10;
   doc.setFontSize(10);
   doc.setFont(undefined, 'bold');
   doc.setTextColor(...COLORS.primary);
@@ -202,8 +251,11 @@ export const generateInvoicePDF = (billingData = {}, customerData = {}) => {
 
   // Light background box for customer info
   const custBoxY = custStartY + 3;
-  doc.setFillColor(...COLORS.lightGray);
+  doc.setFillColor(248, 250, 252);
   doc.roundedRect(margin, custBoxY, contentWidth, 34, 2, 2, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(margin, custBoxY, contentWidth, 34, 2, 2, 'S');
 
   doc.setFontSize(9);
   doc.setFont(undefined, 'normal');
@@ -232,7 +284,7 @@ export const generateInvoicePDF = (billingData = {}, customerData = {}) => {
   doc.text(`${vehicleCompany} ${vehicleModel}`.trim(), col2 + 22, row3);
 
   // ── 4. SERVICE TABLE ─────────────────────────
-  const tableStartY = custBoxY + 44;
+  const tableStartY = custBoxY + 42;
 
   doc.setFontSize(10);
   doc.setFont(undefined, 'bold');
@@ -285,7 +337,7 @@ export const generateInvoicePDF = (billingData = {}, customerData = {}) => {
     margin: { left: margin, right: margin },
   });
 
-  const afterTableY = doc.lastAutoTable.finalY + 6;
+  const afterTableY = doc.lastAutoTable.finalY + 8;
 
   // ── 5. PAYMENT SUMMARY BOX ───────────────────
   const summBoxW = 75;
@@ -339,7 +391,7 @@ export const generateInvoicePDF = (billingData = {}, customerData = {}) => {
   );
 
   // ── 6. PAYMENT INFO ──────────────────────────
-  const payInfoY = afterTableY + 4;
+  const payInfoY = afterTableY + 6;
 
   doc.setFontSize(10);
   doc.setFont(undefined, 'bold');
@@ -383,8 +435,65 @@ export const generateInvoicePDF = (billingData = {}, customerData = {}) => {
     );
   }
 
-  // ── 8. FOOTER ────────────────────────────────
+  // ── 8. MANAGER SIGNATURE BLOCK ──────────────
+  const managerName = safeStr(
+    billingData.managerName || billingData.approvedBy,
+    'Arjun Mehta'
+  );
+  const managerRole = safeStr(billingData.managerRole, 'Operations Manager');
+  const signatureText = safeStr(billingData.managerSignature, 'Authorized Signature');
+  const signDate = formatDate(billingData.approvalDate || billingData.updatedAt || new Date()) || formatDate(new Date());
+
+  const signatureBoxX = margin;
+  const signatureBoxW = 96;
+  const signatureBoxH = 35;
+
+  // Keep signature near footer and in the empty area without colliding with summary box
+  const minSignatureY = refundStatus !== 'none' && refundAmount > 0 ? payInfoY + 54 : payInfoY + 32;
   const footerDivY = pageHeight - 30;
+  const preferredSignatureY = footerDivY - signatureBoxH - 8;
+  const signatureBoxY = Math.max(minSignatureY, preferredSignatureY);
+
+  // Minimal official sign area (no hard red border)
+  doc.setFillColor(252, 252, 252);
+  doc.setDrawColor(224, 224, 224);
+  doc.setLineWidth(0.25);
+  doc.roundedRect(signatureBoxX, signatureBoxY, signatureBoxW, signatureBoxH, 1.8, 1.8, 'FD');
+
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(8.2);
+  doc.setTextColor(...COLORS.primary);
+  doc.text('FOR AUTOX', signatureBoxX + 5, signatureBoxY + 7);
+
+  const signatureDrawn = drawSignatureImage(doc, signatureBoxX + 7, signatureBoxY + 9, 40, 12);
+  if (!signatureDrawn) {
+    doc.setTextColor(...COLORS.dark);
+    doc.setFont(undefined, 'italic');
+    doc.setFontSize(9.5);
+    doc.text('Signed', signatureBoxX + 8, signatureBoxY + 16.5);
+  }
+
+  doc.setDrawColor(168, 168, 168);
+  doc.setLineWidth(0.2);
+  doc.line(signatureBoxX + 6, signatureBoxY + 22.2, signatureBoxX + signatureBoxW - 6, signatureBoxY + 22.2);
+
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(...COLORS.gray);
+  doc.setFontSize(7.4);
+  doc.text(signatureText, signatureBoxX + 6, signatureBoxY + 26.2);
+
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(...COLORS.dark);
+  doc.setFontSize(8.8);
+  doc.text(managerName, signatureBoxX + 6, signatureBoxY + 31);
+
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(...COLORS.gray);
+  doc.setFontSize(7.3);
+  doc.text(managerRole, signatureBoxX + 6, signatureBoxY + 34);
+  doc.text(`Approved: ${signDate}`, signatureBoxX + 50, signatureBoxY + 34);
+
+  // ── 9. FOOTER ────────────────────────────────
   doc.setDrawColor(...COLORS.primary);
   doc.setLineWidth(0.6);
   doc.line(margin, footerDivY, pageWidth - margin, footerDivY);

@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 function Register() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { register } = useAuth();
+  const { register, requestRegisterOtp, verifyRegisterOtp } = useAuth();
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -21,9 +21,6 @@ function Register() {
   const [success, setSuccess] = useState(false);
   const [step, setStep] = useState(1); // Step 1: Form, Step 2: OTP Verification
   const [otpEmail, setOtpEmail] = useState('');
-  const [otpPhone, setOtpPhone] = useState('');
-  const [generatedOtpEmail, setGeneratedOtpEmail] = useState('');
-  const [generatedOtpPhone, setGeneratedOtpPhone] = useState('');
   const [otpError, setOtpError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -65,24 +62,29 @@ function Register() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (validateForm()) {
-      // Generate OTPs
-      const emailOtp = Math.floor(100000 + Math.random() * 900000).toString();
-      const phoneOtp = Math.floor(100000 + Math.random() * 900000).toString();
-      
-      setGeneratedOtpEmail(emailOtp);
-      setGeneratedOtpPhone(phoneOtp);
+      setIsSubmitting(true);
       setOtpError('');
       setOtpEmail('');
-      setOtpPhone('');
-      setStep(2); // Move to OTP verification step
-      
-      // Simulate sending OTPs
-      console.log(`Email OTP sent to ${formData.email}: ${emailOtp}`);
-      console.log(`Phone OTP sent to ${formData.phone}: ${phoneOtp}`);
+
+      try {
+        await register({
+          email: formData.email,
+          fullName: formData.fullName,
+          phone: formData.phone,
+          password: formData.password,
+          role: 'user',
+        });
+
+        setStep(2);
+      } catch (error) {
+        setOtpError(error?.message || 'Registration failed. Please try again.');
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -95,31 +97,9 @@ function Register() {
       return;
     }
 
-    if (!otpPhone.trim()) {
-      setOtpError('Please enter OTP sent to your phone');
-      return;
-    }
-
-    if (otpEmail !== generatedOtpEmail) {
-      setOtpError('Invalid email OTP');
-      return;
-    }
-
-    if (otpPhone !== generatedOtpPhone) {
-      setOtpError('Invalid phone OTP');
-      return;
-    }
-
-    // All validations passed
     setIsSubmitting(true);
     try {
-      await register({
-        email: formData.email,
-        fullName: formData.fullName,
-        phone: formData.phone,
-        password: formData.password,
-        role: 'user',
-      });
+      await verifyRegisterOtp({ email: formData.email, otp: otpEmail });
 
       setSuccess(true);
       setTimeout(() => {
@@ -127,7 +107,7 @@ function Register() {
         if (from) {
           navigate(from, { replace: true });
         } else {
-          navigate('/customer/dashboard', { replace: true });
+          navigate('/login', { replace: true });
         }
       }, 1500);
     } catch (error) {
@@ -137,18 +117,17 @@ function Register() {
     }
   };
 
-  const handleResendOtp = () => {
-    const emailOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const phoneOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    setGeneratedOtpEmail(emailOtp);
-    setGeneratedOtpPhone(phoneOtp);
+  const handleResendOtp = async () => {
+    setIsSubmitting(true);
+    try {
+      await requestRegisterOtp(formData.email);
+    } catch (error) {
+      setOtpError(error?.message || 'Failed to resend OTP');
+    } finally {
+      setIsSubmitting(false);
+    }
+
     setOtpEmail('');
-    setOtpPhone('');
-    setOtpError('');
-    
-    console.log(`Email OTP resent to ${formData.email}: ${emailOtp}`);
-    console.log(`Phone OTP resent to ${formData.phone}: ${phoneOtp}`);
   };
 
   return (
@@ -157,12 +136,18 @@ function Register() {
         <div className="auth-card">
           <div className="auth-header">
             <h1>{step === 1 ? 'Create Account' : 'Verify Account'}</h1>
-            <p>{step === 1 ? 'Join AutoX for premium vehicle care' : 'Verify your email and phone number'}</p>
+            <p>{step === 1 ? 'Join AutoX for premium vehicle care' : 'Verify your email address'}</p>
           </div>
 
           {success && (
             <div className="success-banner">
-              ✓ Registration successful! Redirecting to login...
+              ✓ Email verified successfully! Redirecting to login...
+            </div>
+          )}
+
+          {otpError && step === 1 && (
+            <div className="error-banner">
+              ⚠️ {otpError}
             </div>
           )}
 
@@ -293,13 +278,17 @@ function Register() {
               <button 
                 type="submit" 
                 className="submit-btn"
-                disabled={Object.keys(errors).length > 0}
+                disabled={Object.keys(errors).length > 0 || isSubmitting}
                 style={{
-                  opacity: Object.keys(errors).length > 0 ? 0.5 : 1,
-                  cursor: Object.keys(errors).length > 0 ? 'not-allowed' : 'pointer'
+                  opacity: (Object.keys(errors).length > 0 || isSubmitting) ? 0.5 : 1,
+                  cursor: (Object.keys(errors).length > 0 || isSubmitting) ? 'not-allowed' : 'pointer'
                 }}
               >
-                {Object.keys(errors).length > 0 ? '⚠️ Please fix errors above' : 'Send OTP & Continue'}
+                {isSubmitting
+                  ? 'Creating Account...'
+                  : Object.keys(errors).length > 0
+                    ? '⚠️ Please fix errors above'
+                    : 'Create Account & Send Email OTP'}
               </button>
 
               <div className="auth-footer">
@@ -310,18 +299,10 @@ function Register() {
             <form onSubmit={handleOtpVerification} className="auth-form">
               <div className="otp-info">
                 <p style={{ marginBottom: '20px', color: '#666', fontSize: '14px' }}>
-                  We've sent OTP verification codes to:
+                  We've sent an OTP verification code to:
                 </p>
                 <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px' }}>
                   <p><strong>📧 Email:</strong> {formData.email}</p>
-                  <p><strong>📱 Phone:</strong> {formData.phone}</p>
-                </div>
-
-                {/* Debug Info - Remove in production */}
-                <div style={{ background: '#e3f2fd', padding: '15px', borderRadius: '8px', marginBottom: '20px', fontSize: '13px', border: '1px solid #90caf9' }}>
-                  <p style={{ color: '#1565c0', fontWeight: 'bold', marginBottom: '8px' }}>🔍 Demo - Check Console or Use OTPs Below:</p>
-                  <p style={{ margin: '5px 0', color: '#1565c0' }}>📧 Email OTP: <code style={{ background: '#fff', padding: '2px 6px', borderRadius: '3px', fontWeight: 'bold' }}>{generatedOtpEmail}</code></p>
-                  <p style={{ margin: '5px 0', color: '#1565c0' }}>📱 Phone OTP: <code style={{ background: '#fff', padding: '2px 6px', borderRadius: '3px', fontWeight: 'bold' }}>{generatedOtpPhone}</code></p>
                 </div>
               </div>
 
@@ -339,36 +320,7 @@ function Register() {
                   maxLength="6"
                   className={otpError && !otpEmail ? 'error' : ''}
                 />
-                {otpEmail && otpEmail === generatedOtpEmail && (
-                  <small style={{ color: '#4caf50', display: 'block', marginTop: '4px' }}>✓ Email OTP verified</small>
-                )}
-                {otpEmail && otpEmail !== generatedOtpEmail && (
-                  <small style={{ color: '#f44336', display: 'block', marginTop: '4px' }}>✗ Incorrect email OTP</small>
-                )}
                 {!otpEmail && <small style={{ color: '#999' }}>Check your email for the OTP</small>}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="otpPhone">Phone OTP *</label>
-                <input
-                  type="text"
-                  id="otpPhone"
-                  value={otpPhone}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-                    setOtpPhone(value);
-                  }}
-                  placeholder="Enter 6-digit OTP from SMS"
-                  maxLength="6"
-                  className={otpError && !otpPhone ? 'error' : ''}
-                />
-                {otpPhone && otpPhone === generatedOtpPhone && (
-                  <small style={{ color: '#4caf50', display: 'block', marginTop: '4px' }}>✓ Phone OTP verified</small>
-                )}
-                {otpPhone && otpPhone !== generatedOtpPhone && (
-                  <small style={{ color: '#f44336', display: 'block', marginTop: '4px' }}>✗ Incorrect phone OTP</small>
-                )}
-                {!otpPhone && <small style={{ color: '#999' }}>Check your SMS for the OTP</small>}
               </div>
 
               {otpError && (
@@ -377,26 +329,18 @@ function Register() {
                 </div>
               )}
 
-              {otpEmail === generatedOtpEmail && otpPhone === generatedOtpPhone && (
-                <div style={{ color: '#4caf50', background: '#e8f5e9', padding: '12px', borderRadius: '4px', marginBottom: '15px', textAlign: 'center', fontWeight: 'bold' }}>
-                  ✓ Both OTPs verified successfully!
-                </div>
-              )}
-
               <button 
                 type="submit" 
                 className="submit-btn"
-                disabled={isSubmitting || otpEmail !== generatedOtpEmail || otpPhone !== generatedOtpPhone}
+                disabled={isSubmitting || otpEmail.trim().length < 4}
                 style={{
-                  opacity: (isSubmitting || otpEmail !== generatedOtpEmail || otpPhone !== generatedOtpPhone) ? 0.5 : 1,
-                  cursor: (isSubmitting || otpEmail !== generatedOtpEmail || otpPhone !== generatedOtpPhone) ? 'not-allowed' : 'pointer'
+                  opacity: (isSubmitting || otpEmail.trim().length < 4) ? 0.5 : 1,
+                  cursor: (isSubmitting || otpEmail.trim().length < 4) ? 'not-allowed' : 'pointer'
                 }}
               >
                 {isSubmitting
-                  ? 'Creating Account...'
-                  : otpEmail === generatedOtpEmail && otpPhone === generatedOtpPhone
-                    ? '✓ Verify & Complete Registration'
-                    : 'Enter Both OTPs to Proceed'}
+                  ? 'Verifying...'
+                  : 'Verify Email OTP & Complete Registration'}
               </button>
 
               <div style={{ textAlign: 'center', marginTop: '15px' }}>
@@ -422,7 +366,6 @@ function Register() {
                   onClick={() => {
                     setStep(1);
                     setOtpEmail('');
-                    setOtpPhone('');
                     setOtpError('');
                   }}
                   style={{ 

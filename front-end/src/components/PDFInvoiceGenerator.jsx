@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import logo from '../logo.jpeg';
 import './PDFInvoiceGenerator.css';
+
+const formatINR = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const statusClass = (value) => {
+  const v = String(value || '').toLowerCase();
+  if (v === 'completed' || v === 'paid' || v === 'success') return 'completed';
+  if (v === 'failed') return 'failed';
+  return 'pending';
+};
 
 function PDFInvoiceGenerator() {
   const [bookings, setBookings] = useState([]);
@@ -111,8 +121,13 @@ function PDFInvoiceGenerator() {
   return (
     <div className="pdf-invoice-generator">
       <div className="invoice-container">
-        <h1>📄 PDF Invoice Generator</h1>
-        <p className="subtitle">Generate invoices for completed bookings</p>
+        <div className="invoice-page-brand">
+          <img src={logo} alt="AutoX Logo" className="invoice-page-logo" />
+          <div>
+            <h1>AutoX Invoice Studio</h1>
+            <p className="subtitle">Generate branded, print-ready invoices for completed bookings</p>
+          </div>
+        </div>
 
         {/* Bookings List */}
         <div className="bookings-section">
@@ -135,13 +150,13 @@ function PDFInvoiceGenerator() {
                       <strong>Customer:</strong> {booking.customerName || 'Unknown'}
                     </p>
                     <p>
-                      <strong>Amount:</strong> ₹{booking.amount || 0}
+                      <strong>Amount:</strong> {formatINR(booking.amount)}
                     </p>
                     <p>
-                      <strong>Status:</strong> <span className="status completed">{booking.status}</span>
+                      <strong>Status:</strong> <span className={`status ${statusClass(booking.status)}`}>{booking.status || 'Pending'}</span>
                     </p>
                     <p>
-                      <strong>Payment:</strong> <span className={`payment ${booking.paymentStatus?.toLowerCase()}`}>
+                      <strong>Payment:</strong> <span className={`payment ${statusClass(booking.paymentStatus)}`}>
                         {booking.paymentStatus || 'Pending'}
                       </span>
                     </p>
@@ -168,11 +183,16 @@ function PDFInvoiceGenerator() {
             <div id="invoice-template" className="invoice-template">
               <div className="invoice-header">
                 <div className="company-info">
-                  <h1>🚗 Garage Services</h1>
-                  <p>Professional Vehicle Services</p>
-                  <p>Email: info@garageservices.com</p>
-                  <p>Phone: +91-XXXX-XXXX-XX</p>
-                  <p>Address: 123 Service Street, Auto City</p>
+                  <div className="invoice-brand">
+                    <img src={logo} alt="AutoX Logo" className="invoice-brand-logo" />
+                    <div>
+                      <h1>AutoX</h1>
+                      <p>Smart Garage, Breakdown & Modification</p>
+                    </div>
+                  </div>
+                  <p>Email: autox.service@gmail.com</p>
+                  <p>Phone: +91 93287 64024</p>
+                  <p>Address: Ahmedabad, Gujarat, India</p>
                 </div>
                 <div className="invoice-title">
                   <h2>INVOICE</h2>
@@ -194,7 +214,7 @@ function PDFInvoiceGenerator() {
                 <div className="date-section">
                   <p><strong>Booking Date:</strong> {invoiceData.bookingDate}</p>
                   <p><strong>Completion Date:</strong> {invoiceData.completionDate}</p>
-                  <p><strong>Payment Status:</strong> <span className={`status-badge ${invoiceData.paymentStatus.toLowerCase()}`}>{invoiceData.paymentStatus}</span></p>
+                  <p><strong>Payment Status:</strong> <span className={`status-badge ${statusClass(invoiceData.paymentStatus)}`}>{invoiceData.paymentStatus}</span></p>
                 </div>
               </div>
 
@@ -213,7 +233,7 @@ function PDFInvoiceGenerator() {
                     <tr>
                       <td>{invoiceData.service.name}</td>
                       <td>{invoiceData.service.description}</td>
-                      <td>₹{invoiceData.subtotal.toFixed(2)}</td>
+                      <td>{formatINR(invoiceData.subtotal)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -223,22 +243,22 @@ function PDFInvoiceGenerator() {
               <div className="pricing-summary">
                 <div className="summary-row">
                   <span>Subtotal:</span>
-                  <span className="amount">₹{invoiceData.subtotal.toFixed(2)}</span>
+                  <span className="amount">{formatINR(invoiceData.subtotal)}</span>
                 </div>
                 <div className="summary-row">
                   <span>Tax (18% GST):</span>
-                  <span className="amount">₹{invoiceData.tax.toFixed(2)}</span>
+                  <span className="amount">{formatINR(invoiceData.tax)}</span>
                 </div>
                 <div className="summary-row total">
                   <span><strong>Total Amount:</strong></span>
-                  <span className="amount total-amount">₹{invoiceData.total.toFixed(2)}</span>
+                  <span className="amount total-amount">{formatINR(invoiceData.total)}</span>
                 </div>
               </div>
 
               {/* Additional Info */}
               <div className="invoice-footer">
-                <p>Thank you for your business!</p>
-                <p>For inquiries, please contact us at info@garageservices.com</p>
+                <p>Thank you for choosing AutoX.</p>
+                <p>For support, contact us at autox.service@gmail.com</p>
                 <div className="terms">
                   <p><strong>Payment Terms:</strong> Due upon receipt</p>
                   <p><strong>Warranty:</strong> 30 days from completion date</p>

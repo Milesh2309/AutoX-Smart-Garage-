@@ -248,7 +248,7 @@ function ServiceBooking() {
         status: 'Confirmed',
         paymentMethod: paymentDetails.method,
         paymentDate: new Date().toISOString(),
-        transactionId: `TXN${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+        transactionId: paymentDetails.transactionId || ''
       };
 
       const bookingPayload = {
@@ -263,6 +263,14 @@ function ServiceBooking() {
         timeSlot: formData.preferredTime,
         notes: formData.message,
         amount: Number(updatedBooking.amount),
+        paymentMethod: paymentDetails.method || 'Razorpay',
+        paymentStatus: paymentDetails.paymentStatus || 'Paid',
+        paymentDate: new Date().toISOString(),
+        transactionId: paymentDetails.transactionId || '',
+        razorpayOrderId: paymentDetails.razorpayOrderId || '',
+        razorpayPaymentId: paymentDetails.razorpayPaymentId || '',
+        razorpaySignature: paymentDetails.razorpaySignature || '',
+        invoiceNumber: paymentDetails.invoiceNumber || '',
       };
 
       const createResult = await createBooking(bookingPayload);
@@ -285,8 +293,15 @@ function ServiceBooking() {
         message: `Your ${selectedService.title} is scheduled for ${formData.preferredDate} at ${formData.preferredTime}`,
         icon: '✅',
       });
-      
+
+      const createdBookingId = createResult?.data?.id;
       setShowPayment(false);
+
+      if (createdBookingId) {
+        navigate(`/payment-success/${createdBookingId}`);
+        return;
+      }
+
       setSubmitted(true);
       setTimeout(() => {
         navigate('/services');

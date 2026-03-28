@@ -1,5 +1,5 @@
 const express = require('express');
-const { body } = require('express-validator');
+const { body, param } = require('express-validator');
 const router = express.Router();
 const paymentController = require('../controllers/paymentController');
 const validate = require('../middleware/validationMiddleware');
@@ -7,6 +7,14 @@ const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 
 router.get('/api/payments', authMiddleware, adminMiddleware, paymentController.getPayments);
+
+router.get(
+  '/payment-invoice/:booking_id',
+  authMiddleware,
+  param('booking_id').isInt({ gt: 0 }).withMessage('booking_id must be a positive integer'),
+  validate,
+  paymentController.getPaymentInvoice
+);
 
 router.post(
   '/create-payment',

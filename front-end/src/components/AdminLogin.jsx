@@ -6,7 +6,7 @@ import { usersApi } from '../utils/apiService';
 
 function AdminLogin() {
   const navigate = useNavigate();
-  const { login, loginWithOtp, requestLoginOtp, requestForgotPassword } = useAuth();
+  const { login, requestForgotPassword } = useAuth();
   const [formData, setFormData] = useState({
     identifier: '', // Can be email or username
     password: '',
@@ -22,13 +22,6 @@ function AdminLogin() {
   const [forgotErrors, setForgotErrors] = useState('');
   const [forgotSuccess, setForgotSuccess] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
-  
-  // OTP verification states for customer login
-  const [showOtpVerification, setShowOtpVerification] = useState(false);
-  const [userOtp, setUserOtp] = useState('');
-  const [otpError, setOtpError] = useState('');
-  const [tempCustomerEmail, setTempCustomerEmail] = useState('');
-  const [otpPreview, setOtpPreview] = useState('');
 
   // Detect login type based on input format
   const detectLoginType = (identifier) => {
@@ -118,89 +111,33 @@ function AdminLogin() {
 
     if (validateForm()) {
       setLoading(true);
-      const loginType = detectLoginType(formData.identifier);
 
       try {
-        if (loginType === 'admin') {
-          const adminEmail = formData.identifier.includes('@')
+        const loginType = detectLoginType(formData.identifier);
+        const emailToUse = loginType === 'customer'
+          ? await resolveCustomerEmail(formData.identifier)
+          : (formData.identifier.includes('@')
             ? formData.identifier
-            : `${formData.identifier}@autox.com`;
+            : `${formData.identifier}@autox.com`);
 
-          try {
-            const user = await login({
-              email: adminEmail,
-              password: formData.password,
-            });
-
-            setSuccess(true);
-            setTimeout(() => {
-              navigate(user?.role === 'admin' ? '/admin' : '/customer/dashboard', { replace: true });
-            }, 1200);
-          } catch (_adminError) {
-            const customerEmail = await resolveCustomerEmail(formData.identifier);
-            if (!customerEmail) {
-              throw _adminError;
-            }
-
-            const otpResponse = await requestLoginOtp(customerEmail);
-            setUserOtp('');
-            setOtpError('');
-            setTempCustomerEmail(customerEmail);
-            setOtpPreview(String(otpResponse?.otp || ''));
-            setShowOtpVerification(true);
-          }
-        } else {
-          const customerEmail = await resolveCustomerEmail(formData.identifier);
-          if (!customerEmail) {
-            throw new Error('Customer email not found. Please enter registered email.');
-          }
-
-          const otpResponse = await requestLoginOtp(customerEmail);
-          setUserOtp('');
-          setOtpError('');
-          setTempCustomerEmail(customerEmail);
-          setOtpPreview(String(otpResponse?.otp || ''));
-          setShowOtpVerification(true);
+        if (!emailToUse) {
+          throw new Error('User email not found. Please enter registered email.');
         }
+
+        const user = await login({
+          email: emailToUse,
+          password: formData.password,
+        });
+
+        setSuccess(true);
+        setTimeout(() => {
+          navigate(user?.role === 'admin' ? '/admin' : '/customer/dashboard', { replace: true });
+        }, 1200);
       } catch (error) {
         setLoginError(error?.message || 'Unable to login right now');
       } finally {
         setLoading(false);
       }
-    }
-  };
-
-  const handleOtpVerification = async (e) => {
-    e.preventDefault();
-    setOtpError('');
-
-    if (!userOtp.trim()) {
-      setOtpError('Please enter the OTP sent to your email');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await loginWithOtp({ email: tempCustomerEmail, otp: userOtp });
-      setSuccess(true);
-      setTimeout(() => {
-        navigate('/customer/dashboard', { replace: true });
-      }, 1200);
-    } catch (error) {
-      setOtpError(error?.message || 'Invalid OTP. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    try {
-      const otpResponse = await requestLoginOtp(tempCustomerEmail);
-      setUserOtp('');
-      setOtpError('');
-      setOtpPreview(String(otpResponse?.otp || ''));
-    } catch (error) {
-      setOtpError(error?.message || 'Failed to resend OTP');
     }
   };
 
@@ -436,105 +373,6 @@ function AdminLogin() {
         </div>
       )}
 
-      {/* OTP Verification Modal for Customer Login */}
-      {showOtpVerification && (
-        <div className="modal-backdrop" onClick={() => setShowOtpVerification(false)}>
-          <div className="forgot-password-modal" onClick={(e) => e.stopPropagation()}>
-            <button 
-              className="modal-close-btn" 
-              onClick={() => setShowOtpVerification(false)}
-            >
-              ✕
-            </button>
-            
-            <div className="forgot-password-header">
-              <h2>Verify Your Email</h2>
-              <p>We've sent a 6-digit OTP to your email address</p>
-            </div>
-
-            <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px', textAlign: 'center' }}>
-              <p><strong>📧 {tempCustomerEmail}</strong></p>
-              {otpPreview ? (
-                <p style={{ marginTop: '10px', color: '#b91c1c' }}>
-                  <strong>OTP: {otpPreview}</strong>
-                </p>
-              ) : null}
-            </div>
-
-            {otpError && (
-              <div className="error-banner" style={{ marginBottom: '15px' }}>
-                ⚠️ {otpError}
-              </div>
-            )}
-
-            <form onSubmit={handleOtpVerification} className="forgot-form">
-              <div className="form-group">
-                <label htmlFor="userOtp">Enter OTP *</label>
-                <input
-                  type="text"
-                  id="userOtp"
-                  value={userOtp}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-                    setUserOtp(value);
-                  }}
-                  placeholder="Enter 6-digit OTP"
-                  maxLength="6"
-                  className={otpError ? 'error' : ''}
-                  style={{ textAlign: 'center', fontSize: '18px', letterSpacing: '2px' }}
-                />
-                {(!userOtp || userOtp.length < 6) && (
-                  <small style={{ color: '#999', display: 'block', textAlign: 'center', marginTop: '8px' }}>
-                    Check your email for the OTP code
-                  </small>
-                )}
-              </div>
-
-              <button 
-                type="submit" 
-                className="submit-btn forgot-submit-btn"
-                disabled={loading || userOtp.trim().length < 4}
-                style={{
-                  opacity: (loading || userOtp.trim().length < 4) ? 0.5 : 1,
-                  cursor: (loading || userOtp.trim().length < 4) ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {loading ? 'Verifying...' : 'Verify & Login'}
-              </button>
-
-              <div style={{ textAlign: 'center', marginTop: '15px' }}>
-                <button 
-                  type="button"
-                  onClick={handleResendOtp}
-                  style={{ 
-                    background: 'none', 
-                    border: 'none', 
-                    color: '#1976d2', 
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    textDecoration: 'underline'
-                  }}
-                >
-                  Didn't receive OTP? Resend
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowOtpVerification(false);
-                  setUserOtp('');
-                  setOtpError('');
-                  setOtpPreview('');
-                }}
-                className="cancel-btn"
-              >
-                Back to Login
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

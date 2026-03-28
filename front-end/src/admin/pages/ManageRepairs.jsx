@@ -8,8 +8,15 @@ const toDisplayStatus = (status) => {
   const raw = String(status || '').toLowerCase();
   if (raw === 'success' || raw === 'paid' || raw === 'captured') return 'success';
   if (raw === 'failed' || raw === 'failure') return 'failed';
-  if (raw === 'pending' || raw === 'created') return 'failed';
-  return 'failed';
+  if (raw === 'pending' || raw === 'created' || raw === 'initiated') return 'pending';
+  return raw || 'pending';
+};
+
+const getStatusLabel = (status) => {
+  const value = String(status || '').toLowerCase();
+  if (value === 'success') return 'Success';
+  if (value === 'failed') return 'Failed';
+  return 'Pending';
 };
 
 function ManageRepairs() {
@@ -21,7 +28,7 @@ function ManageRepairs() {
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [counts, setCounts] = useState({ total: 0, success: 0, failed: 0 });
+  const [counts, setCounts] = useState({ total: 0, success: 0, failed: 0, pending: 0 });
 
   const loadPayments = async (pageOverride = page) => {
     try {
@@ -70,6 +77,7 @@ function ManageRepairs() {
         total: Number(result?.counts?.total || 0),
         success: Number(result?.counts?.success || 0),
         failed: Number(result?.counts?.failed || 0),
+        pending: Number(result?.counts?.pending || 0),
       });
 
       const normalized = records
@@ -99,7 +107,7 @@ function ManageRepairs() {
       setPayments([]);
       setTotalPages(1);
       setPage(1);
-      setCounts({ total: 0, success: 0, failed: 0 });
+      setCounts({ total: 0, success: 0, failed: 0, pending: 0 });
     } finally {
       setLoading(false);
     }
@@ -139,10 +147,7 @@ function ManageRepairs() {
       {
         accessorKey: 'status',
         header: 'Payment Status',
-        Cell: ({ cell }) => {
-          const value = String(cell.getValue() || '').toLowerCase();
-          return value === 'success' ? 'Success' : 'Failed';
-        },
+        Cell: ({ cell }) => getStatusLabel(cell.getValue()),
       },
       { accessorKey: 'dateTime', header: 'Date & Time' },
       {
@@ -177,6 +182,7 @@ function ManageRepairs() {
 
   const successCount = counts.success;
   const failedCount = counts.failed;
+  const pendingCount = Number(counts.pending || 0);
 
   return (
     <div className="admin-page">
@@ -192,6 +198,7 @@ function ManageRepairs() {
           {[
             { id: 'all', label: 'All', count: counts.total },
             { id: 'success', label: 'Success', count: successCount },
+            { id: 'pending', label: 'Pending', count: pendingCount },
             { id: 'failed', label: 'Failed', count: failedCount },
           ].map((status) => (
             <button
@@ -252,73 +259,61 @@ function ManageRepairs() {
       )}
 
       {selectedPayment && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.45)',
-            zIndex: 1200,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px',
-          }}
-          onClick={() => setSelectedPayment(null)}
-        >
-          <div
-            style={{
-              width: 'min(860px, 100%)',
-              maxHeight: '85vh',
-              overflow: 'auto',
-              padding: '16px',
-              border: '1px solid #e5e5e5',
-              borderRadius: '12px',
-              background: '#ffffff',
-            }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', color: '#dc2626' }}>Payment Details</h3>
+        <div className="payment-modal-overlay" onClick={() => setSelectedPayment(null)}>
+          <div className="payment-modal-card" onClick={(event) => event.stopPropagation()}>
+            <div className="payment-modal-header">
+              <h3>Payment Details</h3>
               <button
                 type="button"
+                className="payment-modal-close"
                 onClick={() => setSelectedPayment(null)}
-                style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer' }}
+                aria-label="Close payment details"
               >
                 ×
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
-              <div><strong>Transaction ID:</strong> {selectedPayment.transactionId}</div>
-              <div><strong>Order ID:</strong> {selectedPayment.orderId}</div>
-              <div><strong>Service:</strong> {selectedPayment.serviceName}</div>
-              <div><strong>Email:</strong> {selectedPayment.email}</div>
-              <div><strong>Amount:</strong> ₹{Number(selectedPayment.amount || 0).toLocaleString('en-IN')}</div>
-              <div><strong>Status:</strong> {selectedPayment.status === 'success' ? 'Success' : 'Failed'}</div>
-              <div><strong>Date & Time:</strong> {selectedPayment.dateTime}</div>
+            <div className="payment-detail-grid">
+              <div className="payment-detail-item payment-detail-item-wide">
+                <span className="payment-detail-label">Transaction ID</span>
+                <span className="payment-detail-value payment-detail-mono">{selectedPayment.transactionId || 'N/A'}</span>
+              </div>
+              <div className="payment-detail-item payment-detail-item-wide">
+                <span className="payment-detail-label">Order ID</span>
+                <span className="payment-detail-value payment-detail-mono">{selectedPayment.orderId || 'N/A'}</span>
+              </div>
+              <div className="payment-detail-item">
+                <span className="payment-detail-label">Service</span>
+                <span className="payment-detail-value">{selectedPayment.serviceName || 'N/A'}</span>
+              </div>
+              <div className="payment-detail-item">
+                <span className="payment-detail-label">Email</span>
+                <span className="payment-detail-value">{selectedPayment.email || 'N/A'}</span>
+              </div>
+              <div className="payment-detail-item">
+                <span className="payment-detail-label">Amount</span>
+                <span className="payment-detail-value">₹{Number(selectedPayment.amount || 0).toLocaleString('en-IN')}</span>
+              </div>
+              <div className="payment-detail-item">
+                <span className="payment-detail-label">Status</span>
+                <span className={`payment-status-badge status-${selectedPayment.status || 'pending'}`}>
+                  {getStatusLabel(selectedPayment.status)}
+                </span>
+              </div>
+              <div className="payment-detail-item payment-detail-item-wide">
+                <span className="payment-detail-label">Date and Time</span>
+                <span className="payment-detail-value">{selectedPayment.dateTime || 'N/A'}</span>
+              </div>
             </div>
 
-            <div style={{ marginTop: '12px' }}>
-              <strong>Signature:</strong>
-              <div style={{ marginTop: '4px', wordBreak: 'break-all' }}>{selectedPayment.signature || 'N/A'}</div>
+            <div className="payment-extra-block">
+              <div className="payment-extra-title">Signature</div>
+              <div className="payment-extra-content payment-detail-mono">{selectedPayment.signature || 'N/A'}</div>
             </div>
 
-            <div style={{ marginTop: '12px' }}>
-              <strong>Raw Response:</strong>
-              <pre
-                style={{
-                  marginTop: '6px',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  background: '#f7f7f7',
-                  border: '1px solid #ececec',
-                  maxHeight: '220px',
-                  overflow: 'auto',
-                  fontSize: '12px',
-                }}
-              >
-                {JSON.stringify(selectedPayment.rawResponse || {}, null, 2)}
-              </pre>
+            <div className="payment-extra-block">
+              <div className="payment-extra-title">Raw Response</div>
+              <pre className="payment-raw-json">{JSON.stringify(selectedPayment.rawResponse || {}, null, 2)}</pre>
             </div>
           </div>
         </div>
@@ -336,6 +331,10 @@ function ManageRepairs() {
         <div className="stat-item">
           <label>Failed</label>
           <span>{failedCount}</span>
+        </div>
+        <div className="stat-item">
+          <label>Pending</label>
+          <span>{pendingCount}</span>
         </div>
       </div>
     </div>

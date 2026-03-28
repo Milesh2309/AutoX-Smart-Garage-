@@ -31,6 +31,75 @@
   font-size: 14px;
 }
 
+.payment-success-invoice-card {
+  margin-bottom: 22px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f2fbf6 0%, #ecf8ff 100%);
+  border: 1px solid #bfe7cf;
+  box-shadow: 0 8px 22px rgba(9, 89, 42, 0.08);
+  padding: 18px;
+}
+
+.payment-success-invoice-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.payment-success-invoice-head h3 {
+  margin: 0;
+  color: #1a4f35;
+  font-size: 18px;
+}
+
+.payment-success-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: #27ae60;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 5px 10px;
+}
+
+.payment-success-message-line {
+  margin: 0 0 12px;
+  color: #2f5947;
+  font-size: 14px;
+}
+
+.payment-success-invoice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.payment-success-invoice-grid > div {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.payment-success-invoice-grid .label {
+  font-size: 12px;
+  color: #5e6d63;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.payment-success-invoice-grid .value {
+  font-size: 14px;
+  color: #1f2937;
+  font-weight: 600;
+  word-break: break-word;
+}
+
 /* Statistics Cards */
 .billing-statistics {
   display: grid;
@@ -326,6 +395,15 @@
 @media (max-width: 768px) {
   .customer-billing-history {
     padding: 15px;
+  }
+
+  .payment-success-invoice-card {
+    padding: 14px;
+  }
+
+  .payment-success-invoice-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .billing-statistics {

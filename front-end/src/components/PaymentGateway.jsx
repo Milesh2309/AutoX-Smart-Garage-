@@ -279,6 +279,7 @@ function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOp
                 service_name: serviceName,
                 email: user?.email || undefined,
                 amount: Number(amount),
+                booking_id: bookingId,
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
@@ -297,7 +298,10 @@ function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOp
               timestamp: new Date().toLocaleString(),
               transactionId: response.razorpay_payment_id,
               razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
+              invoiceNumber: verifyResult?.data?.invoice_number || '',
+              paymentStatus: 'Paid',
             };
 
             setProcessedPayment(true);
