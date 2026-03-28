@@ -5,6 +5,7 @@ import LazyImage from './LazyImage';
 
 function About() {
   const navigate = useNavigate();
+  const assetPath = (path) => encodeURI(path);
 
   const openCatalog = () => navigate('/service-catalog');
 
@@ -41,7 +42,7 @@ function About() {
           <figure className="about-media">
             <div className="about-media-img">
               <LazyImage
-                src="/img/web images/regular services/pexels-19x14-8478233.jpg"
+                src={assetPath('/img/web-images/regular-services/pexels-19x14-8478233.jpg')}
                 alt="Professional automotive car service"
                 aspectRatio="4/3"
                 priority={true}

@@ -12,7 +12,9 @@ const LazyImage = ({
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isInView, setIsInView] = useState(priority);
+  const [hasError, setHasError] = useState(false);
   const imgRef = useRef(null);
+  const normalizedSrc = typeof src === 'string' ? encodeURI(src) : src;
 
   useEffect(() => {
     if (priority) {
@@ -52,6 +54,11 @@ const LazyImage = ({
     if (onLoad) onLoad();
   };
 
+  const handleError = () => {
+    setHasError(true);
+    setIsLoaded(true);
+  };
+
   return (
     <div 
       ref={imgRef}
@@ -63,14 +70,15 @@ const LazyImage = ({
           <div className="lazy-image-skeleton"></div>
         </div>
       )}
-      {isInView && (
+      {isInView && !hasError && (
         <img
-          src={src}
+          src={normalizedSrc}
           alt={alt}
           loading={priority ? 'eager' : 'lazy'}
-          fetchpriority={priority ? 'high' : 'auto'}
+          fetchPriority={priority ? 'high' : 'auto'}
           decoding="async"
           onLoad={handleLoad}
+          onError={handleError}
           className={`lazy-image ${isLoaded ? 'loaded' : ''}`}
           {...props}
         />

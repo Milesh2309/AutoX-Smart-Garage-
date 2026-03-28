@@ -32,6 +32,12 @@ function Register() {
     }));
   };
 
+  React.useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      validateForm();
+    }
+  }, [formData]);
+
   const validateForm = () => {
     const newErrors = {};
 

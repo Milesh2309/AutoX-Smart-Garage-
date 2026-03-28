@@ -3,15 +3,17 @@ import './LoadingAnimation.css';
 
 const LoadingAnimation = ({ onComplete }) => {
   const [isVisible, setIsVisible] = useState(true);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const animationVideoSrc = '/img/web-images/animation/loading.mp4';
 
   useEffect(() => {
-    // Hide the loading animation after video ends or after 2 seconds (whichever comes first)
+    // Hide the loading animation after video ends or after a short timeout.
     const timer = setTimeout(() => {
       setIsVisible(false);
       if (onComplete) {
         onComplete();
       }
-    }, 2000); // Reduced duration for shorter animation
+    }, 2600);
 
     return () => clearTimeout(timer);
   }, [onComplete]);
@@ -28,15 +30,22 @@ const LoadingAnimation = ({ onComplete }) => {
   return (
     <div className="loading-animation-overlay">
       <div className="loading-video-container">
-        <video
-          autoPlay
-          muted
-          onEnded={handleVideoEnd}
-          className="loading-video"
-        >
-          <source src="/img/web images/animeson/WhatsApp Video 2026-01-28 at 2.01.48 PM.mp4" type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
+        {!videoFailed ? (
+          <video
+            autoPlay
+            playsInline
+            muted
+            onEnded={handleVideoEnd}
+            onError={() => setVideoFailed(true)}
+            className="loading-video"
+            preload="auto"
+          >
+            <source src={animationVideoSrc} type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        ) : (
+          <div className="loading-video-fallback">AUTOX</div>
+        )}
       </div>
     </div>
   );

@@ -2,6 +2,11 @@ const jwt = require('jsonwebtoken');
 const { getDB } = require('../config/db');
 const { ObjectId } = require('mongodb');
 
+const isTruthyVerificationValue = (value) => {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  return value === true || value === 1 || normalized === 'true' || normalized === '1' || normalized === 'active';
+};
+
 const auth = async (req, res, next) => {
   try {
 
@@ -31,10 +36,23 @@ const auth = async (req, res, next) => {
       });
     }
 
-    const status = String(user.status || '').trim().toLowerCase();
-    const hasStatusField = Boolean(String(user.status || '').trim());
-    const isActiveFlag = user.isActive;
-    const isAccountActive = (hasStatusField ? status === 'active' : true) && isActiveFlag !== false;
+    const role = String(user.role || '').trim().toLowerCase();
+    const hasStatusField = user.status !== undefined && user.status !== null && String(user.status).trim() !== '';
+    const hasIsActiveField = user.isActive !== undefined && user.isActive !== null;
+
+    const statusActive = isTruthyVerificationValue(user.status);
+    const isActiveFieldActive = isTruthyVerificationValue(user.isActive);
+
+    let isAccountActive = true;
+    if (role !== 'admin') {
+      if (hasStatusField && hasIsActiveField) {
+        isAccountActive = statusActive || isActiveFieldActive;
+      } else if (hasStatusField) {
+        isAccountActive = statusActive;
+      } else if (hasIsActiveField) {
+        isAccountActive = user.isActive !== false;
+      }
+    }
 
     if (!isAccountActive) {
       return res.status(401).json({
@@ -44,6 +62,7 @@ const auth = async (req, res, next) => {
     }
 
     delete user.password;
+    delete user.passwordHash;
 
     req.user = user;
 

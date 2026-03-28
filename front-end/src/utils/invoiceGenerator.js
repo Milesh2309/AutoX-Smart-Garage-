@@ -81,7 +81,7 @@ const drawBrandLogo = (doc, x, y, width, height) => {
 };
 
 const signatureImageSrc = encodeURI(
-  `${process.env.PUBLIC_URL || ''}/img/web images/logo/sign.png`
+  `${process.env.PUBLIC_URL || ''}/img/web-images/logo/sign.png`
 );
 
 let signatureImageEl = null;

@@ -9,6 +9,7 @@ function Services() {
   const { isAuthenticated } = useAuth();
   const [activeService, setActiveService] = useState(null);
   const [ctaNotice, setCtaNotice] = useState(null);
+  const assetPath = (path) => encodeURI(path);
 
   const services = [
     {
@@ -23,7 +24,7 @@ function Services() {
         "Battery health check",
         "Tire rotation & alignment"
       ],
-      image: "/img/web images/regular services/pexels-19x14-8478233.jpg"
+      image: assetPath('/img/web-images/regular-services/pexels-19x14-8478233.jpg')
     },
     {
       id: 2,
@@ -37,7 +38,7 @@ function Services() {
         "Fuel delivery service",
         "Towing assistance"
       ],
-      image: "/img/web images/break dwon/pexels-edurawpro-21831855.jpg"
+      image: assetPath('/img/web-images/breakdown/pexels-edurawpro-21831855.jpg')
     },
     {
       id: 3,
@@ -51,7 +52,7 @@ function Services() {
         "Lighting modifications",
         "Interior customization"
       ],
-      image: "/img/web images/modificasoin/pexels-bylukemiller-32725702.jpg"
+      image: assetPath('/img/web-images/modification/pexels-bylukemiller-32725702.jpg')
     },
     {
       id: 4,
@@ -65,7 +66,7 @@ function Services() {
         "Electrical diagnostics",
         "Body repair & painting"
       ],
-      image: "/img/web images/regular services/pexels-tami-19499386.jpg"
+      image: assetPath('/img/web-images/regular-services/pexels-tami-19499386.jpg')
     },
     {
       id: 5,
@@ -79,7 +80,7 @@ function Services() {
         "Lockout assistance",
         "Flat tire replacement"
       ],
-      image: "/img/web images/break dwon/pexels-a-q-91521018-18863497.jpg"
+      image: assetPath('/img/web-images/breakdown/pexels-a-q-91521018-18863497.jpg')
     },
     {
       id: 6,
@@ -93,7 +94,7 @@ function Services() {
         "Ceramic coating",
         "Odor removal treatment"
       ],
-      image: "/img/web images/regular services/pexels-artempodrez-8986139.jpg"
+      image: assetPath('/img/web-images/regular-services/pexels-artempodrez-8986139.jpg')
     },
     {
       id: 7,
@@ -107,7 +108,7 @@ function Services() {
         "Documentation verification",
         "Test drive evaluation"
       ],
-      image: "/img/web images/break dwon/pexels-jonathan-reynaga-861774-17429096.jpg"
+      image: assetPath('/img/web-images/breakdown/pexels-jonathan-reynaga-861774-17429096.jpg')
     },
     {
       id: 8,
@@ -121,7 +122,7 @@ function Services() {
         "Puncture repair",
         "Tire rotation"
       ],
-      image: "/img/web images/break dwon/pexels-mikebirdy-943930.jpg"
+      image: assetPath('/img/web-images/breakdown/pexels-mikebirdy-943930.jpg')
     }
   ];
 

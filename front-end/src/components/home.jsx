@@ -5,10 +5,13 @@ import './home.css';
 function Home() {
   const navigate = useNavigate();
 
+  const assetPath = (path) => encodeURI(path);
+
   const [expandedService, setExpandedService] = useState(null);
   const [clickEffect, setClickEffect] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [videoAvailable, setVideoAvailable] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   // Handle scroll to show/hide scroll-to-top button
@@ -26,12 +29,13 @@ function Home() {
 
   // Home page carousel images
   const heroImages = [
-    "/img/web images/regular services/pexels-19x14-8478233.jpg",
-    "/img/web images/regular services/pexels-lynxexotics-15489246.jpg",
-    "/img/web images/regular services/pexels-tami-19499386.jpg",
-    "/img/web images/break dwon/pexels-a-q-91521018-18863497.jpg",
-    "/img/web images/break dwon/pexels-edurawpro-21831855.jpg",
+    assetPath('/img/web-images/regular-services/pexels-19x14-8478233.jpg'),
+    assetPath('/img/web-images/regular-services/pexels-lynxexotics-15489246.jpg'),
+    assetPath('/img/web-images/regular-services/pexels-tami-19499386.jpg'),
+    assetPath('/img/web-images/breakdown/pexels-a-q-91521018-18863497.jpg'),
+    assetPath('/img/web-images/breakdown/pexels-edurawpro-21831855.jpg'),
   ];
+  const heroVideoSrc = assetPath('/img/web-images/animation/animeson.mp4');
 
   // Auto-rotate images every 5 seconds
   useEffect(() => {
@@ -239,16 +243,25 @@ function Home() {
         <div className="home">
           {/* Animated Hero Video Section */}
           <div className="hero-animation-section">
-            <video 
-              className="hero-animation-video"
-              autoPlay 
-              loop 
-              muted 
-              playsInline
-            >
-              <source src="/img/web images/animeson/animeson.mp4" type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
+            {videoAvailable ? (
+              <video
+                className="hero-animation-video"
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="metadata"
+                onError={() => setVideoAvailable(false)}
+              >
+                <source src={heroVideoSrc} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            ) : (
+              <div
+                className="hero-animation-fallback"
+                style={{ backgroundImage: `url('${heroImages[currentImageIndex]}')` }}
+              />
+            )}
             <div className="hero-animation-overlay">
               <h1 className="hero-animation-title">Welcome to AUTOX</h1>
               <p className="hero-animation-subtitle">Premium automotive services at your fingertips</p>
@@ -267,10 +280,14 @@ function Home() {
               src={heroImages[currentImageIndex]}
               alt="Professional automotive service"
               loading="eager"
-              fetchpriority="high"
+              fetchPriority="high"
               decoding="async"
               className="hero-slider-image"
               onLoad={() => setImageLoaded(true)}
+              onError={() => {
+                setImageLoaded(false);
+                setCurrentImageIndex((prevIndex) => (prevIndex + 1) % heroImages.length);
+              }}
             />
           </div>
           <div className="hero-image-dots">

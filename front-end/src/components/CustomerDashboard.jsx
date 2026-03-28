@@ -11,6 +11,7 @@ import { servicesApi, packagesApi, bookingApi, authApi, uploadApi, customerApi }
 import './CustomerDashboard.css';
 
 function CustomerDashboard() {
+    const assetPath = (path) => encodeURI(path);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
@@ -104,14 +105,14 @@ function CustomerDashboard() {
       const svcList = svcRes?.data || svcRes || [];
       // Preserve local images/icons as fallback
       const defaultImages = [
-        '/img/web images/regular services/pexels-19x14-8478233.jpg',
-        '/img/web images/break dwon/pexels-edurawpro-21831855.jpg',
-        '/img/web images/modificasoin/pexels-bylukemiller-32725702.jpg',
-        '/img/web images/regular services/pexels-tami-19499386.jpg',
-        '/img/web images/break dwon/pexels-a-q-91521018-18863497.jpg',
-        '/img/web images/regular services/pexels-artempodrez-8986139.jpg',
-        '/img/web images/break dwon/pexels-jonathan-reynaga-861774-17429096.jpg',
-        '/img/web images/break dwon/pexels-mikebirdy-943930.jpg',
+        assetPath('/img/web-images/regular-services/pexels-19x14-8478233.jpg'),
+        assetPath('/img/web-images/breakdown/pexels-edurawpro-21831855.jpg'),
+        assetPath('/img/web-images/modification/pexels-bylukemiller-32725702.jpg'),
+        assetPath('/img/web-images/regular-services/pexels-tami-19499386.jpg'),
+        assetPath('/img/web-images/breakdown/pexels-a-q-91521018-18863497.jpg'),
+        assetPath('/img/web-images/regular-services/pexels-artempodrez-8986139.jpg'),
+        assetPath('/img/web-images/breakdown/pexels-jonathan-reynaga-861774-17429096.jpg'),
+        assetPath('/img/web-images/breakdown/pexels-mikebirdy-943930.jpg'),
       ];
       setAllServices(svcList.map((s, i) => ({
         id: s._id || s.id || i + 1,

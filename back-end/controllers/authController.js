@@ -8,7 +8,44 @@ const sendEmail = require('../utils/sendEmail');
 
 const OTP_EXPIRY_MINUTES = 5;
 
-const isEmailVerified = (status) => status === true || String(status).toLowerCase() === 'true';
+const isTruthyVerificationValue = (value) => {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  return value === true || value === 1 || normalized === 'true' || normalized === '1' || normalized === 'active';
+};
+
+const isEmailVerified = (user) => {
+  if (!user) return false;
+
+  // Admins may be seeded without OTP flow, so allow them to log in.
+  if (String(user.role || '').toLowerCase() === 'admin') {
+    return true;
+  }
+
+  return isTruthyVerificationValue(user.status) || isTruthyVerificationValue(user.isActive);
+};
+
+const isBcryptHash = (value) => /^\$2[aby]\$\d{2}\$/.test(String(value || ''));
+const escapeRegex = (value) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const verifyPassword = async (plainPassword, storedPassword) => {
+  if (!plainPassword || !storedPassword) {
+    return { isValid: false, shouldMigrate: false };
+  }
+
+  const stored = String(storedPassword);
+  if (isBcryptHash(stored)) {
+    return {
+      isValid: await bcrypt.compare(plainPassword, stored),
+      shouldMigrate: false,
+    };
+  }
+
+  const plainMatch = plainPassword === stored;
+  return {
+    isValid: plainMatch,
+    shouldMigrate: plainMatch,
+  };
+};
 
 const buildOtpEmailTemplate = (name, otp) => {
   const safeName = String(name || 'Customer').trim();
@@ -105,11 +142,22 @@ const createUniqueUsername = async (db, email, fallbackName = 'user') => {
 const findUserForLogin = async (db, identifier) => {
   if (!identifier) return null;
   const trimmed = String(identifier).trim();
+  const safeIdentifier = escapeRegex(trimmed);
 
   let user = await db.collection('users').findOne({ email: trimmed.toLowerCase() });
   if (user) return user;
 
+  // Backward compatibility for legacy records with case-sensitive email storage.
+  user = await db.collection('users').findOne({ email: { $regex: `^${safeIdentifier}$`, $options: 'i' } });
+  if (user) return user;
+
   user = await db.collection('users').findOne({ username: trimmed });
+  if (user) return user;
+
+  user = await db.collection('users').findOne({ username: { $regex: `^${safeIdentifier}$`, $options: 'i' } });
+  if (user) return user;
+
+  user = await db.collection('users').findOne({ phone: trimmed });
   if (user) return user;
 
   if (trimmed.includes('@')) {
@@ -136,20 +184,34 @@ const loginUser = async (req, res, next) => {
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const storedPassword = user.password || user.passwordHash;
+    const passwordCheck = await verifyPassword(password, storedPassword);
 
-    if (!isMatch) {
+    if (!passwordCheck.isValid) {
       return res.status(400).json({
         success: false,
         message: "Invalid username or password"
       });
     }
 
-    if (!isEmailVerified(user.status)) {
+    if (!isEmailVerified(user)) {
       return res.status(403).json({
         success: false,
         message: 'Please verify your email'
       });
+    }
+
+    // Migrate old plaintext passwords (seeded/test data) to bcrypt after first successful login.
+    if (passwordCheck.shouldMigrate) {
+      const migratedHash = await bcrypt.hash(password, 10);
+      await db.collection('users').updateOne(
+        { _id: user._id },
+        {
+          $set: { password: migratedHash, passwordHash: migratedHash, updatedAt: new Date() },
+        }
+      );
+      user.password = migratedHash;
+      user.passwordHash = migratedHash;
     }
 
     const refreshToken = generateRefreshToken(user);
@@ -242,6 +304,7 @@ const createRegister = async (req, res, next) => {
       address,
       pincode,
       status: false,
+      isActive: false,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -358,6 +421,8 @@ const verifyOtp = async (req, res, next) => {
       {
         $set: {
           status: true,
+          isActive: true,
+          emailVerifiedAt: new Date(),
           updatedAt: new Date(),
         },
         $unset: {

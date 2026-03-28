@@ -121,7 +121,33 @@ router.post(
 );
 
 router.post(
+  '/auth/login/send-otp',
+
+  body('email')
+    .notEmpty().withMessage('Email is required')
+    .isEmail().withMessage('Valid email is required'),
+
+  validate,
+  authController.sendOtp
+);
+
+router.post(
   '/verify-otp',
+
+  body('email')
+    .notEmpty().withMessage('Email is required')
+    .isEmail().withMessage('Valid email is required'),
+
+  body('otp')
+    .notEmpty().withMessage('OTP is required')
+    .isLength({ min: 4, max: 6 }).withMessage('OTP must be 4 to 6 digits'),
+
+  validate,
+  authController.verifyOtp
+);
+
+router.post(
+  '/auth/login/verify-otp',
 
   body('email')
     .notEmpty().withMessage('Email is required')

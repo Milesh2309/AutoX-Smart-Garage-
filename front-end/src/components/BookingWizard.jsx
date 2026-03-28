@@ -3,8 +3,7 @@ import './BookingWizard.css';
 import { useBookings } from '../context';
 import { useAuth } from '../context/AuthContext';
 import { vehiclesApi } from '../utils/apiService';
-
-const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
+import { postPaymentRequest } from '../utils/paymentRequest';
 
 const loadRazorpayScript = () =>
   new Promise((resolve) => {
@@ -353,22 +352,11 @@ const BookingWizard = () => {
         throw new Error('Unable to load Razorpay checkout script');
       }
 
-      const createPaymentResponse = await fetch(`${API_BASE_URL}/create-payment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          service_name: bookingData.serviceName,
-          email: user?.email || undefined,
-          amount,
-        }),
+      const createPaymentResult = await postPaymentRequest('/create-payment', {
+        service_name: bookingData.serviceName,
+        email: user?.email || undefined,
+        amount,
       });
-
-      const createPaymentResult = await createPaymentResponse.json();
-      if (!createPaymentResponse.ok || !createPaymentResult?.success) {
-        throw new Error(createPaymentResult?.message || 'Failed to create payment order');
-      }
 
       const orderData = createPaymentResult.data;
 
@@ -386,25 +374,14 @@ const BookingWizard = () => {
         },
         handler: async (response) => {
           try {
-            const verifyResponse = await fetch(`${API_BASE_URL}/verify-payment`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                service_name: bookingData.serviceName,
-                email: user?.email || undefined,
-                amount,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              }),
+            const verifyResult = await postPaymentRequest('/verify-payment', {
+              service_name: bookingData.serviceName,
+              email: user?.email || undefined,
+              amount,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
             });
-
-            const verifyResult = await verifyResponse.json();
-            if (!verifyResponse.ok || !verifyResult?.success) {
-              throw new Error(verifyResult?.message || 'Payment verification failed');
-            }
 
             const bookingId = await submitBooking(response);
             alert(`Payment successful and booking confirmed! Booking ID: ${bookingId}`);

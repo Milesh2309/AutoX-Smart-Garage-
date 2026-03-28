@@ -1,9 +1,19 @@
 import React, { useState } from 'react';
 import { useAuth, usePayments } from '../context';
 import InvoiceGenerator from './InvoiceGenerator';
+import { postPaymentRequest } from '../utils/paymentRequest';
 import './PaymentGateway.css';
 
-const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
+const toPaymentErrorMessage = (error) => {
+  const raw = String(error?.message || '').trim();
+  if (!raw) return 'Unable to start payment';
+
+  if (raw.toLowerCase().includes('failed to fetch')) {
+    return 'Unable to connect to payment server. Please ensure backend is running at http://localhost:5000.';
+  }
+
+  return raw;
+};
 
 const loadRazorpayScript = () =>
   new Promise((resolve) => {
@@ -237,22 +247,11 @@ function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOp
         throw new Error('Unable to load Razorpay checkout script');
       }
 
-      const createPaymentResponse = await fetch(`${API_BASE_URL}/create-payment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          service_name: serviceName,
-          email: user?.email || undefined,
-          amount: Number(amount),
-        }),
+      const createPaymentResult = await postPaymentRequest('/create-payment', {
+        service_name: serviceName,
+        email: user?.email || undefined,
+        amount: Number(amount),
       });
-
-      const createPaymentResult = await createPaymentResponse.json();
-      if (!createPaymentResponse.ok || !createPaymentResult?.success) {
-        throw new Error(createPaymentResult?.message || 'Failed to create payment order');
-      }
 
       const orderData = createPaymentResult.data;
 
@@ -270,26 +269,15 @@ function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOp
         },
         handler: async (response) => {
           try {
-            const verifyResponse = await fetch(`${API_BASE_URL}/verify-payment`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                service_name: serviceName,
-                email: user?.email || undefined,
-                amount: Number(amount),
-                booking_id: bookingId,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              }),
+            const verifyResult = await postPaymentRequest('/verify-payment', {
+              service_name: serviceName,
+              email: user?.email || undefined,
+              amount: Number(amount),
+              booking_id: bookingId,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
             });
-
-            const verifyResult = await verifyResponse.json();
-            if (!verifyResponse.ok || !verifyResult?.success) {
-              throw new Error(verifyResult?.message || 'Payment verification failed');
-            }
 
             const completePaymentData = {
               method: 'Razorpay',
@@ -312,7 +300,7 @@ function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOp
               onPaymentComplete(completePaymentData);
             }
           } catch (verifyError) {
-            alert(verifyError.message || 'Payment verification failed');
+            alert(toPaymentErrorMessage(verifyError) || 'Payment verification failed');
           } finally {
             setIsProcessing(false);
           }
@@ -333,7 +321,7 @@ function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOp
       razorpay.open();
     } catch (error) {
       setIsProcessing(false);
-      alert(error.message || 'Unable to start payment');
+      alert(toPaymentErrorMessage(error));
     }
   };
 
