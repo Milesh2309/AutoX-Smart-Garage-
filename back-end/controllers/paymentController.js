@@ -302,6 +302,8 @@ const verifyPayment = async (req, res, next) => {
             razorpaySignature: String(razorpaySignature),
             invoiceNumber: generatedInvoiceNumber,
             paymentMethod: 'Razorpay',
+            status: 'confirmed',
+            updatedAt: new Date().toISOString(),
           },
         }
       );
@@ -349,6 +351,8 @@ const verifyPayment = async (req, res, next) => {
       data: {
         ...savedPayment,
         invoice_number: generatedInvoiceNumber,
+        booking: bookingDetails || null,
+        booking_id: parsedBookingId || null,
       },
     });
   } catch (error) {

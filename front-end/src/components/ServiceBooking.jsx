@@ -162,7 +162,7 @@ function ServiceBooking() {
     }
   ];
 
-  // Fetch service: try API first, fallback to hardcoded list
+  // Fetch service: try API first, fallback to hardcoded list, then generic service
   useEffect(() => {
     let active = true;
     const loadService = async () => {
@@ -183,15 +183,37 @@ function ServiceBooking() {
           setServiceLoading(false);
           return;
         }
-      } catch {
-        // API call failed, try hardcoded
+      } catch (err) {
+        // API call failed, try hardcoded list
+        console.warn(`Service API call failed for serviceId: ${serviceId}`, err);
       }
 
       // Fallback: match by numeric id in hardcoded list
       const numId = parseInt(serviceId, 10);
       const local = fallbackServices.find(s => s.id === numId);
+      if (local && active) {
+        setSelectedService(local);
+        setServiceLoading(false);
+        return;
+      }
+
+      // Last resort: create a generic service from the params
       if (active) {
-        setSelectedService(local || null);
+        const genericService = {
+          id: serviceId,
+          title: 'Vehicle Service Booking',
+          icon: '🚗',
+          price: 2499,
+          gst: 450,
+          description: 'Professional vehicle service including inspection, maintenance, and repairs.',
+          features: [
+            'Professional technician service',
+            'Quality workmanship',
+            'Timely completion',
+            'Customer satisfaction guaranteed'
+          ]
+        };
+        setSelectedService(genericService);
         setServiceLoading(false);
       }
     };
@@ -206,54 +228,17 @@ function ServiceBooking() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Create booking object
-    const booking = {
-      id: Date.now(),
-      customer: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      service: selectedService.title,
-      vehicleNumber: formData.vehicle,
-      date: formData.preferredDate,
-      time: formData.preferredTime,
-      message: formData.message,
-      status: 'Pending Payment',
-      amount: String(selectedService.price + selectedService.gst),
-      servicePrice: selectedService.price,
-      gst: selectedService.gst,
-      serviceId: parseInt(serviceId),
-      createdAt: new Date().toISOString()
-    };
-
-    setBookingData(booking);
-    setShowPayment(true);
-    
-    // Add notification for booking initiation
-    addNotification({
-      type: 'booking',
-      title: 'Booking Initiated',
-      message: `${selectedService.title} booking created. Please complete payment.`,
-      icon: '📋',
-    });
-  };
-
-  const handlePaymentComplete = async (paymentDetails) => {
-    if (bookingData) {
-      // Update booking status
-      const updatedBooking = {
-        ...bookingData,
-        status: 'Confirmed',
-        paymentMethod: paymentDetails.method,
-        paymentDate: new Date().toISOString(),
-        transactionId: paymentDetails.transactionId || ''
-      };
-
+    try {
+      // Create booking in backend FIRST with pending status
+      // Keep serviceId as string if it's not numeric (could be MongoDB ObjectId)
+      const parsedServiceId = isNaN(Number(serviceId)) ? serviceId : Number(serviceId);
+      
       const bookingPayload = {
         userId: user?.id,
-        serviceId: Number(serviceId),
+        serviceId: parsedServiceId,
         serviceName: selectedService.title,
         customerName: formData.name,
         email: formData.email,
@@ -262,28 +247,64 @@ function ServiceBooking() {
         date: formData.preferredDate,
         timeSlot: formData.preferredTime,
         notes: formData.message,
-        amount: Number(updatedBooking.amount),
-        paymentMethod: paymentDetails.method || 'Razorpay',
-        paymentStatus: paymentDetails.paymentStatus || 'Paid',
-        paymentDate: new Date().toISOString(),
-        transactionId: paymentDetails.transactionId || '',
-        razorpayOrderId: paymentDetails.razorpayOrderId || '',
-        razorpayPaymentId: paymentDetails.razorpayPaymentId || '',
-        razorpaySignature: paymentDetails.razorpaySignature || '',
-        invoiceNumber: paymentDetails.invoiceNumber || '',
+        amount: Number(selectedService.price + selectedService.gst),
+        paymentMethod: 'Razorpay',
+        paymentStatus: 'Pending',
+        status: 'pending',
       };
 
       const createResult = await createBooking(bookingPayload);
+      
       if (!createResult.success) {
-        alert(`Booking failed: ${createResult.error}`);
+        addNotification({
+          type: 'error',
+          title: 'Booking Failed',
+          message: `Could not create booking: ${createResult.error}`,
+          icon: '❌',
+        });
         return;
       }
+
+      const createdBooking = createResult?.data;
+      setBookingData(createdBooking);
+      setShowPayment(true);
       
-      // Add notifications for successful booking and payment
+      // Add notification for booking initiation
+      addNotification({
+        type: 'booking',
+        title: 'Booking Initiated',
+        message: `${selectedService.title} booking created. Please complete payment.`,
+        icon: '📋',
+      });
+    } catch (error) {
+      addNotification({
+        type: 'error',
+        title: 'Booking Failed',
+        message: error.message || 'Could not create booking',
+        icon: '❌',
+      });
+    }
+  };
+
+  const handlePaymentComplete = async (paymentDetails) => {
+    if (!bookingData?.id) {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Booking data is missing',
+        icon: '❌',
+      });
+      return;
+    }
+
+    try {
+      // Payment is already verified and booking is updated on the backend
+      // Just notify the user and redirect
+      
       addNotification({
         type: 'payment',
         title: 'Payment Successful',
-        message: `Payment of ₹${updatedBooking.amount} processed successfully`,
+        message: `Payment of ₹${paymentDetails.amount} processed successfully`,
         icon: '💳',
       });
       
@@ -294,18 +315,20 @@ function ServiceBooking() {
         icon: '✅',
       });
 
-      const createdBookingId = createResult?.data?.id;
       setShowPayment(false);
-
-      if (createdBookingId) {
-        navigate(`/payment-success/${createdBookingId}`);
-        return;
-      }
-
       setSubmitted(true);
+
+      // Redirect to payment success page
       setTimeout(() => {
-        navigate('/services');
-      }, 3000);
+        navigate(`/payment-success/${bookingData.id}`);
+      }, 1500);
+    } catch (error) {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.message || 'Could not complete booking',
+        icon: '❌',
+      });
     }
   };
 
@@ -528,6 +551,7 @@ function ServiceBooking() {
         amount={selectedService.price + selectedService.gst}
         serviceName={selectedService.title}
         isOpen={showPayment}
+        bookingId={bookingData?.id}
         onPaymentComplete={handlePaymentComplete}
         onCancel={() => setShowPayment(false)}
       />

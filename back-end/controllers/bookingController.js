@@ -4,13 +4,23 @@ const { upsertVehicleRecord } = require('./vehicleController');
 const resolveAuthUserFilter = (authUser = {}) => {
   const numericId = Number(authUser?.userId ?? authUser?.id);
   const objectIdText = String(authUser?._id || '').trim();
+  const emailText = String(authUser?.email || '').trim();
 
   const candidates = [];
-  if (Number.isFinite(numericId)) {
+  
+  // Match by numeric userId
+  if (Number.isFinite(numericId) && numericId > 0) {
     candidates.push({ userId: numericId }, { userId: String(numericId) });
   }
+  
+  // Match by MongoDB ObjectId (_id)
   if (objectIdText) {
     candidates.push({ userObjectId: objectIdText }, { userId: objectIdText });
+  }
+  
+  // Match by email (case-insensitive)
+  if (emailText) {
+    candidates.push({ email: { $regex: `^${emailText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' } });
   }
 
   if (!candidates.length) return {};
@@ -189,12 +199,18 @@ const createBooking = async (req, res, next) => {
     const currentUserId = Number(req.user.userId) || null;  // Numeric ID (may be null for older users)
     const currentUserObjectId = String(req.user._id || '').trim();  // MongoDB ObjectId
     
+    // Handle serviceId - could be numeric or string (MongoDB ObjectId)
+    const parsedServiceId = (() => {
+      const numServiceId = Number(serviceId);
+      return !isNaN(numServiceId) && serviceId !== '' ? numServiceId : serviceId;
+    })();
+    
     const booking = {
       id: await getNextBookingId(db),
       userId: currentUserId,
       user_id: currentUserId,
       userObjectId: currentUserObjectId,
-      serviceId: Number(serviceId),
+      serviceId: parsedServiceId,
       serviceName: serviceName || '',
       scheduledAt,
       notes,
@@ -276,11 +292,18 @@ const createBookingPublic = async (req, res, next) => {
     } = req.body;
 
     const db = getDB();
+    
+    // Handle serviceId - could be numeric or string (MongoDB ObjectId)
+    const parsedServiceId = (() => {
+      const numServiceId = Number(serviceId);
+      return !isNaN(numServiceId) && serviceId !== '' ? numServiceId : serviceId;
+    })();
+    
     const booking = {
       id: await getNextBookingId(db),
       userId: userId ? Number(userId) : null,
       user_id: userId ? Number(userId) : null,
-      serviceId: serviceId ? Number(serviceId) : null,
+      serviceId: parsedServiceId,
       serviceName,
       customerName,
       email,

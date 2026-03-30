@@ -101,7 +101,18 @@ router.get(
 router.post(
   '/bookings',
   authMiddleware,
-  body('serviceId').isInt({ gt: 0 }).withMessage('serviceId must be a positive integer'),
+  body('serviceId')
+    .notEmpty().withMessage('serviceId is required')
+    .custom((value) => {
+      // Allow numeric IDs or MongoDB ObjectIds (24-char hex strings)
+      const numVal = Number(value);
+      const isNumeric = !isNaN(numVal) && value !== '';
+      const isObjectId = /^[a-f0-9]{24}$/i.test(String(value));
+      if (!isNumeric && !isObjectId) {
+        throw new Error('serviceId must be a positive number or valid MongoDB ObjectId');
+      }
+      return true;
+    }),
   body('scheduledAt').notEmpty().withMessage('scheduledAt is required'),
   validate,
   bookingController.createBooking

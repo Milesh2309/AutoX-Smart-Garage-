@@ -294,6 +294,46 @@ function ManageBilling() {
     });
   };
 
+  const handleShareInvoice = async (record) => {
+    const invoiceNumber = record?.invoiceNumber || 'N/A';
+    const customerName = record?.customerDetails?.name || 'Customer';
+    const vehicleNumber = record?.vehicleDetails?.number || 'N/A';
+    const totalAmount = Number(record?.finalTotal || record?.totalAmount || 0).toFixed(2);
+    const invoiceDate = record?.createdAt
+      ? new Date(record.createdAt).toLocaleDateString('en-IN')
+      : 'N/A';
+
+    const shareText = [
+      `Invoice: ${invoiceNumber}`,
+      `Customer: ${customerName}`,
+      `Vehicle: ${vehicleNumber}`,
+      `Amount: INR ${totalAmount}`,
+      `Date: ${invoiceDate}`,
+    ].join('\n');
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `Invoice ${invoiceNumber}`,
+          text: shareText,
+        });
+        return;
+      }
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareText);
+        alert('Invoice details copied to clipboard.');
+        return;
+      }
+
+      alert('Sharing is not supported on this browser.');
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        alert('Unable to share invoice right now.');
+      }
+    }
+  };
+
   return (
     <div className="manage-billing">
       <div className="billing-page-header">
@@ -579,6 +619,7 @@ function ManageBilling() {
                         <button className="btn-action btn-view" onClick={() => setSelectedInvoice(record)}>View</button>
                         <button className="btn-action btn-edit" onClick={() => handleEditBill(record)}>Edit</button>
                         <button className="btn-action btn-download" onClick={() => handleDownloadInvoice(record)}>PDF</button>
+                        <button className="btn-action btn-share" onClick={() => handleShareInvoice(record)}>Share</button>
                       </div>
                     </div>
                   ))}
@@ -610,6 +651,7 @@ function ManageBilling() {
             </div>
             <div className="modal-actions">
               <button className="btn-secondary" onClick={() => handleDownloadInvoice(selectedInvoice)}>Download PDF</button>
+              <button className="btn-primary" onClick={() => handleShareInvoice(selectedInvoice)}>Share Invoice</button>
             </div>
           </div>
         </div>

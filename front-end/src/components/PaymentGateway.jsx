@@ -269,6 +269,12 @@ function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOp
         },
         handler: async (response) => {
           try {
+            console.log('Payment successful from Razorpay:', {
+              orderId: response.razorpay_order_id,
+              paymentId: response.razorpay_payment_id,
+              bookingId: bookingId,
+            });
+
             const verifyResult = await postPaymentRequest('/verify-payment', {
               service_name: serviceName,
               email: user?.email || undefined,
@@ -278,6 +284,8 @@ function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOp
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
             });
+
+            console.log('Payment verification successful:', verifyResult);
 
             const completePaymentData = {
               method: 'Razorpay',
@@ -300,6 +308,7 @@ function PaymentGateway({ amount, serviceName, onPaymentComplete, onCancel, isOp
               onPaymentComplete(completePaymentData);
             }
           } catch (verifyError) {
+            console.error('Payment verification error:', verifyError);
             alert(toPaymentErrorMessage(verifyError) || 'Payment verification failed');
           } finally {
             setIsProcessing(false);

@@ -122,7 +122,12 @@ export const useBookings = () => {
 
       const response = hasToken
         ? await bookingApi.createAuthenticated({
-            serviceId: Number(bookingData?.serviceId || 0),
+            serviceId: (() => {
+              const sid = bookingData?.serviceId;
+              // Try to convert to number, but fall back to string if not numeric
+              const numSid = Number(sid);
+              return !isNaN(numSid) && sid !== '' ? numSid : (sid || 0);
+            })(),
             serviceName: bookingData?.serviceName || '',
             scheduledAt: resolveScheduledAt() || new Date().toISOString(),
             notes: bookingData?.notes || bookingData?.message || bookingData?.specialInstructions || '',
