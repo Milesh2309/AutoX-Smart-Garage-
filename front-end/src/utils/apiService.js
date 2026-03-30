@@ -33,6 +33,12 @@ export const customerApi = {
   invoices: () => apiGet('/customer/invoices'),
 };
 
+/* ─── Reviews ─── */
+export const reviewsApi = {
+  listReviewable: () => apiGet('/customer/ratings/reviewables'),
+  submit: (payload) => apiPost('/customer/ratings', payload),
+};
+
 /* ─── Billing ─── */
 export const billingApi = {
   create: (payload) => apiPost('/api/billing/create', payload),

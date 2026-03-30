@@ -39,6 +39,7 @@ const packageRoutes = require('./routes/packageRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const mechanicRoutes = require('./routes/mechanicRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 const authMiddleware = require('./middleware/authMiddleware');
 const bookingController = require('./controllers/bookingController');
 const billingController = require('./controllers/billingController');
@@ -64,6 +65,7 @@ app.use('/', packageRoutes);
 app.use('/', uploadRoutes);
 app.use('/', mechanicRoutes);
 app.use('/', paymentRoutes);
+app.use('/', reviewRoutes);
 
 // Customer dashboard aliases
 app.get('/customer/bookings', authMiddleware, bookingController.getMyBookings);

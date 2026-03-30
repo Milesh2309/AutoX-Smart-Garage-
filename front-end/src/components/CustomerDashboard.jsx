@@ -7,7 +7,7 @@ import PaymentGateway from './PaymentGateway';
 import CustomerBillingHistory from './CustomerBillingHistory';
 import BookingWizard from './BookingWizard';
 import BreakdownCall from './BreakdownCall';
-import { servicesApi, packagesApi, bookingApi, authApi, uploadApi, customerApi } from '../utils/apiService';
+import { servicesApi, packagesApi, bookingApi, authApi, uploadApi, customerApi, analyticsApi, mechanicsApi, reviewsApi } from '../utils/apiService';
 import './CustomerDashboard.css';
 
 function CustomerDashboard() {
@@ -91,9 +91,30 @@ function CustomerDashboard() {
   const [loadingData, setLoadingData] = useState(true);
   const [apiErrors, setApiErrors] = useState({});
   const [recentPaymentSuccess, setRecentPaymentSuccess] = useState(null);
+  const [ratingInsights, setRatingInsights] = useState({
+    adminSources: [],
+    averageRating: 0,
+    totalRatedItems: 0,
+  });
+  const [reviewableBookings, setReviewableBookings] = useState([]);
+  const [selectedReviewBookingId, setSelectedReviewBookingId] = useState('');
+  const [pendingRating, setPendingRating] = useState(0);
+  const [pendingComment, setPendingComment] = useState('');
+  const [ratingSubmitState, setRatingSubmitState] = useState({ loading: false, message: '', type: '' });
 
   // Load data from APIs
   const loadDashboardData = useCallback(async () => {
+    let ratingSources = [];
+    let weightedRatingSum = 0;
+    let weightedRatingCount = 0;
+
+    const addRatingSource = (source) => {
+      if (!source || source.total <= 0) return;
+      ratingSources.push(source);
+      weightedRatingSum += Number(source.average || 0) * Number(source.total || 0);
+      weightedRatingCount += Number(source.total || 0);
+    };
+
     try {
       setLoadingData(true);
       setApiErrors({});
@@ -170,6 +191,28 @@ function CustomerDashboard() {
 
       console.log('✅ Parsed bookings:', { allBookings, historyBookings });
 
+      const historyRatings = historyBookings
+        .filter((item) => Number(item?.rating) > 0)
+        .map((item) => ({
+          id: item._id || item.id,
+          label: item.serviceName || item.service || 'Service',
+          rating: Number(item.rating),
+          meta: item.date || (item.scheduledAt ? new Date(item.scheduledAt).toISOString().split('T')[0] : ''),
+        }));
+
+      if (historyRatings.length > 0) {
+        const avgHistoryRating = historyRatings.reduce((sum, item) => sum + item.rating, 0) / historyRatings.length;
+        addRatingSource({
+          id: 'service-history-ratings',
+          title: 'Rated Services',
+          subtitle: 'Ratings found in your completed service history',
+          average: Number(avgHistoryRating.toFixed(1)),
+          total: historyRatings.length,
+          type: 'list',
+          items: historyRatings.slice(0, 8),
+        });
+      }
+
       // Set completed bookings as service history
       setServiceHistory(historyBookings.map(b => ({
         id: b._id || b.id,
@@ -202,6 +245,113 @@ function CustomerDashboard() {
       // Set empty arrays on error so UI shows "No data found"
       setServiceHistory([]);
       setUpcomingBookings([]);
+    }
+
+    try {
+      const satRes = await analyticsApi.customerSatisfaction();
+      const sat = satRes?.data || satRes || {};
+      const totalReviews = Number(sat.totalReviews || 0);
+      const average = Number(sat.avgRating || sat.averageRating || 0);
+      const distribution = Array.isArray(sat.ratings)
+        ? sat.ratings
+        : Object.entries(sat.ratingDistribution || {}).map(([star, count]) => ({
+            rating: `${star} Star`,
+            count,
+          }));
+
+      if (totalReviews > 0 || distribution.length > 0) {
+        addRatingSource({
+          id: 'customer-satisfaction',
+          title: 'Customer Satisfaction',
+          subtitle: 'Live review analytics used in Admin dashboard',
+          average: Number(average.toFixed(1)),
+          total: Math.max(totalReviews, distribution.reduce((sum, item) => sum + Number(item?.count || 0), 0)),
+          type: 'distribution',
+          items: distribution,
+        });
+      }
+    } catch (error) {
+      console.warn('⚠️ Customer satisfaction API (optional):', error?.message || error);
+    }
+
+    try {
+      const mechanicsRes = await mechanicsApi.list();
+      const mechanics = Array.isArray(mechanicsRes?.data)
+        ? mechanicsRes.data
+        : Array.isArray(mechanicsRes)
+        ? mechanicsRes
+        : [];
+
+      const mechanicRatings = mechanics
+        .filter((m) => Number(m?.rating) > 0)
+        .map((m) => ({
+          id: m._id || m.id,
+          label: m.name || 'Mechanic',
+          rating: Number(m.rating),
+          meta: m.expertise || m.status || 'AutoX mechanic',
+        }))
+        .sort((a, b) => b.rating - a.rating);
+
+      if (mechanicRatings.length > 0) {
+        const avgMechanicRating = mechanicRatings.reduce((sum, item) => sum + item.rating, 0) / mechanicRatings.length;
+        addRatingSource({
+          id: 'mechanic-ratings',
+          title: 'Mechanic Ratings',
+          subtitle: 'Dynamic ratings currently configured in Admin → Mechanics',
+          average: Number(avgMechanicRating.toFixed(1)),
+          total: mechanicRatings.length,
+          type: 'list',
+          items: mechanicRatings.slice(0, 8),
+        });
+      }
+    } catch (error) {
+      console.warn('⚠️ Mechanics API (optional):', error?.message || error);
+    }
+
+    try {
+      const reviewableRes = await reviewsApi.listReviewable();
+      const reviewables = Array.isArray(reviewableRes?.data)
+        ? reviewableRes.data
+        : Array.isArray(reviewableRes)
+        ? reviewableRes
+        : [];
+
+      setReviewableBookings(reviewables);
+
+      const submittedRatings = reviewables
+        .filter((item) => Number(item?.existingRating) > 0)
+        .map((item) => ({
+          id: item.bookingId,
+          label: item.serviceName || `Booking #${item.bookingId}`,
+          rating: Number(item.existingRating),
+          meta: `${item.mechanicName || 'N/A'} • ${item.date || ''}`,
+        }));
+
+      if (submittedRatings.length > 0) {
+        const avgSubmitted = submittedRatings.reduce((sum, item) => sum + item.rating, 0) / submittedRatings.length;
+        addRatingSource({
+          id: 'my-submitted-ratings',
+          title: 'My Submitted Ratings',
+          subtitle: 'Ratings you have provided for completed services',
+          average: Number(avgSubmitted.toFixed(1)),
+          total: submittedRatings.length,
+          type: 'list',
+          items: submittedRatings.slice(0, 8),
+        });
+      }
+
+      if (reviewables.length > 0) {
+        setSelectedReviewBookingId((prev) => {
+          if (prev) return prev;
+          const firstPending = reviewables.find((item) => Number(item?.existingRating || 0) === 0) || reviewables[0];
+          setPendingRating(Number(firstPending.existingRating || 0));
+          setPendingComment(firstPending.existingComment || '');
+          return String(firstPending.bookingId);
+        });
+      }
+    } catch (error) {
+      console.warn('⚠️ Reviewable ratings API (optional):', error?.message || error);
+      setReviewableBookings([]);
     }
 
     try {
@@ -248,6 +398,12 @@ function CustomerDashboard() {
       console.error('❌ Profile API error:', error);
       setApiErrors(prev => ({ ...prev, profile: error.message }));
     }
+
+    setRatingInsights({
+      adminSources: ratingSources,
+      averageRating: weightedRatingCount > 0 ? Number((weightedRatingSum / weightedRatingCount).toFixed(1)) : 0,
+      totalRatedItems: weightedRatingCount,
+    });
     
     setLoadingData(false);
   }, [user, fetchMyBillingRecords]);
@@ -256,7 +412,7 @@ function CustomerDashboard() {
 
   useEffect(() => {
     // Load dashboard data on mount and when activeTab changes
-    if (activeTab === 'bookings' || activeTab === 'history' || activeTab === 'overview' || activeTab === 'billing') {
+    if (activeTab === 'bookings' || activeTab === 'history' || activeTab === 'overview' || activeTab === 'billing' || activeTab === 'ratings') {
       loadDashboardData();
     }
   }, [activeTab, loadDashboardData]);
@@ -303,6 +459,7 @@ function CustomerDashboard() {
     { id: 'new-booking', label: 'New Booking', icon: '🔧' },
     { id: 'breakdown', label: 'Breakdown', icon: '🆘' },
     { id: 'billing', label: 'Billing', icon: '🧾' },
+    { id: 'ratings', label: 'Ratings', icon: '⭐' },
     { id: 'profile', label: 'Profile', icon: '👤' },
   ];
 
@@ -356,6 +513,53 @@ function CustomerDashboard() {
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
+  };
+
+  const selectedReviewBooking = reviewableBookings.find(
+    (item) => String(item.bookingId) === String(selectedReviewBookingId)
+  );
+
+  const handleReviewSelection = (bookingId) => {
+    setSelectedReviewBookingId(String(bookingId));
+    const selected = reviewableBookings.find((item) => String(item.bookingId) === String(bookingId));
+    setPendingRating(Number(selected?.existingRating || 0));
+    setPendingComment(selected?.existingComment || '');
+    setRatingSubmitState({ loading: false, message: '', type: '' });
+  };
+
+  const handleSubmitRating = async () => {
+    if (!selectedReviewBookingId) {
+      setRatingSubmitState({ loading: false, message: 'Please select a completed booking first.', type: 'error' });
+      return;
+    }
+
+    if (!pendingRating || pendingRating < 1 || pendingRating > 5) {
+      setRatingSubmitState({ loading: false, message: 'Please choose a star rating between 1 and 5.', type: 'error' });
+      return;
+    }
+
+    try {
+      setRatingSubmitState({ loading: true, message: '', type: '' });
+      const response = await reviewsApi.submit({
+        bookingId: Number(selectedReviewBookingId),
+        rating: Number(pendingRating),
+        comment: pendingComment.trim(),
+      });
+
+      setRatingSubmitState({
+        loading: false,
+        message: response?.message || 'Rating submitted successfully.',
+        type: 'success',
+      });
+
+      await loadDashboardData();
+    } catch (error) {
+      setRatingSubmitState({
+        loading: false,
+        message: error?.message || 'Failed to submit rating. Please try again.',
+        type: 'error',
+      });
+    }
   };
 
   return (
@@ -803,6 +1007,165 @@ function CustomerDashboard() {
             </div>
 
             <CustomerBillingHistory />
+          </div>
+        )}
+
+        {/* Ratings Tab */}
+        {activeTab === 'ratings' && (
+          <div className="content-section">
+            <div className="section-header">
+              <h1>Ratings & Reviews</h1>
+              <p>Rate your completed services and view live rating insights</p>
+            </div>
+
+            <div className="content-card ratings-submit-card">
+              <div className="ratings-submit-head">
+                <h2>Give Your Rating</h2>
+                <p>Choose a completed booking and submit your review.</p>
+              </div>
+
+              <div className="ratings-submit-form">
+                <div className="ratings-field-group">
+                  <label htmlFor="review-booking-select">Completed Booking</label>
+                  <select
+                    id="review-booking-select"
+                    value={selectedReviewBookingId}
+                    onChange={(e) => handleReviewSelection(e.target.value)}
+                  >
+                    {reviewableBookings.length === 0 && <option value="">No completed booking available</option>}
+                    {reviewableBookings.map((item) => (
+                      <option key={item.bookingId} value={item.bookingId}>
+                        #{item.bookingId} • {item.serviceName} • {item.date}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="ratings-field-group">
+                  <label>Your Stars</label>
+                  <div className="rating-star-input" role="radiogroup" aria-label="Select rating">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        className={`star-btn ${pendingRating >= star ? 'active' : ''}`}
+                        onClick={() => setPendingRating(star)}
+                        aria-label={`${star} star${star > 1 ? 's' : ''}`}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="ratings-field-group">
+                  <label htmlFor="review-comment">Comment (optional)</label>
+                  <textarea
+                    id="review-comment"
+                    rows="3"
+                    maxLength={500}
+                    placeholder="Write your service feedback..."
+                    value={pendingComment}
+                    onChange={(e) => setPendingComment(e.target.value)}
+                  ></textarea>
+                </div>
+
+                {selectedReviewBooking && (
+                  <div className="ratings-selected-meta">
+                    <span>Mechanic: {selectedReviewBooking.mechanicName || 'N/A'}</span>
+                    <span>
+                      Existing: {Number(selectedReviewBooking.existingRating) > 0
+                        ? `⭐ ${Number(selectedReviewBooking.existingRating).toFixed(1)}`
+                        : 'Not rated yet'}
+                    </span>
+                  </div>
+                )}
+
+                {ratingSubmitState.message && (
+                  <div className={`ratings-submit-message ${ratingSubmitState.type}`}>
+                    {ratingSubmitState.message}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  className="btn-primary ratings-submit-btn"
+                  disabled={ratingSubmitState.loading || reviewableBookings.length === 0}
+                  onClick={handleSubmitRating}
+                >
+                  {ratingSubmitState.loading ? 'Submitting...' : 'Submit Rating'}
+                </button>
+              </div>
+            </div>
+
+            <div className="ratings-summary-grid">
+              <div className="rating-summary-card">
+                <span className="summary-label">Overall Rating Index</span>
+                <span className="summary-value">{ratingInsights.averageRating > 0 ? `${ratingInsights.averageRating}/5` : '—'}</span>
+              </div>
+              <div className="rating-summary-card">
+                <span className="summary-label">Total Rated Records</span>
+                <span className="summary-value">{ratingInsights.totalRatedItems}</span>
+              </div>
+              <div className="rating-summary-card">
+                <span className="summary-label">Active Rating Sources</span>
+                <span className="summary-value">{ratingInsights.adminSources.length}</span>
+              </div>
+            </div>
+
+            {loadingData ? (
+              <div className="content-card" style={{ textAlign: 'center', padding: '24px' }}>Loading ratings...</div>
+            ) : ratingInsights.adminSources.length === 0 ? (
+              <div className="content-card ratings-empty-state">
+                <h3>No rating source is active</h3>
+                <p>As soon as Admin enables ratings in modules, this page will show them automatically.</p>
+              </div>
+            ) : (
+              ratingInsights.adminSources.map((source) => (
+                <div key={source.id} className="content-card ratings-source-card">
+                  <div className="ratings-source-head">
+                    <div>
+                      <h2>{source.title}</h2>
+                      <p>{source.subtitle}</p>
+                    </div>
+                    <div className="ratings-source-stats">
+                      <span>{source.average}/5 Avg</span>
+                      <span>{source.total} Records</span>
+                    </div>
+                  </div>
+
+                  {source.type === 'distribution' ? (
+                    <div className="rating-distribution-list">
+                      {source.items.map((item, index) => {
+                        const count = Number(item?.count || 0);
+                        const width = source.total > 0 ? Math.max(4, Math.round((count / source.total) * 100)) : 0;
+                        return (
+                          <div key={`${source.id}-${index}`} className="rating-distribution-row">
+                            <span className="distribution-label">{item.rating}</span>
+                            <div className="distribution-bar-track">
+                              <div className="distribution-bar-fill" style={{ width: `${width}%` }}></div>
+                            </div>
+                            <span className="distribution-count">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rating-item-grid">
+                      {source.items.map((item) => (
+                        <div key={`${source.id}-${item.id}`} className="rating-item-card">
+                          <div className="rating-item-main">
+                            <h4>{item.label}</h4>
+                            <p>{item.meta}</p>
+                          </div>
+                          <span className="rating-chip">⭐ {item.rating.toFixed(1)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         )}
 
