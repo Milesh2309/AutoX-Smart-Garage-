@@ -338,6 +338,9 @@ function CustomerDashboard() {
           type: 'list',
           items: submittedRatings.slice(0, 8),
         });
+        setUserRating(Number(avgSubmitted.toFixed(1)));
+      } else {
+        setUserRating('—');
       }
 
       if (reviewables.length > 0) {
