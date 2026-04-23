@@ -16,6 +16,14 @@ function DataGrid() {
   useEffect(() => {
     const fetchTabData = async () => {
       try {
+        const extractRows = (response) => {
+          if (Array.isArray(response?.data)) return response.data;
+          if (Array.isArray(response?.records)) return response.records;
+          if (Array.isArray(response?.items)) return response.items;
+          if (Array.isArray(response)) return response;
+          return [];
+        };
+
         const apiMap = {
           users: usersApi.list,
           mechanics: mechanicsApi.list,
@@ -26,7 +34,7 @@ function DataGrid() {
         const fetcher = apiMap[activeTab];
         if (fetcher) {
           const res = await fetcher();
-          const raw = res?.data || res || [];
+          const raw = extractRows(res);
           // Normalize fields per tab
           let normalized = raw;
           switch (activeTab) {

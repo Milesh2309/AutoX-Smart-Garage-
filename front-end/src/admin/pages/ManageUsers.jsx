@@ -18,7 +18,13 @@ function ManageUsers() {
   const loadUsers = async () => {
     try {
       const res = await usersApi.list();
-      const raw = res?.data || res || [];
+      const raw = Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res?.users)
+        ? res.users
+        : Array.isArray(res)
+        ? res
+        : [];
       // Normalize inconsistent field names from different user sources
       const normalized = raw.map((u, idx) => ({
         ...u,
@@ -35,7 +41,7 @@ function ManageUsers() {
       setUsers(normalized);
     } catch (err) {
       console.error('Error loading users:', err);
-      setUsers([]);
+      // Keep existing rows on temporary failures (token refresh/network jitter).
     }
   };
 

@@ -310,6 +310,7 @@ body, .admin-dashboard, .admin-login-page {
   flex: 1;
   overflow-y: auto;
   padding: 30px;
+  color: #111827;
 }
 
 .admin-page {
@@ -327,8 +328,9 @@ body, .admin-dashboard, .admin-login-page {
 .page-header h1 {
   margin: 0;
   font-size: 28px;
-  color: #000000;
+  color: #ffffff;
   font-weight: 500;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
 }
 
 .page-header .badge {
@@ -893,19 +895,33 @@ body, .admin-dashboard, .admin-login-page {
 
 /* Professional Admin Enhancements */
 .header-subtitle {
-  color: #4a4a4a;
+  color: #f3f4f6;
   font-size: 14px;
   font-weight: 400;
   margin: 5px 0 0 0;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+}
+
+/* Keep admin page top-level headings readable over dark dashboard background */
+.admin-page .page-header h1 {
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.admin-page .header-subtitle {
+  color: #f3f4f6;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
 }
 
 .header-date {
-  background: rgba(220, 38, 38, 0.1);
-  color: #dc2626;
+  background: rgba(255, 255, 255, 0.88);
+  color: #991b1b;
   padding: 8px 16px;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
 }
 
 /* Services Grid */

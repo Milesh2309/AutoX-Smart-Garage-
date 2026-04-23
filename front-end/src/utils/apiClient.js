@@ -1,6 +1,7 @@
 const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
 
 export const AUTH_TOKEN_STORAGE_KEY = 'authToken';
+export const REFRESH_TOKEN_STORAGE_KEY = 'refreshToken';
 
 export const getAuthToken = () => {
   try {
@@ -26,6 +27,88 @@ export const clearAuthToken = () => {
   } catch (_error) {
     // ignore storage errors
   }
+};
+
+export const getRefreshToken = () => {
+  try {
+    return localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+  } catch (_error) {
+    return null;
+  }
+};
+
+export const setRefreshToken = (token) => {
+  try {
+    if (token) {
+      localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, token);
+    }
+  } catch (_error) {
+    // ignore storage errors
+  }
+};
+
+export const clearRefreshToken = () => {
+  try {
+    localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+  } catch (_error) {
+    // ignore storage errors
+  }
+};
+
+let refreshPromise = null;
+
+const shouldTryRefresh = (error) => {
+  if (error?.status !== 401) return false;
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('token expired') || message.includes('invalid token') || message.includes('access denied');
+};
+
+const refreshAccessToken = async () => {
+  if (refreshPromise) return refreshPromise;
+
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    throw new Error('Refresh token not available');
+  }
+
+  refreshPromise = (async () => {
+    const tryRefresh = async (path) => {
+      const response = await fetch(`${API_BASE_URL}${path}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      return parseResponse(response);
+    };
+
+    try {
+      let payload;
+      try {
+        payload = await tryRefresh('/auth/refresh-token');
+      } catch (_primaryError) {
+        payload = await tryRefresh('/refresh-token');
+      }
+
+      const nextToken = payload?.accessToken || payload?.token;
+      if (!nextToken) {
+        throw new Error('Unable to refresh access token');
+      }
+
+      setAuthToken(nextToken);
+      return nextToken;
+    } catch (error) {
+      clearAuthToken();
+      clearRefreshToken();
+      throw error;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 };
 
 const buildHeaders = (headers = {}, auth = true) => {
@@ -59,15 +142,23 @@ const parseResponse = async (response) => {
 };
 
 export const apiRequest = async (path, options = {}) => {
-  const { auth = true, headers, ...restOptions } = options;
+  const { auth = true, headers, _retried = false, ...restOptions } = options;
   const url = `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 
-  const response = await fetch(url, {
-    ...restOptions,
-    headers: buildHeaders(headers, auth),
-  });
+  try {
+    const response = await fetch(url, {
+      ...restOptions,
+      headers: buildHeaders(headers, auth),
+    });
 
-  return parseResponse(response);
+    return await parseResponse(response);
+  } catch (error) {
+    if (auth && !_retried && shouldTryRefresh(error)) {
+      await refreshAccessToken();
+      return apiRequest(path, { ...options, _retried: true });
+    }
+    throw error;
+  }
 };
 
 export const apiGet = (path, options = {}) => apiRequest(path, { ...options, method: 'GET' });

@@ -52,8 +52,8 @@ function ManageAssignments() {
     const loadDropdowns = async () => {
       try {
         const [mechRes, svcRes] = await Promise.all([mechanicsApi.list(), servicesApi.list()]);
-        setMechanicsList((mechRes?.data || mechRes || []).map(m => String(m.name || m.fullName || m || '')).filter(Boolean));
-        setServicesList((svcRes?.data || svcRes || []).map(s => String(s.name || s.title || s || '')).filter(Boolean));
+        setMechanicsList((mechRes?.data || mechRes || []).map(m => m.name || m.fullName || m.mechanicCode || '').filter(Boolean));
+        setServicesList((svcRes?.data || svcRes || []).map(s => s.name || s.title || s.serviceName || '').filter(Boolean));
       } catch (err) {
         console.error('Error loading dropdowns:', err);
       }

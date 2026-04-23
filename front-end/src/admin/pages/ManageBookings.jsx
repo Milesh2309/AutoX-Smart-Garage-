@@ -16,27 +16,39 @@ function ManageBookings() {
 
   const loadBookings = async () => {
     try {
+      const extractRows = (response) => {
+        if (Array.isArray(response?.data)) return response.data;
+        if (Array.isArray(response?.records)) return response.records;
+        if (Array.isArray(response?.bookings)) return response.bookings;
+        if (Array.isArray(response)) return response;
+        return [];
+      };
+
       const query = new URLSearchParams();
       if (searchVehicle) query.set('vehicleNumber', searchVehicle);
       if (searchCustomer) query.set('customerName', searchCustomer);
       if (statusFilter !== 'all') query.set('status', statusFilter);
 
       const response = await bookingApi.listAdmin(query.toString());
-      const data = Array.isArray(response?.data) ? response.data : [];
+      const data = extractRows(response);
       setBookings(data);
     } catch (error) {
       console.error('Unable to load bookings', error);
-      setBookings([]);
+      // Keep previous rows instead of wiping grid on temporary API/auth failures.
     }
   };
 
   const loadMechanics = async () => {
     try {
       const response = await mechanicsApi.list();
-      const data = Array.isArray(response?.data) ? response.data : [];
+      const data = Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response)
+        ? response
+        : [];
       setMechanics(data);
     } catch (_error) {
-      setMechanics([]);
+      // Keep previous mechanics list on temporary API errors.
     }
   };
 
@@ -96,13 +108,16 @@ function ManageBookings() {
     if (!selectedBooking) return;
 
     const selectedMechanic = mechanics.find(
-      (mechanic) => String(mechanic.id) === String(statusPayload.mechanicId)
+      (mechanic) => {
+        const mechanicId = String(mechanic.id || mechanic.mechanicCode || mechanic._id || '');
+        return mechanicId === String(statusPayload.mechanicId);
+      }
     );
 
     await bookingApi.updateStatus(selectedBooking.bookingId, {
       status: statusPayload.status,
       mechanicId: statusPayload.mechanicId ? Number(statusPayload.mechanicId) : undefined,
-      mechanicName: selectedMechanic?.name || undefined,
+      mechanicName: selectedMechanic?.fullName || selectedMechanic?.name || undefined,
     });
 
     setShowStatusModal(false);
@@ -245,8 +260,8 @@ function ManageBookings() {
                   >
                     <option value="">Unassigned</option>
                     {mechanics.map((mechanic) => (
-                      <option key={mechanic.id} value={mechanic.id}>
-                        {mechanic.name}
+                      <option key={mechanic.id || mechanic.mechanicCode || mechanic._id} value={mechanic.id || mechanic.mechanicCode || mechanic._id}>
+                        {mechanic.fullName || mechanic.name || 'Mechanic'}
                       </option>
                     ))}
                   </select>

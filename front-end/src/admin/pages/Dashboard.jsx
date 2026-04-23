@@ -72,7 +72,7 @@ function Dashboard({ onNavigate }) {
   };
 
   return (
-    <div className="admin-page">
+    <div className="admin-page dashboard-page">
       <div className="page-header">
         <div>
           <h1>📊 Dashboard</h1>

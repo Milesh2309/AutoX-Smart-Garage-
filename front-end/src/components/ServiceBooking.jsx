@@ -27,6 +27,8 @@ function ServiceBooking() {
   const [bookingData, setBookingData] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
   const [serviceLoading, setServiceLoading] = useState(true);
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fallback hardcoded service list (matches services.jsx numeric IDs)
   const fallbackServices = [
@@ -226,10 +228,72 @@ function ServiceBooking() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const validateForm = () => {
+    const nextErrors = {};
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneDigits = formData.phone.replace(/\D/g, '');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = formData.preferredDate ? new Date(`${formData.preferredDate}T00:00:00`) : null;
+
+    if (!formData.name.trim()) {
+      nextErrors.name = 'Full name is required';
+    }
+
+    if (!formData.email.trim()) {
+      nextErrors.email = 'Email is required';
+    } else if (!emailPattern.test(formData.email.trim())) {
+      nextErrors.email = 'Enter a valid email address';
+    }
+
+    if (!formData.phone.trim()) {
+      nextErrors.phone = 'Phone number is required';
+    } else if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+      nextErrors.phone = 'Enter a valid phone number';
+    }
+
+    if (!formData.vehicle.trim()) {
+      nextErrors.vehicle = 'Vehicle details are required';
+    } else if (formData.vehicle.trim().length < 5) {
+      nextErrors.vehicle = 'Enter complete vehicle details';
+    }
+
+    if (!formData.preferredDate) {
+      nextErrors.preferredDate = 'Preferred date is required';
+    } else if (selectedDate && selectedDate < today) {
+      nextErrors.preferredDate = 'Choose today or a future date';
+    }
+
+    if (!formData.preferredTime) {
+      nextErrors.preferredTime = 'Preferred time is required';
+    }
+
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (isSubmitting) return;
+
+    if (!validateForm()) {
+      addNotification({
+        type: 'error',
+        title: 'Validation Required',
+        message: 'Please fix the highlighted fields before continuing.',
+        icon: '⚠️',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
     
     try {
       // Create booking in backend FIRST with pending status
@@ -256,17 +320,20 @@ function ServiceBooking() {
       const createResult = await createBooking(bookingPayload);
       
       if (!createResult.success) {
+        const bookingError = createResult.error || 'Unable to create booking';
         addNotification({
           type: 'error',
           title: 'Booking Failed',
-          message: `Could not create booking: ${createResult.error}`,
+          message: `Could not create booking: ${bookingError}`,
           icon: '❌',
         });
+        alert(`Could not create booking: ${bookingError}`);
         return;
       }
 
-      const createdBooking = createResult?.data;
-      setBookingData(createdBooking);
+      const createdBooking = createResult?.data || {};
+      const resolvedBookingId = createdBooking?.id || createdBooking?._id || createdBooking?.bookingId || null;
+      setBookingData({ ...createdBooking, id: resolvedBookingId });
       setShowPayment(true);
       
       // Add notification for booking initiation
@@ -283,19 +350,14 @@ function ServiceBooking() {
         message: error.message || 'Could not create booking',
         icon: '❌',
       });
+      alert(error.message || 'Could not create booking');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handlePaymentComplete = async (paymentDetails) => {
-    if (!bookingData?.id) {
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: 'Booking data is missing',
-        icon: '❌',
-      });
-      return;
-    }
+    const resolvedBookingId = bookingData?.id || bookingData?._id || bookingData?.bookingId || null;
 
     try {
       // Payment is already verified and booking is updated on the backend
@@ -320,7 +382,11 @@ function ServiceBooking() {
 
       // Redirect to payment success page
       setTimeout(() => {
-        navigate(`/payment-success/${bookingData.id}`);
+        if (resolvedBookingId) {
+          navigate(`/payment-success/${resolvedBookingId}`);
+        } else {
+          navigate('/services');
+        }
       }, 1500);
     } catch (error) {
       addNotification({
@@ -378,18 +444,7 @@ function ServiceBooking() {
           <p>{selectedService.description}</p>
         </div>
 
-        <div className="service-features-section">
-          <h3>What's Included:</h3>
-          <ul className="features-list">
-            {selectedService.features.map((feature, index) => (
-              <li key={index}>
-                <span className="check-icon">✓</span> {feature}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <form className="booking-form" onSubmit={handleSubmit}>
+        <form className="booking-form" onSubmit={handleSubmit} noValidate>
           <div className="form-section">
             <h3>Personal Information</h3>
             <div className="form-group">
@@ -401,8 +456,11 @@ function ServiceBooking() {
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Your full name"
+                className={errors.name ? 'error' : ''}
+                aria-invalid={Boolean(errors.name)}
                 required
               />
+              {errors.name && <span className="error-text">{errors.name}</span>}
             </div>
 
             <div className="form-row">
@@ -415,8 +473,11 @@ function ServiceBooking() {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="your@email.com"
+                  className={errors.email ? 'error' : ''}
+                  aria-invalid={Boolean(errors.email)}
                   required
                 />
+                {errors.email && <span className="error-text">{errors.email}</span>}
               </div>
 
               <div className="form-group">
@@ -428,8 +489,11 @@ function ServiceBooking() {
                   value={formData.phone}
                   onChange={handleChange}
                   placeholder="Your phone number"
+                  className={errors.phone ? 'error' : ''}
+                  aria-invalid={Boolean(errors.phone)}
                   required
                 />
+                {errors.phone && <span className="error-text">{errors.phone}</span>}
               </div>
             </div>
           </div>
@@ -445,8 +509,11 @@ function ServiceBooking() {
                 value={formData.vehicle}
                 onChange={handleChange}
                 placeholder="e.g., Honda Civic 2020, Maruti Swift 2022"
+                className={errors.vehicle ? 'error' : ''}
+                aria-invalid={Boolean(errors.vehicle)}
                 required
               />
+              {errors.vehicle && <span className="error-text">{errors.vehicle}</span>}
             </div>
           </div>
 
@@ -462,8 +529,11 @@ function ServiceBooking() {
                   value={formData.preferredDate}
                   onChange={handleChange}
                   min={new Date().toISOString().split('T')[0]}
+                  className={errors.preferredDate ? 'error' : ''}
+                  aria-invalid={Boolean(errors.preferredDate)}
                   required
                 />
+                {errors.preferredDate && <span className="error-text">{errors.preferredDate}</span>}
               </div>
 
               <div className="form-group">
@@ -473,6 +543,8 @@ function ServiceBooking() {
                   name="preferredTime"
                   value={formData.preferredTime}
                   onChange={handleChange}
+                  className={errors.preferredTime ? 'error' : ''}
+                  aria-invalid={Boolean(errors.preferredTime)}
                   required
                 >
                   <option value="">Select a time slot</option>
@@ -485,6 +557,7 @@ function ServiceBooking() {
                   <option value="04:00 PM">04:00 PM</option>
                   <option value="05:00 PM">05:00 PM</option>
                 </select>
+                {errors.preferredTime && <span className="error-text">{errors.preferredTime}</span>}
               </div>
             </div>
           </div>
@@ -539,8 +612,9 @@ function ServiceBooking() {
             <button
               type="submit"
               className="btn-primary"
+              disabled={isSubmitting}
             >
-              Proceed to Payment
+              {isSubmitting ? 'Processing...' : 'Proceed to Payment'}
             </button>
           </div>
         </form>

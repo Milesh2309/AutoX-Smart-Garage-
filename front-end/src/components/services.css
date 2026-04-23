@@ -17,7 +17,7 @@
   color: #1a1a1a;
   padding: 40px 28px;
   border-radius: 16px;
-  max-width: 1200px;
+  max-width: 1320px;
   margin: 0 auto;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 10px 30px rgba(220, 38, 38, 0.15);
   border: 1px solid rgba(229, 229, 229, 0.8);
@@ -51,17 +51,23 @@
 
 .services-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
   margin-bottom: 40px;
   overflow-x: hidden;
   width: 100%;
   max-width: 100%;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1100px) {
   .services-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .services-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -77,7 +83,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 500px;
+  min-height: 430px;
 }
 
 .service-card:hover {
@@ -110,7 +116,7 @@
 }
 
 .service-image {
-  height: 240px;
+  height: 190px;
   overflow: hidden;
   position: relative;
   flex-shrink: 0;
@@ -158,6 +164,16 @@
   line-height: 1.5;
   margin-bottom: 12px;
   font-size: 14px;
+  line-clamp: 3;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.service-card.active .service-description {
+  line-clamp: unset;
+  -webkit-line-clamp: unset;
 }
 
 .service-features {
@@ -165,6 +181,9 @@
   padding-top: 16px;
   border-top: 1px solid rgba(47, 122, 53, 0.2);
   animation: slideDown 0.25s ease;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 @keyframes slideDown {
@@ -391,7 +410,7 @@
   }
 
   .service-card {
-    min-height: 450px;
+    min-height: 400px;
   }
 
   .service-content h3 {
@@ -399,7 +418,7 @@
   }
 
   .service-image {
-    height: 200px;
+    height: 170px;
   }
 
   .services-cta {

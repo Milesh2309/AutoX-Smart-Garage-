@@ -294,29 +294,6 @@ function Analytics() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Service Bookings by Category */}
-        <div className="chart-card">
-          <div className="chart-header">
-            <h2>📊 Bookings by Service Category</h2>
-            <p className="chart-subtitle">Total 1,045 bookings</p>
-          </div>
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={serviceCategoryData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="category" angle={-45} textAnchor="end" height={80} stroke="#6b7280" />
-              <YAxis stroke="#6b7280" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                }}
-              />
-              <Bar dataKey="bookings" fill={CHART_COLORS.secondary} radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
       </div>
 
       {/* Summary Tables */}

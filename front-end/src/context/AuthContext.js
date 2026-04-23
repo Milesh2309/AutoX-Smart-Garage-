@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authApi } from '../utils/apiService';
-import { clearAuthToken, getAuthToken, setAuthToken } from '../utils/apiClient';
+import { clearAuthToken, clearRefreshToken, getAuthToken, setAuthToken, setRefreshToken } from '../utils/apiClient';
 
 const STORAGE_KEY = 'authUser';
 
@@ -18,6 +18,7 @@ export function AuthProvider({ children }) {
   const [authLoading, setAuthLoading] = useState(true);
 
   const getAuthTokenFromResponse = (response) => response?.token || response?.accessToken;
+  const getRefreshTokenFromResponse = (response) => response?.refreshToken;
   const getUserFromResponse = (response) => response?.data || response?.user;
 
   useEffect(() => {
@@ -42,6 +43,7 @@ export function AuthProvider({ children }) {
         }
       } catch (_error) {
         clearAuthToken();
+        clearRefreshToken();
         if (active) {
           setUser(null);
         }
@@ -75,6 +77,7 @@ export function AuthProvider({ children }) {
     });
 
     const token = getAuthTokenFromResponse(response);
+    const refreshToken = getRefreshTokenFromResponse(response);
     const authUser = getUserFromResponse(response);
 
     if (!response?.success || !authUser || !token) {
@@ -82,6 +85,7 @@ export function AuthProvider({ children }) {
     }
 
     setAuthToken(token);
+    if (refreshToken) setRefreshToken(refreshToken);
     setUser(authUser);
     return authUser;
   };
@@ -128,6 +132,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     clearAuthToken();
+    clearRefreshToken();
     setUser(null);
   };
 

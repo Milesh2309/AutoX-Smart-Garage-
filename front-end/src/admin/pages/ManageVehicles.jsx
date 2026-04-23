@@ -25,15 +25,23 @@ function ManageVehicles() {
 
   const loadVehicles = async () => {
     try {
+      const extractRows = (response) => {
+        if (Array.isArray(response?.data)) return response.data;
+        if (Array.isArray(response?.records)) return response.records;
+        if (Array.isArray(response?.vehicles)) return response.vehicles;
+        if (Array.isArray(response)) return response;
+        return [];
+      };
+
       const query = new URLSearchParams();
       if (searchVehicle) query.set('vehicleNumber', searchVehicle);
       if (filterCustomer) query.set('customerName', filterCustomer);
 
       const response = await vehiclesApi.listAll(query.toString());
-      setVehicles(Array.isArray(response?.data) ? response.data : []);
+      setVehicles(extractRows(response));
     } catch (error) {
       console.error('Unable to load vehicles:', error);
-      setVehicles([]);
+      // Keep current grid rows if refresh call fails.
     }
   };
 

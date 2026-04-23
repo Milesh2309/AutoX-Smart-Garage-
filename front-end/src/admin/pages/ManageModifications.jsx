@@ -78,7 +78,7 @@ function ManageModifications() {
     const loadMechanics = async () => {
       try {
         const res = await mechanicsApi.list();
-        setMechanicsList((res?.data || res || []).map(m => m.name || m));
+        setMechanicsList((res?.data || res || []).map(m => m.fullName || m.name || m.mechanicCode || '').filter(Boolean));
       } catch (err) {
         console.error('Error loading mechanics:', err);
       }
