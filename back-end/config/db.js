@@ -12,8 +12,13 @@ const toBool = (value, fallback = false) => {
 const connectDB = async () => {
   const uri = process.env.MONGODB_URI;
 
+  console.log('MongoDB connect starting:');
+  console.log('  MONGODB_URI present:', Boolean(uri));
+  console.log('  MONGODB_TLS:', process.env.MONGODB_TLS);
+  console.log('  MONGODB_TLS_ALLOW_INVALID_CERTS:', process.env.MONGODB_TLS_ALLOW_INVALID_CERTS);
+
   if (!uri) {
-    throw new Error('MONGODB_URI is missing. Add it in back-end/.env');
+    throw new Error('MONGODB_URI is missing. Add it in back-end/.env or Render environment variables');
   }
 
   const isSrvConnection = String(uri).toLowerCase().startsWith('mongodb+srv://');
