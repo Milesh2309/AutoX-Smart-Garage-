@@ -5,19 +5,37 @@ import './home.css';
 function Home() {
   const navigate = useNavigate();
 
+  const assetPath = (path) => encodeURI(path);
+
   const [expandedService, setExpandedService] = useState(null);
   const [clickEffect, setClickEffect] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [videoAvailable, setVideoAvailable] = useState(true);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Handle scroll to show/hide scroll-to-top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Home page carousel images
   const heroImages = [
-    "/img/web images/regular services/pexels-19x14-8478233.jpg",
-    "/img/web images/regular services/pexels-lynxexotics-15489246.jpg",
-    "/img/web images/regular services/pexels-tami-19499386.jpg",
-    "/img/web images/break dwon/pexels-a-q-91521018-18863497.jpg",
-    "/img/web images/break dwon/pexels-edurawpro-21831855.jpg",
+    assetPath('/img/web-images/regular-services/pexels-19x14-8478233.jpg'),
+    assetPath('/img/web-images/regular-services/pexels-lynxexotics-15489246.jpg'),
+    assetPath('/img/web-images/regular-services/pexels-tami-19499386.jpg'),
+    assetPath('/img/web-images/breakdown/pexels-a-q-91521018-18863497.jpg'),
+    assetPath('/img/web-images/breakdown/pexels-edurawpro-21831855.jpg'),
   ];
+  const heroVideoSrc = assetPath('/img/web-images/animation/animeson.mp4');
 
   // Auto-rotate images every 5 seconds
   useEffect(() => {
@@ -28,11 +46,11 @@ function Home() {
   }, [heroImages.length]);
 
   const services = [
-    { id: 1, name: "🚗 Smart Garage Services", details: "Full vehicle diagnostics, maintenance, and scheduled servicing by certified technicians.", actions: ["Book Service", "View Packages"] },
-    { id: 2, name: "🛠 Vehicle Breakdown Assistance", details: "24/7 roadside support for breakdowns, tire changes, fuel delivery, and quick fixes.", actions: ["Call Now", "Request Help"] },
-    { id: 3, name: "⚙ Vehicle Modification", details: "Expert custom modifications, upgrades, and tuning to enhance performance and aesthetics.", actions: ["Explore Mods", "Get Quote"] },
-    { id: 4, name: "🔧 Car & Bike Repair", details: "Comprehensive repair services for all vehicle types with genuine parts and warranty.", actions: ["Schedule Repair", "Check Status"] },
-    { id: 5, name: "🚘 Emergency Roadside Help", details: "Immediate assistance for accidents, mechanical failures, and emergency towing services.", actions: ["Emergency SOS", "Learn More"] }
+    { id: 1, name: " Smart Garage Services", details: "Full vehicle diagnostics, maintenance, and scheduled servicing by certified technicians.", actions: ["Book Service", "View Packages"] },
+    { id: 2, name: " Vehicle Breakdown Assistance", details: "24/7 roadside support for breakdowns, tire changes, fuel delivery, and quick fixes.", actions: ["Call Now", "Request Help"] },
+    { id: 3, name: " Vehicle Modification", details: "Expert custom modifications, upgrades, and tuning to enhance performance and aesthetics.", actions: ["Explore Mods", "Get Quote"] },
+    { id: 4, name: " Car & Bike Repair", details: "Comprehensive repair services for all vehicle types with genuine parts and warranty.", actions: ["Schedule Repair", "Check Status"] },
+    { id: 5, name: " Emergency Roadside Help", details: "Immediate assistance for accidents, mechanical failures, and emergency towing services.", actions: ["Emergency SOS", "Learn More"] }
   ];
 
   const packages = [
@@ -128,7 +146,7 @@ function Home() {
       navigate('/view-packages');
     }
     if (serviceId === 1 && action === 'Book Service') {
-      navigate('/book-service');
+      navigate('/book-service/1');
     }
     
     // Vehicle Breakdown Assistance actions (service id: 2)
@@ -223,9 +241,36 @@ function Home() {
       <div className="home-bg">
         {/* Tip: To use a local image, add public/bg.jpg and replace the URL in .home-bg in CSS */}
         <div className="home">
+          {/* Animated Hero Video Section */}
+          <div className="hero-animation-section">
+            {videoAvailable ? (
+              <video
+                className="hero-animation-video"
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="metadata"
+                onError={() => setVideoAvailable(false)}
+              >
+                <source src={heroVideoSrc} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            ) : (
+              <div
+                className="hero-animation-fallback"
+                style={{ backgroundImage: `url('${heroImages[currentImageIndex]}')` }}
+              />
+            )}
+            <div className="hero-animation-overlay">
+              <h1 className="hero-animation-title">Welcome to AUTOX</h1>
+              <p className="hero-animation-subtitle">Premium automotive services at your fingertips</p>
+            </div>
+          </div>
+
           <div className="home-hero">
           <div className="home-copy">
-            <h1>Welcome to AUTOX</h1>
+            <h1>Your Complete Automotive Solution</h1>
             <p className="lead">Premium support for every ride—from routine service to urgent roadside help.</p>
           </div>
 
@@ -235,10 +280,14 @@ function Home() {
               src={heroImages[currentImageIndex]}
               alt="Professional automotive service"
               loading="eager"
-              fetchpriority="high"
+              fetchPriority="high"
               decoding="async"
               className="hero-slider-image"
               onLoad={() => setImageLoaded(true)}
+              onError={() => {
+                setImageLoaded(false);
+                setCurrentImageIndex((prevIndex) => (prevIndex + 1) % heroImages.length);
+              }}
             />
           </div>
           <div className="hero-image-dots">
@@ -387,6 +436,281 @@ function Home() {
 
         </aside>
         </div>
+
+        {/* Website Overview Content Sections */}
+        <section className="content-overview">
+          
+          {/* Why Choose AutoX */}
+          <div className="overview-section why-choose">
+            <h2>🏆 Why Choose AutoX?</h2>
+            <div className="features-grid">
+              <div className="feature-box">
+                <div className="feature-icon">👨‍🔧</div>
+                <h3>Certified Experts</h3>
+                <p>Highly trained technicians with years of experience in automotive care</p>
+              </div>
+              <div className="feature-box">
+                <div className="feature-icon">⏱️</div>
+                <h3>24/7 Support</h3>
+                <p>Round-the-clock roadside assistance and emergency services</p>
+              </div>
+              <div className="feature-box">
+                <div className="feature-icon">💰</div>
+                <h3>Best Pricing</h3>
+                <p>Transparent pricing with no hidden charges, value for money</p>
+              </div>
+              <div className="feature-box">
+                <div className="feature-icon">✅</div>
+                <h3>Genuine Parts</h3>
+                <p>Only authentic OEM and premium aftermarket parts used</p>
+              </div>
+              <div className="feature-box">
+                <div className="feature-icon">📱</div>
+                <h3>Easy Booking</h3>
+                <p>Book services online in minutes with instant confirmation</p>
+              </div>
+              <div className="feature-box">
+                <div className="feature-icon">🛡️</div>
+                <h3>Warranty Coverage</h3>
+                <p>6-12 months warranty on all services and repairs</p>
+              </div>
+              <div className="feature-box">
+                <div className="feature-icon">🚗</div>
+                <h3>Free Pickup & Drop</h3>
+                <p>Complimentary vehicle pickup and drop-off service at your doorstep</p>
+              </div>
+              <div className="feature-box">
+                <div className="feature-icon">📊</div>
+                <h3>Digital Reports</h3>
+                <p>Detailed digital inspection reports with photos and recommendations</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Services Showcase */}
+          <div className="overview-section services-showcase">
+            <h2>🚗 Our Complete Service Range</h2>
+            <div className="services-grid">
+              <div className="service-showcase-card">
+                <div className="showcase-icon">🔧</div>
+                <h3>Smart Garage Services</h3>
+                <p>Periodic maintenance, engine diagnostics, oil change, brake service, AC repair, battery replacement, and more</p>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
+              </div>
+              <div className="service-showcase-card">
+                <div className="showcase-icon">🛠️</div>
+                <h3>Breakdown Assistance</h3>
+                <p>24/7 on-road support, tire change, fuel delivery, battery jumpstart, towing, and emergency repairs</p>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
+              </div>
+              <div className="service-showcase-card">
+                <div className="showcase-icon">⚙️</div>
+                <h3>Vehicle Modifications</h3>
+                <p>Custom body kits, performance upgrades, aesthetic enhancements, audio systems, and interior makeovers</p>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
+              </div>
+              <div className="service-showcase-card">
+                <div className="showcase-icon">🔨</div>
+                <h3>Repair Services</h3>
+                <p>Engine repairs, transmission fixes, suspension work, electrical repairs, and collision body work</p>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
+              </div>
+              <div className="service-showcase-card">
+                <div className="showcase-icon">🎨</div>
+                <h3>Denting & Painting</h3>
+                <p>Professional dent removal, scratch repair, full body painting, and ceramic coating services</p>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
+              </div>
+              <div className="service-showcase-card">
+                <div className="showcase-icon">❄️</div>
+                <h3>AC & Electrical</h3>
+                <p>AC gas refill, compressor repair, wiring fixes, headlight upgrades, and sensor diagnostics</p>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
+              </div>
+              <div className="service-showcase-card">
+                <div className="showcase-icon">🛞</div>
+                <h3>Tyre & Wheel Care</h3>
+                <p>Tyre replacement, wheel alignment, balancing, puncture repair, and alloy wheel refurbishment</p>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
+              </div>
+              <div className="service-showcase-card">
+                <div className="showcase-icon">🧽</div>
+                <h3>Car Detailing</h3>
+                <p>Interior deep cleaning, exterior polish, upholstery care, engine bay wash, and odor treatment</p>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
+              </div>
+              <div className="service-showcase-card">
+                <div className="showcase-icon">🔋</div>
+                <h3>Battery & Charging</h3>
+                <p>Battery testing, replacement, jumpstart service, alternator repair, and EV charging solutions</p>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
+              </div>
+              <div className="service-showcase-card">
+                <div className="showcase-icon">🪟</div>
+                <h3>Glass & Windshield</h3>
+                <p>Windshield replacement, chip repair, window tinting, and rear glass installation services</p>
+                <button className="learn-more-btn" onClick={() => navigate('/services')}>Learn More →</button>
+              </div>
+            </div>
+          </div>
+
+          {/* How It Works */}
+          <div className="overview-section how-it-works">
+            <h2>📋 How It Works</h2>
+            <div className="steps-container">
+              <div className="step-card">
+                <h3>Choose Service</h3>
+                <p>Select from our comprehensive range of automotive services</p>
+              </div>
+              <div className="step-arrow">→</div>
+              <div className="step-card">
+                <h3>Book Online</h3>
+                <p>Schedule your appointment with date, time, and location</p>
+              </div>
+              <div className="step-arrow">→</div>
+              <div className="step-card">
+                <h3>Expert Service</h3>
+                <p>Our certified technicians handle your vehicle with care</p>
+              </div>
+              <div className="step-arrow">→</div>
+              <div className="step-card">
+                <h3>Get Back on Road</h3>
+                <p>Drive away confident with quality service and warranty</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Customer Testimonials */}
+          <div className="overview-section testimonials">
+            <h2>⭐ What Our Customers Say</h2>
+            <div className="testimonials-grid">
+              <div className="testimonial-card">
+                <div className="rating">⭐⭐⭐⭐⭐</div>
+                <p>"Excellent service! My car broke down late at night and AutoX arrived within 30 minutes. Professional and efficient."</p>
+                <div className="customer-name">- Rajesh Kumar</div>
+              </div>
+              <div className="testimonial-card">
+                <div className="rating">⭐⭐⭐⭐⭐</div>
+                <p>"Best garage in town! Transparent pricing, quality work, and the modifications they did to my bike are incredible."</p>
+                <div className="customer-name">- Priya Patel</div>
+              </div>
+              <div className="testimonial-card">
+                <div className="rating">⭐⭐⭐⭐⭐</div>
+                <p>"Regular maintenance packages are very affordable. The team is knowledgeable and always explains everything clearly."</p>
+                <div className="customer-name">- Amit Shah</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Pricing Preview */}
+          <div className="overview-section pricing-preview">
+            <h2>💳 Transparent Pricing</h2>
+            <div className="pricing-cards">
+              <div className="price-card">
+                <h3>Basic Service</h3>
+                <div className="price-amount">₹999</div>
+                <ul className="price-features">
+                  <li>✓ Oil & Filter Change</li>
+                  <li>✓ Basic Inspection</li>
+                  <li>✓ Exterior Wash</li>
+                  <li>✓ Tire Pressure Check</li>
+                </ul>
+              </div>
+              <div className="price-card featured">
+                <div className="popular-badge">Most Popular</div>
+                <h3>Standard Service</h3>
+                <div className="price-amount">₹2499</div>
+                <ul className="price-features">
+                  <li>✓ Full Periodic Service</li>
+                  <li>✓ Brake & Clutch Check</li>
+                  <li>✓ AC Service</li>
+                  <li>✓ Free Pickup & Drop</li>
+                  <li>✓ 6 Month Warranty</li>
+                </ul>
+              </div>
+              <div className="price-card">
+                <h3>Premium Service</h3>
+                <div className="price-amount">₹5999</div>
+                <ul className="price-features">
+                  <li>✓ Complete Service Package</li>
+                  <li>✓ Interior & Exterior Detailing</li>
+                  <li>✓ Engine Deep Clean</li>
+                  <li>✓ Priority Support</li>
+                  <li>✓ 1 Year Warranty</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Contact & Location */}
+          <div className="overview-section contact-info">
+            <h2>📍 Visit Us or Contact</h2>
+            <div className="contact-grid">
+              <div className="contact-card">
+                <div className="contact-icon">📞</div>
+                <h3>Call Us</h3>
+                <p>24/7 Emergency Hotline</p>
+                <a href="tel:+919328764024" className="contact-link">+91 93287 64024</a>
+              </div>
+              <div className="contact-card">
+                <div className="contact-icon">✉️</div>
+                <h3>Email Us</h3>
+                <p>Support & Inquiries</p>
+                <a href="mailto:autox.service@gmail.com" className="contact-link">autox.service@gmail.com</a>
+              </div>
+              <div className="contact-card">
+                <div className="contact-icon">💬</div>
+                <h3>WhatsApp Us</h3>
+                <p>Quick Support</p>
+                <a href="https://wa.me/919328764024" target="_blank" rel="noreferrer" className="contact-link">Chat with us →</a>
+              </div>
+              <div className="contact-card">
+                <div className="contact-icon">📍</div>
+                <h3>Visit Us</h3>
+                <p>Main Service Center</p>
+                <a href="/contact" className="contact-link">View Location →</a>
+              </div>
+              <div className="contact-card">
+                <div className="contact-icon">📸</div>
+                <h3>Follow Us</h3>
+                <p>On Instagram</p>
+                <a href="https://www.instagram.com/autox_07?igsh=NnF4eW1wOG1pYW55" target="_blank" rel="noreferrer" className="contact-link">@autox_07 →</a>
+              </div>
+              <div className="contact-card">
+                <div className="contact-icon">🕐</div>
+                <h3>Hours</h3>
+                <p>Always Open</p>
+                <p className="contact-link">24/7 Available</p>
+              </div>
+              <div className="contact-card">
+                <div className="contact-icon">💳</div>
+                <h3>Payment Options</h3>
+                <p>Easy & Secure</p>
+                <p className="contact-link">Cash, UPI, Card, EMI</p>
+              </div>
+              <div className="contact-card">
+                <div className="contact-icon">🎧</div>
+                <h3>Live Chat</h3>
+                <p>Instant Help</p>
+                <a href="/contact" className="contact-link">Start Chat →</a>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Links */}
+          <div className="overview-section quick-links">
+            <h2>🔗 Quick Navigation</h2>
+            <div className="links-grid">
+              <button onClick={() => navigate('/services')} className="quick-link-btn">View All Services</button>
+              <button onClick={() => navigate('/about')} className="quick-link-btn">About AutoX</button>
+              <button onClick={() => navigate('/gallery')} className="quick-link-btn">Photo Gallery</button>
+              <button onClick={() => navigate('/contact')} className="quick-link-btn">Contact Us</button>
+              <button onClick={() => navigate('/login')} className="quick-link-btn">Customer Login</button>
+              <button onClick={() => navigate('/register')} className="quick-link-btn">Register Now</button>
+            </div>
+          </div>
+
+        </section>
 
       </div>
     </div>
@@ -874,6 +1198,18 @@ function Home() {
                 </div>
               </div>
           </div>
+        )}
+
+        {/* Scroll to Top Button */}
+        {showScrollTop && (
+          <button
+            className="scroll-to-top"
+            onClick={scrollToTop}
+            title="Scroll to top"
+            aria-label="Scroll to top of page"
+          >
+            ↑
+          </button>
         )}
       
     </>

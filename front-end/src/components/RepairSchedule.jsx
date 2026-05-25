@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useNotifications } from "../context/NotificationContext";
 import "./Repair.css";
 
 function RepairSchedule() {
   const navigate = useNavigate();
+  const { addNotification } = useNotifications();
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -25,6 +27,15 @@ function RepairSchedule() {
   const onSubmit = (e) => {
     e.preventDefault();
     console.log("Repair schedule submitted:", form);
+    
+    // Add notification for repair schedule
+    addNotification({
+      type: 'booking',
+      title: 'Repair Scheduled',
+      message: `Your repair appointment for ${form.vehicle} has been scheduled for ${form.preferredDate} at ${form.preferredTime}.`,
+      icon: '🔧',
+    });
+    
     setSubmitted(true);
     setTimeout(() => navigate("/"), 2000);
   };

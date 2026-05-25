@@ -1,92 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import CommonTable from '../../components/CommonTable.jsx';
+import { modificationsApi, mechanicsApi } from '../../utils/apiService';
 
 function ManageModifications() {
-  const [modifications, setModifications] = useState([
-    { 
-      id: 1, 
-      customer: 'Raj Patel', 
-      vehicle: 'Honda Civic (MH-04-AB-1234)', 
-      modType: 'Performance Tuning',
-      description: 'ECU remapping, sports exhaust, air intake upgrade',
-      estimatedCost: '₹45,000',
-      duration: '3-4 days',
-      phone: '9876543210',
-      status: 'In Progress',
-      assignedTo: 'Suresh Patel',
-      date: '2025-12-28',
-      progress: 60
-    },
-    { 
-      id: 2, 
-      customer: 'Neha Sharma', 
-      vehicle: 'Maruti Swift (DL-01-CD-5678)', 
-      modType: 'Body Kit Installation',
-      description: 'Front & rear bumper upgrade, side skirts, spoiler installation',
-      estimatedCost: '₹35,000',
-      duration: '2-3 days',
-      phone: '9876543211',
-      status: 'Pending',
-      assignedTo: 'Rajesh Kumar',
-      date: '2025-12-29',
-      progress: 0
-    },
-    { 
-      id: 3, 
-      customer: 'Vikram Singh', 
-      vehicle: 'Toyota Fortuner (GJ-05-EF-9012)', 
-      modType: 'Suspension Upgrade',
-      description: 'Lift kit installation, heavy-duty shocks, off-road springs',
-      estimatedCost: '₹75,000',
-      duration: '4-5 days',
-      phone: '9876543212',
-      status: 'In Progress',
-      assignedTo: 'Ramesh Gupta',
-      date: '2025-12-27',
-      progress: 40
-    },
-    { 
-      id: 4, 
-      customer: 'Priya Gupta', 
-      vehicle: 'Hyundai Creta (MH-02-GH-3456)', 
-      modType: 'Interior Customization',
-      description: 'Leather seat covers, ambient lighting, custom dashboard',
-      estimatedCost: '₹28,000',
-      duration: '2 days',
-      phone: '9876543213',
-      status: 'Completed',
-      assignedTo: 'Ashok Sharma',
-      date: '2025-12-25',
-      progress: 100
-    },
-    { 
-      id: 5, 
-      customer: 'Amit Desai', 
-      vehicle: 'Skoda Rapid (GJ-06-IJ-7890)', 
-      modType: 'Audio System Upgrade',
-      description: 'Premium speakers, subwoofer, amplifier, sound deadening',
-      estimatedCost: '₹55,000',
-      duration: '2-3 days',
-      phone: '9876543214',
-      status: 'Completed',
-      assignedTo: 'Vikram Singh',
-      date: '2025-12-26',
-      progress: 100
-    },
-    { 
-      id: 6, 
-      customer: 'Rohan Kumar', 
-      vehicle: 'Tata Nexon (DL-03-KL-1234)', 
-      modType: 'Lighting Modifications',
-      description: 'LED headlights, fog lamps, underglow lighting kit',
-      estimatedCost: '₹22,000',
-      duration: '1-2 days',
-      phone: '9876543215',
-      status: 'Pending',
-      assignedTo: 'Deepak Verma',
-      date: '2025-12-30',
-      progress: 0
-    },
-  ]);
+  const [modifications, setModifications] = useState([]);
+
+  const loadModifications = async () => {
+    try {
+      const res = await modificationsApi.list();
+      const raw = res?.data || res || [];
+      setModifications(raw.map((m, idx) => ({
+        ...m,
+        id: m.modCode || m._id || idx + 1,
+        customer: m.customer || '—',
+        vehicle: m.vehicle || '—',
+        modType: m.modType || m.name || '—',
+        description: m.description || '—',
+        estimatedCost: m.estimatedCost || (m.basePrice != null ? `₹${m.basePrice}` : '—'),
+        duration: m.duration || '—',
+        phone: m.phone || '—',
+        assignedTo: m.assignedTo || '—',
+        status: m.status || (m.active === false ? 'Inactive' : 'Active'),
+        progress: m.progress != null ? m.progress : '—',
+      })));
+    } catch (err) {
+      console.error('Error loading modifications:', err);
+    }
+  };
+
+  useEffect(() => { loadModifications(); }, []);
 
   const [filterStatus, setFilterStatus] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
@@ -103,6 +45,20 @@ function ManageModifications() {
     assignedTo: ''
   });
 
+  const modificationColumns = useMemo(() => [
+    { accessorKey: 'id', header: 'ID' },
+    { accessorKey: 'customer', header: 'Customer' },
+    { accessorKey: 'vehicle', header: 'Vehicle' },
+    { accessorKey: 'modType', header: 'Modification Type' },
+    { accessorKey: 'description', header: 'Description' },
+    { accessorKey: 'estimatedCost', header: 'Est. Cost' },
+    { accessorKey: 'duration', header: 'Duration' },
+    { accessorKey: 'phone', header: 'Phone' },
+    { accessorKey: 'assignedTo', header: 'Assigned To' },
+    { accessorKey: 'status', header: 'Status' },
+    { accessorKey: 'progress', header: 'Progress' },
+  ], []);
+
   const modificationTypes = [
     'Performance Tuning',
     'Body Kit Installation',
@@ -116,45 +72,45 @@ function ManageModifications() {
     'Engine Modification'
   ];
 
-  const mechanics = ['Suresh Patel', 'Rajesh Kumar', 'Ramesh Gupta', 'Vikram Singh', 'Ashok Sharma', 'Deepak Verma'];
+  const [mechanicsList, setMechanicsList] = useState([]);
 
-  const handleAddModification = (e) => {
+  useEffect(() => {
+    const loadMechanics = async () => {
+      try {
+        const res = await mechanicsApi.list();
+        setMechanicsList((res?.data || res || []).map(m => m.fullName || m.name || m.mechanicCode || '').filter(Boolean));
+      } catch (err) {
+        console.error('Error loading mechanics:', err);
+      }
+    };
+    loadMechanics();
+  }, []);
+
+  const handleAddModification = async (e) => {
     e.preventDefault();
     if (formData.customer && formData.vehicle && formData.modType) {
-      const newModification = {
-        id: Math.max(...modifications.map(m => m.id), 0) + 1,
-        ...formData,
-        date: new Date().toISOString().split('T')[0],
-        progress: formData.status === 'Completed' ? 100 : formData.status === 'In Progress' ? 50 : 0
-      };
-      setModifications([...modifications, newModification]);
-      setFormData({
-        customer: '',
-        vehicle: '',
-        modType: '',
-        description: '',
-        estimatedCost: '',
-        duration: '',
-        phone: '',
-        status: 'Pending',
-        assignedTo: ''
-      });
-      setShowForm(false);
+      try {
+        await modificationsApi.createOrder({
+          ...formData,
+          progress: formData.status === 'Completed' ? 100 : formData.status === 'In Progress' ? 50 : 0
+        });
+        await loadModifications();
+        setFormData({
+          customer: '',
+          vehicle: '',
+          modType: '',
+          description: '',
+          estimatedCost: '',
+          duration: '',
+          phone: '',
+          status: 'Pending',
+          assignedTo: ''
+        });
+        setShowForm(false);
+      } catch (err) {
+        console.error('Error adding modification:', err);
+      }
     }
-  };
-
-  const handleStatusChange = (id, newStatus) => {
-    setModifications(modifications.map(m => 
-      m.id === id ? { 
-        ...m, 
-        status: newStatus,
-        progress: newStatus === 'Completed' ? 100 : newStatus === 'In Progress' ? 50 : 0
-      } : m
-    ));
-  };
-
-  const handleDelete = (id) => {
-    setModifications(modifications.filter(m => m.id !== id));
   };
 
   const handleCancel = () => {
@@ -174,9 +130,10 @@ function ManageModifications() {
 
   const filteredModifications = modifications.filter(m => {
     const matchesStatus = filterStatus === 'All' || m.status === filterStatus;
-    const matchesSearch = m.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          m.vehicle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          m.modType.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = !searchTerm ||
+                          (m.customer || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (m.vehicle || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (m.modType || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
@@ -265,7 +222,7 @@ function ManageModifications() {
                 onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
               >
                 <option value="">Assign to Mechanic</option>
-                {mechanics.map(m => <option key={m} value={m}>{m}</option>)}
+                {mechanicsList.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
               <select
                 value={formData.status}
@@ -307,75 +264,11 @@ function ManageModifications() {
       </div>
 
       <div className="bookings-container">
-        {filteredModifications.length > 0 ? (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Customer</th>
-                <th>Vehicle</th>
-                <th>Vehicle Number</th>
-                <th>Modification Type</th>
-                <th>Description</th>
-                <th>Cost</th>
-                <th>Duration</th>
-                <th>Assigned To</th>
-                <th>Progress</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredModifications.map((mod) => (
-                <tr key={mod.id}>
-                  <td>
-                    <div>
-                      <strong>{mod.customer}</strong><br/>
-                      <small style={{ color: '#999' }}>{mod.phone}</small>
-                    </div>
-                  </td>
-                  <td><strong>{mod.vehicle.split('(')[0].trim()}</strong></td>
-                  <td><strong>{mod.vehicle.includes('(') ? mod.vehicle.split('(')[1].replace(')', '') : '-'}</strong></td>
-                  <td><span style={{ color: '#dc2626', fontWeight: '500' }}>{mod.modType}</span></td>
-                  <td><small style={{ color: '#666' }}>{mod.description}</small></td>
-                  <td><strong>{mod.estimatedCost || '-'}</strong></td>
-                  <td>{mod.duration || '-'}</td>
-                  <td>{mod.assignedTo || '-'}</td>
-                  <td>
-                    <div className="progress-small">
-                      <div className="progress-bar-small">
-                        <div 
-                          className="progress-fill-small" 
-                          style={{width: `${mod.progress}%`}}
-                        ></div>
-                      </div>
-                      <span style={{ fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                        {mod.progress}%
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <select
-                      className={`status-select status-${mod.status.toLowerCase().replace(' ', '-')}`}
-                      value={mod.status}
-                      onChange={(e) => handleStatusChange(mod.id, e.target.value)}
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="In Progress">In Progress</option>
-                      <option value="Completed">Completed</option>
-                    </select>
-                  </td>
-                  <td>
-                    <button className="btn-delete" onClick={() => handleDelete(mod.id)}>Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="empty-state">
-            <p>No modification requests found</p>
-          </div>
-        )}
+        <CommonTable 
+          columns={modificationColumns}
+          data={filteredModifications}
+          filename="modifications"
+        />
       </div>
 
       <div className="booking-stats">

@@ -1,163 +1,282 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import CommonTable from '../../components/CommonTable';
+import { bookingApi, mechanicsApi } from '../../utils/apiService';
+import './ManageBookings.css';
+import './ManageBookings.css';
 
 function ManageBookings() {
-  const [bookings, setBookings] = useState([
-    { id: 1, customer: 'John Doe', service: 'Smart Garage Services', vehicleNumber: 'MH-04-AB-1234', phone: '9876543210', date: '2025-12-30', time: '10:00 AM', status: 'Pending', amount: '₹2,499' },
-    { id: 2, customer: 'Sarah Smith', service: 'Car & Bike Repair', vehicleNumber: 'DL-01-CD-5678', phone: '9876543211', date: '2025-12-29', time: '2:30 PM', status: 'Completed', amount: '₹4,500' },
-    { id: 3, customer: 'Mike Johnson', service: 'Vehicle Modification', vehicleNumber: 'GJ-05-EF-9012', phone: '9876543212', date: '2025-12-28', time: '11:15 AM', status: 'In Progress', amount: '₹8,999' },
-    { id: 4, customer: 'Priya Gupta', service: 'Vehicle Detailing', vehicleNumber: 'MH-02-GH-3456', phone: '9876543213', date: '2025-12-27', time: '3:00 PM', status: 'Completed', amount: '₹3,999' },
-    { id: 5, customer: 'Raj Patel', service: 'Emergency Roadside Help', vehicleNumber: 'GJ-06-IJ-7890', phone: '9876543214', date: '2025-12-26', time: '9:45 PM', status: 'Completed', amount: '₹500' },
-    { id: 6, customer: 'Asha Kumar', service: 'Pre-Purchase Inspection', vehicleNumber: 'DL-03-KL-1234', phone: '9876543215', date: '2025-12-25', time: '1:00 PM', status: 'In Progress', amount: '₹2,499' },
-  ]);
-
-  const [filterStatus, setFilterStatus] = useState('All');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [bookings, setBookings] = useState([]);
+  const [mechanics, setMechanics] = useState([]);
+  const [searchVehicle, setSearchVehicle] = useState('');
+  const [searchCustomer, setSearchCustomer] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusPayload, setStatusPayload] = useState({ status: 'pending', mechanicId: '' });
 
-  const handleStatusChange = (id, newStatus) => {
-    setBookings(bookings.map(b => b.id === id ? { ...b, status: newStatus } : b));
+  const loadBookings = async () => {
+    try {
+      const extractRows = (response) => {
+        if (Array.isArray(response?.data)) return response.data;
+        if (Array.isArray(response?.records)) return response.records;
+        if (Array.isArray(response?.bookings)) return response.bookings;
+        if (Array.isArray(response)) return response;
+        return [];
+      };
+
+      const query = new URLSearchParams();
+      if (searchVehicle) query.set('vehicleNumber', searchVehicle);
+      if (searchCustomer) query.set('customerName', searchCustomer);
+      if (statusFilter !== 'all') query.set('status', statusFilter);
+
+      const response = await bookingApi.listAdmin(query.toString());
+      const data = extractRows(response);
+      setBookings(data);
+    } catch (error) {
+      console.error('Unable to load bookings', error);
+      // Keep previous rows instead of wiping grid on temporary API/auth failures.
+    }
   };
 
-  const handleViewBooking = (booking) => {
+  const loadMechanics = async () => {
+    try {
+      const response = await mechanicsApi.list();
+      const data = Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response)
+        ? response
+        : [];
+      setMechanics(data);
+    } catch (_error) {
+      // Keep previous mechanics list on temporary API errors.
+    }
+  };
+
+  useEffect(() => {
+    loadBookings();
+    loadMechanics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const normalizedBookings = useMemo(() => {
+    return bookings.map((booking) => ({
+      id: booking.id,
+      bookingId: booking.id,
+      customerName: booking.customerName || 'N/A',
+      mobile: booking.mobile || 'N/A',
+      vehicleNumber: booking.vehicleNumber || 'N/A',
+      vehicleModel: booking.vehicleModel || 'N/A',
+      serviceType: booking.serviceType || 'N/A',
+      bookingDate: booking.bookingDate
+        ? new Date(booking.bookingDate).toLocaleString('en-IN')
+        : 'N/A',
+      bookingStatus: booking.bookingStatus || booking.status || 'pending',
+      mechanicName: booking.mechanicName || 'Unassigned',
+      raw: booking,
+    }));
+  }, [bookings]);
+
+  const filtered = useMemo(() => {
+    return normalizedBookings.filter((item) => {
+      const vehicleMatch =
+        !searchVehicle || item.vehicleNumber.toLowerCase().includes(searchVehicle.toLowerCase());
+      const customerMatch =
+        !searchCustomer || item.customerName.toLowerCase().includes(searchCustomer.toLowerCase());
+      const statusMatch =
+        statusFilter === 'all' || item.bookingStatus.toLowerCase() === statusFilter.toLowerCase();
+      return vehicleMatch && customerMatch && statusMatch;
+    });
+  }, [normalizedBookings, searchVehicle, searchCustomer, statusFilter]);
+
+  const handleDelete = async (bookingId) => {
+    if (!window.confirm('Delete this booking?')) return;
+    await bookingApi.delete(bookingId);
+    await loadBookings();
+  };
+
+  const openStatusModal = (booking) => {
     setSelectedBooking(booking);
+    setStatusPayload({
+      status: booking.bookingStatus || 'pending',
+      mechanicId: booking.raw?.mechanicId ? String(booking.raw.mechanicId) : '',
+    });
+    setShowStatusModal(true);
   };
 
-  const closeBookingDetails = () => {
+  const handleUpdateStatus = async (event) => {
+    event.preventDefault();
+    if (!selectedBooking) return;
+
+    const selectedMechanic = mechanics.find(
+      (mechanic) => {
+        const mechanicId = String(mechanic.id || mechanic.mechanicCode || mechanic._id || '');
+        return mechanicId === String(statusPayload.mechanicId);
+      }
+    );
+
+    await bookingApi.updateStatus(selectedBooking.bookingId, {
+      status: statusPayload.status,
+      mechanicId: statusPayload.mechanicId ? Number(statusPayload.mechanicId) : undefined,
+      mechanicName: selectedMechanic?.fullName || selectedMechanic?.name || undefined,
+    });
+
+    setShowStatusModal(false);
     setSelectedBooking(null);
+    await loadBookings();
   };
 
-  const filteredBookings = bookings.filter(b => {
-    const matchesStatus = filterStatus === 'All' || b.status === filterStatus;
-    const matchesSearch = b.customer.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          b.service.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
-
-  const getStatusCount = (status) => {
-    if (status === 'All') return bookings.length;
-    return bookings.filter(b => b.status === status).length;
-  };
+  const columns = useMemo(
+    () => [
+      { accessorKey: 'bookingId', header: 'Booking ID', size: 90 },
+      { accessorKey: 'customerName', header: 'Customer Name', size: 140 },
+      { accessorKey: 'mobile', header: 'Mobile Number', size: 130 },
+      { accessorKey: 'vehicleNumber', header: 'Vehicle Number', size: 130 },
+      { accessorKey: 'vehicleModel', header: 'Vehicle Model', size: 130 },
+      { accessorKey: 'serviceType', header: 'Service Type', size: 130 },
+      { accessorKey: 'bookingDate', header: 'Booking Date', size: 170 },
+      { accessorKey: 'bookingStatus', header: 'Status', size: 110 },
+      {
+        accessorKey: 'actions',
+        header: 'Actions',
+        size: 240,
+        Cell: ({ row }) => {
+          const booking = row.original;
+          return (
+            <div className="action-buttons">
+              <button className="btn-action btn-view" onClick={() => setSelectedBooking(booking)}>
+                View
+              </button>
+              <button className="btn-action btn-edit" onClick={() => openStatusModal(booking)}>
+                Update Status
+              </button>
+              <button className="btn-action btn-delete" onClick={() => handleDelete(booking.bookingId)}>
+                Delete
+              </button>
+            </div>
+          );
+        },
+      },
+    ],
+    [mechanics]
+  );
 
   return (
-    <div className="admin-page">
+    <div className="admin-page bookings-admin-page">
       <div className="page-header">
         <div>
-          <h1>📅 Manage Bookings</h1>
-          <p className="header-subtitle">Total Bookings: {bookings.length}</p>
+          <h1>Bookings</h1>
+          <p className="header-subtitle">Manage all customer bookings from API-synced data</p>
         </div>
-        <input
-          type="text"
-          placeholder="Search bookings..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
-        />
       </div>
 
-      <div className="filter-tabs">
-        {['All', 'Pending', 'In Progress', 'Completed'].map((status) => (
-          <button
-            key={status}
-            className={`filter-tab ${filterStatus === status ? 'active' : ''}`}
-            onClick={() => setFilterStatus(status)}
-          >
-            {status} <span className="badge-count">{getStatusCount(status)}</span>
-          </button>
-        ))}
+      <div className="booking-filters">
+        <div className="filter-group">
+          <label>Search by Vehicle Number</label>
+          <input
+            type="text"
+            value={searchVehicle}
+            onChange={(e) => setSearchVehicle(e.target.value)}
+            placeholder="e.g. MH12AB1234"
+          />
+        </div>
+
+        <div className="filter-group">
+          <label>Search by Customer Name</label>
+          <input
+            type="text"
+            value={searchCustomer}
+            onChange={(e) => setSearchCustomer(e.target.value)}
+            placeholder="Customer name"
+          />
+        </div>
+
+        <div className="filter-group">
+          <label>Filter by Status</label>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="all">All</option>
+            <option value="pending">Pending</option>
+            <option value="in-progress">In Progress</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+
+        <button className="btn-secondary" onClick={loadBookings}>Refresh</button>
       </div>
 
       <div className="bookings-container">
-        {filteredBookings.length > 0 ? (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Customer</th>
-                <th>Service</th>
-                <th>Vehicle Number</th>
-                <th>Phone</th>
-                <th>Date & Time</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredBookings.map((booking) => (
-                <tr key={booking.id}>
-                  <td>
-                    <strong>{booking.customer}</strong>
-                  </td>
-                  <td>{booking.service}</td>
-                  <td><strong>{booking.vehicleNumber}</strong></td>
-                  <td><a href={`tel:${booking.phone}`}>{booking.phone}</a></td>
-                  <td>{booking.date} @ {booking.time}</td>
-                  <td><strong>{booking.amount}</strong></td>
-                  <td>
-                    <select
-                      className={`status-select status-${booking.status.toLowerCase().replace(' ', '-')}`}
-                      value={booking.status}
-                      onChange={(e) => handleStatusChange(booking.id, e.target.value)}
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="In Progress">In Progress</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Cancelled">Cancelled</option>
-                    </select>
-                  </td>
-                  <td>
-                    <button 
-                      className="btn-edit" 
-                      title="View Details"
-                      onClick={() => handleViewBooking(booking)}
-                    >
-                      👁
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="empty-state">
-            <p>No bookings found</p>
-          </div>
-        )}
+        <CommonTable columns={columns} data={filtered} fileName="admin-bookings" showSelection={false} />
       </div>
 
-      <div className="booking-stats">
-        <div className="stat-item">
-          <label>Total Revenue (All)</label>
-          <span>₹{bookings.reduce((sum, b) => sum + parseInt(b.amount.replace(/[₹,]/g, '')), 0).toLocaleString('en-IN')}</span>
-        </div>
-        <div className="stat-item">
-          <label>Completed Bookings</label>
-          <span>{bookings.filter(b => b.status === 'Completed').length}</span>
-        </div>
-        <div className="stat-item">
-          <label>Pending Bookings</label>
-          <span>{bookings.filter(b => b.status === 'Pending').length}</span>
-        </div>
-      </div>
-
-      {selectedBooking && (
-        <div className="modal-backdrop" onClick={closeBookingDetails}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <p className="modal-label">Booking Details</p>
-                <h3>{selectedBooking.customer}</h3>
-              </div>
-              <button className="modal-close" onClick={closeBookingDetails} aria-label="Close">×</button>
-            </div>
-            <div className="modal-body">
-              <p><strong>Service:</strong> {selectedBooking.service}</p>
+      {selectedBooking && !showStatusModal && (
+        <div className="modal-overlay" onClick={() => setSelectedBooking(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setSelectedBooking(null)}>✕</button>
+            <h3>Booking Details</h3>
+            <div className="view-grid">
+              <p><strong>Booking ID:</strong> {selectedBooking.bookingId}</p>
+              <p><strong>Customer Name:</strong> {selectedBooking.customerName}</p>
+              <p><strong>Mobile:</strong> {selectedBooking.mobile}</p>
               <p><strong>Vehicle Number:</strong> {selectedBooking.vehicleNumber}</p>
-              <p><strong>Phone:</strong> <a href={`tel:${selectedBooking.phone}`}>{selectedBooking.phone}</a></p>
-              <p><strong>Date:</strong> {selectedBooking.date}</p>
-              <p><strong>Time:</strong> {selectedBooking.time}</p>
-              <p><strong>Amount:</strong> {selectedBooking.amount}</p>
-              <p><strong>Status:</strong> <span className={`status status-${selectedBooking.status.toLowerCase().replace(' ', '-')}`}>{selectedBooking.status}</span></p>
+              <p><strong>Vehicle Model:</strong> {selectedBooking.vehicleModel}</p>
+              <p><strong>Service Type:</strong> {selectedBooking.serviceType}</p>
+              <p><strong>Booking Date:</strong> {selectedBooking.bookingDate}</p>
+              <p><strong>Status:</strong> {selectedBooking.bookingStatus}</p>
+              <p><strong>Mechanic:</strong> {selectedBooking.mechanicName}</p>
             </div>
+            <div className="modal-actions">
+              <button className="btn-primary" onClick={() => openStatusModal(selectedBooking)}>
+                Update Status / Assign Mechanic
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showStatusModal && selectedBooking && (
+        <div className="modal-overlay" onClick={() => setShowStatusModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowStatusModal(false)}>✕</button>
+            <h3>Update Booking Status</h3>
+
+            <form onSubmit={handleUpdateStatus} className="vehicle-form">
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Status</label>
+                  <select
+                    value={statusPayload.status}
+                    onChange={(e) => setStatusPayload((prev) => ({ ...prev, status: e.target.value }))}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Assign Mechanic</label>
+                  <select
+                    value={statusPayload.mechanicId}
+                    onChange={(e) => setStatusPayload((prev) => ({ ...prev, mechanicId: e.target.value }))}
+                  >
+                    <option value="">Unassigned</option>
+                    {mechanics.map((mechanic) => (
+                      <option key={mechanic.id || mechanic.mechanicCode || mechanic._id} value={mechanic.id || mechanic.mechanicCode || mechanic._id}>
+                        {mechanic.fullName || mechanic.name || 'Mechanic'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="btn-secondary" onClick={() => setShowStatusModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  Save Changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

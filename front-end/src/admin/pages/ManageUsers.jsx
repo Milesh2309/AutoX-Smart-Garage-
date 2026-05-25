@@ -1,21 +1,163 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import CommonTable from '../../components/CommonTable.jsx';
+import { usersApi } from '../../utils/apiService';
 
 function ManageUsers() {
-  const [users, setUsers] = useState([
-    { id: 1, name: 'John Doe', email: 'john@example.com', phone: '9876543210', vehicleNumber: 'MH-04-AB-1234', joinDate: '2025-12-15' },
-    { id: 2, name: 'Sarah Smith', email: 'sarah@example.com', phone: '9765432109', vehicleNumber: 'DL-01-CD-5678', joinDate: '2025-12-10' },
-    { id: 3, name: 'Mike Johnson', email: 'mike@example.com', phone: '9654321098', vehicleNumber: 'GJ-05-EF-9012', joinDate: '2025-12-05' },
-  ]);
-
+  const [users, setUsers] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: 'user',
+    password: '',
+  });
 
-  const handleDeleteUser = (id) => {
-    setUsers(users.filter(u => u.id !== id));
+  const loadUsers = async () => {
+    try {
+      const res = await usersApi.list();
+      const raw = Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res?.users)
+        ? res.users
+        : Array.isArray(res)
+        ? res
+        : [];
+      // Normalize inconsistent field names from different user sources
+      const normalized = raw.map((u, idx) => ({
+        ...u,
+        id: u.userId || u._id || idx + 1,
+        name: u.name || u.fullName || '—',
+        email: u.email || '—',
+        phone: u.phone || '—',
+        role: u.role || '—',
+        status: u.isActive === false ? 'Inactive' : 'Active',
+        joinDate: u.createdAt
+          ? new Date(u.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+          : '—',
+      }));
+      setUsers(normalized);
+    } catch (err) {
+      console.error('Error loading users:', err);
+      // Keep existing rows on temporary failures (token refresh/network jitter).
+    }
   };
 
-  const handleViewProfile = (user) => {
-    setSelectedUser(user);
+  useEffect(() => { loadUsers(); }, []);
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      email: '',
+      phone: '',
+      role: 'user',
+      password: '',
+    });
+    setEditingId('');
+    setShowForm(false);
   };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!formData.name || !formData.email) {
+      alert('Name and email are required.');
+      return;
+    }
+
+    try {
+      if (editingId) {
+        await usersApi.update(editingId, {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          role: formData.role,
+        });
+        alert('User updated successfully.');
+      } else {
+        await usersApi.create({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          role: formData.role,
+          password: formData.password || 'Temp@1234',
+        });
+        alert('User created successfully.');
+      }
+
+      await loadUsers();
+      resetForm();
+    } catch (error) {
+      alert(error?.message || 'Unable to save user.');
+    }
+  };
+
+  const handleEdit = (user) => {
+    setEditingId(user.id);
+    setFormData({
+      name: user.name || '',
+      email: user.email || '',
+      phone: user.phone || '',
+      role: (user.role || 'user').toLowerCase(),
+      password: '',
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (userId) => {
+    if (!window.confirm('Delete this user?')) return;
+
+    try {
+      await usersApi.delete(userId);
+      await loadUsers();
+      alert('User deleted successfully.');
+    } catch (error) {
+      alert(error?.message || 'Unable to delete user.');
+    }
+  };
+
+  const userColumns = useMemo(() => [
+    { accessorKey: 'id', header: 'ID', size: 100 },
+    { accessorKey: 'name', header: 'Name', size: 180 },
+    { accessorKey: 'email', header: 'Email', size: 250 },
+    { accessorKey: 'phone', header: 'Phone', size: 140 },
+    { accessorKey: 'role', header: 'Role', size: 100,
+      Cell: ({ cell }) => {
+        const val = (cell.getValue() || '').toLowerCase();
+        const color = val === 'admin' ? '#e74c3c' : val === 'customer' ? '#2980b9' : '#7f8c8d';
+        return <span style={{ fontWeight: 600, color, textTransform: 'capitalize' }}>{cell.getValue()}</span>;
+      },
+    },
+    { accessorKey: 'status', header: 'Status', size: 100,
+      Cell: ({ cell }) => {
+        const active = cell.getValue() === 'Active';
+        return (
+          <span style={{
+            padding: '2px 10px', borderRadius: 12, fontSize: 13, fontWeight: 600,
+            background: active ? '#e6f9ee' : '#fde8e8', color: active ? '#27ae60' : '#e74c3c',
+          }}>{cell.getValue()}</span>
+        );
+      },
+    },
+    { accessorKey: 'joinDate', header: 'Join Date', size: 130 },
+    {
+      accessorKey: 'actions',
+      header: 'Actions',
+      size: 180,
+      Cell: ({ row }) => {
+        const user = row.original;
+        return (
+          <div className="action-buttons">
+            <button className="btn-action btn-view" onClick={() => setSelectedUser(user)}>View</button>
+            <button className="btn-action btn-edit" onClick={() => handleEdit(user)}>Edit</button>
+            <button className="btn-action btn-delete" onClick={() => handleDelete(user.id)}>Delete</button>
+          </div>
+        );
+      },
+    },
+  ], []);
 
   const closeProfile = () => setSelectedUser(null);
 
@@ -23,36 +165,72 @@ function ManageUsers() {
     <div className="admin-page">
       <div className="page-header">
         <h1>👥 Manage Users</h1>
-        <span className="badge">{users.length} Total Users</span>
+        <div className="action-buttons">
+          <span className="badge">{users.length} Total Users</span>
+          <button className="btn-primary" onClick={() => setShowForm(true)}>+ Add User</button>
+        </div>
       </div>
 
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Vehicle Number</th>
-            <th>Join Date</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((user) => (
-            <tr key={user.id}>
-              <td>{user.name}</td>
-              <td>{user.email}</td>
-              <td>{user.phone}</td>
-              <td><strong>{user.vehicleNumber}</strong></td>
-              <td>{user.joinDate}</td>
-              <td>
-                <button className="btn-edit" onClick={() => handleViewProfile(user)}>View Profile</button>
-                <button className="btn-delete" onClick={() => handleDeleteUser(user.id)}>Delete</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {showForm && (
+        <div className="form-container">
+          <h3>{editingId ? 'Edit User' : 'Add New User'}</h3>
+          <form className="service-form" onSubmit={handleSubmit}>
+            <div className="form-row">
+              <input
+                type="text"
+                placeholder="Full Name"
+                value={formData.name}
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                required
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="form-row">
+              <input
+                type="text"
+                placeholder="Phone Number"
+                value={formData.phone}
+                onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
+              />
+              <select
+                value={formData.role}
+                onChange={(e) => setFormData((prev) => ({ ...prev, role: e.target.value }))}
+              >
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+
+            {!editingId && (
+              <input
+                type="text"
+                placeholder="Password (optional, defaults to Temp@1234)"
+                value={formData.password}
+                onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+              />
+            )}
+
+            <div className="form-actions">
+              <button type="submit" className="btn-primary">{editingId ? 'Update User' : 'Create User'}</button>
+              <button type="button" className="btn-secondary" onClick={resetForm}>Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <div className="bookings-container">
+        <CommonTable 
+          columns={userColumns}
+          data={users}
+          filename="users"
+        />
+      </div>
 
       {selectedUser && (
         <div className="modal-backdrop" onClick={closeProfile} role="button" tabIndex={0} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && closeProfile()}>
@@ -67,9 +245,9 @@ function ManageUsers() {
             <div className="modal-body">
               <p><strong>Email:</strong> {selectedUser.email}</p>
               <p><strong>Phone:</strong> {selectedUser.phone}</p>
-              <p><strong>Vehicle Number:</strong> {selectedUser.vehicleNumber}</p>
+              <p><strong>Role:</strong> {selectedUser.role}</p>
+              <p><strong>Status:</strong> {selectedUser.status}</p>
               <p><strong>Joined:</strong> {selectedUser.joinDate}</p>
-              <p><strong>Status:</strong> Active</p>
             </div>
           </div>
         </div>

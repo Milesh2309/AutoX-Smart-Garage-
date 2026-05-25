@@ -1,9 +1,14 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useNotifications } from "../context/NotificationContext";
+import { useAuth } from '../context/AuthContext';
+import { breakdownApi } from '../utils/apiService';
 import "./Breakdown.css";
 
 function BreakdownRequest() {
   const navigate = useNavigate();
+  const { addNotification } = useNotifications();
+  const { user } = useAuth();
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -13,18 +18,44 @@ function BreakdownRequest() {
     shareLocation: true,
   });
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Send to backend here
-    console.log("Breakdown request:", form);
-    setSubmitted(true);
-    setTimeout(() => navigate("/"), 2000);
+    setSubmitError('');
+    setIsSubmitting(true);
+
+    try {
+      await breakdownApi.createCall({
+        userId: Number(user?.id) > 0 ? Number(user.id) : 1,
+        location: form.location,
+        customerName: form.name,
+        phone: form.phone,
+        vehicle: form.vehicle,
+        issue: form.issue,
+      });
+    
+    // Add notification for breakdown request
+    addNotification({
+      type: 'service',
+      title: 'Breakdown Request Received',
+      message: `Emergency assistance requested for ${form.vehicle} at ${form.location}. Help is on the way!`,
+      icon: '🚨',
+    });
+    
+      setSubmitted(true);
+      setTimeout(() => navigate("/"), 2000);
+    } catch (error) {
+      setSubmitError(error?.message || 'Failed to submit breakdown request');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -48,6 +79,7 @@ function BreakdownRequest() {
       </div>
 
       <form className="breakdown-form" onSubmit={handleSubmit}>
+        {submitError ? <div className="status-message error">❌ {submitError}</div> : null}
         <div className="form-row">
           <div className="form-group">
             <label>Name *</label>
@@ -81,7 +113,7 @@ function BreakdownRequest() {
 
         <div className="actions-row">
           <button type="button" className="btn-secondary" onClick={() => navigate(-1)}>Cancel</button>
-          <button type="submit" className="btn-primary">Request Help</button>
+          <button type="submit" className="btn-primary" disabled={isSubmitting}>{isSubmitting ? 'Submitting...' : 'Request Help'}</button>
         </div>
       </form>
 

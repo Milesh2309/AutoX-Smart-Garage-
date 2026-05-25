@@ -3,14 +3,17 @@ import { Link, useLocation } from 'react-router-dom';
 import logo from '../logo.jpeg';
 import './Navbar.css';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 
 function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false);
-  const [aboutDropdownOpen, setAboutDropdownOpen] = useState(false);
+  // about dropdown removed per request
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const location = useLocation();
   const { isAuthenticated, role, logout } = useAuth();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useNotifications();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -20,12 +23,42 @@ function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationsOpen && !event.target.closest('.notification-wrapper')) {
+        setNotificationsOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [notificationsOpen]);
+
   const isActive = (path) => {
     return location.pathname === path;
   };
 
   const closeMobile = () => {
     setIsMobileOpen(false);
+  };
+
+  const toggleNotifications = () => {
+    setNotificationsOpen(!notificationsOpen);
+  };
+
+  const handleMarkAsRead = (notificationId) => {
+    markAsRead(notificationId);
+  };
+
+  const getTimeAgo = (timestamp) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diff = Math.floor((now - time) / 1000); // seconds
+
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
   };
 
   const toggleServicesDropdown = (e) => {
@@ -41,18 +74,11 @@ function Navbar() {
     }
   };
 
-  const toggleAboutDropdown = (e) => {
-    if (window.innerWidth <= 768) {
-      if (aboutDropdownOpen) {
-        // If dropdown is already open, allow navigation
-        closeMobile();
-      } else {
-        // If dropdown is closed, prevent navigation and open dropdown
-        e.preventDefault();
-        setAboutDropdownOpen(true);
-      }
-    }
-  };
+
+  // Hide public nav menu when on admin or customer dashboard
+  const shouldHidePublicNav = 
+    (isAuthenticated && role === 'user' && location.pathname === '/customer/dashboard') ||
+    (isAuthenticated && role === 'admin' && location.pathname === '/admin');
 
   return (
     <>
@@ -75,8 +101,9 @@ function Navbar() {
           {/* Tagline */}
           <div className="navbar-tagline">SMART GARAGE · BREAKDOWN · MODIFICATION</div>
 
-          {/* Nav Links */}
-          <ul className="navbar-links">
+          {/* Nav Links - Hidden when user is on dashboard */}
+          {!shouldHidePublicNav && (
+            <ul className="navbar-links">
             <li>
               <Link 
                 to="/" 
@@ -131,46 +158,23 @@ function Navbar() {
                 </ul>
               )}
             </li>
-            <li 
-              className={`nav-dropdown ${aboutDropdownOpen ? 'sticky-open' : ''}`}
-              onMouseEnter={() => setAboutDropdownOpen(true)}
-              onMouseLeave={() => setAboutDropdownOpen(false)}
-            >
-              <div className="nav-link-wrapper">
-                <Link 
-                  to="/about" 
-                  className={`nav-link ${isActive('/about') || isActive('/gallery') ? 'active' : ''}`}
-                  onClick={(e) => {
-                    if (window.innerWidth > 768) {
-                      // Desktop: allow direct navigation
-                      closeMobile();
-                    } else {
-                      // Mobile: toggle dropdown
-                      toggleAboutDropdown(e);
-                    }
-                  }}
-                >
-                  About
-                  <span className="dropdown-arrow">▼</span>
-                </Link>
-              </div>
-              {aboutDropdownOpen && (
-                <ul className="dropdown-menu">
-                  <li>
-                    <Link 
-                      to="/gallery" 
-                      className="dropdown-item"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        closeMobile();
-                        setAboutDropdownOpen(false);
-                      }}
-                    >
-                      GALLERY
-                    </Link>
-                  </li>
-                </ul>
-              )}
+            <li>
+              <Link 
+                to="/about" 
+                className={`nav-link ${isActive('/about') ? 'active' : ''}`}
+                onClick={closeMobile}
+              >
+                About
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/gallery" 
+                className={`nav-link ${isActive('/gallery') ? 'active' : ''}`}
+                onClick={closeMobile}
+              >
+                Gallery
+              </Link>
             </li>
             <li>
               <Link 
@@ -181,10 +185,96 @@ function Navbar() {
                 Contact
               </Link>
             </li>
-          </ul>
+            </ul>
+          )}
 
           {/* Auth Buttons */}
           <div className="navbar-auth">
+            {/* Notification Bell - Visible always for testing */}
+            <div className="notification-wrapper">
+              <button 
+                className="notification-bell"
+                onClick={toggleNotifications}
+                aria-label="Notifications"
+              >
+                <svg 
+                  className="bell-icon"
+                  xmlns="http://www.w3.org/2000/svg" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                  style={{ display: 'block' }}
+                >
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                {isAuthenticated && unreadCount > 0 && (
+                  <span className="notification-badge">{unreadCount}</span>
+                )}
+              </button>
+
+              {/* Notification Dropdown */}
+              {notificationsOpen && (
+                <div className="notification-dropdown">
+                  <div className="notification-header">
+                    <h3>Notifications</h3>
+                    <div className="notification-actions">
+                      {isAuthenticated && unreadCount > 0 && (
+                        <button 
+                          className="mark-all-read"
+                          onClick={markAllAsRead}
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                      {isAuthenticated && notifications && notifications.length > 0 && (
+                        <button 
+                          className="clear-all"
+                          onClick={clearNotifications}
+                        >
+                          Clear all
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="notification-list">
+                    {!isAuthenticated ? (
+                      <div className="notification-empty">
+                        <p>Please login to view notifications</p>
+                      </div>
+                    ) : (!notifications || notifications.length === 0) ? (
+                      <div className="notification-empty">
+                        <p>No notifications yet</p>
+                      </div>
+                    ) : (
+                      notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          className={`notification-item ${notification.read ? 'read' : 'unread'}`}
+                          onClick={() => handleMarkAsRead(notification.id)}
+                        >
+                          <div className="notification-icon">{notification.icon}</div>
+                          <div className="notification-content">
+                            <h4>{notification.title}</h4>
+                            <p>{notification.message}</p>
+                            <span className="notification-time">
+                              {getTimeAgo(notification.timestamp)}
+                            </span>
+                          </div>
+                          {!notification.read && (
+                            <div className="notification-dot"></div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {isAuthenticated && role === 'admin' ? (
               <>
                 <Link 
@@ -231,13 +321,6 @@ function Navbar() {
                   onClick={closeMobile}
                 >
                   Login
-                </Link>
-                <Link 
-                  to="/register" 
-                  className={`auth-link register-link ${isActive('/register') ? 'active' : ''}`}
-                  onClick={closeMobile}
-                >
-                  Register
                 </Link>
               </>
             )}

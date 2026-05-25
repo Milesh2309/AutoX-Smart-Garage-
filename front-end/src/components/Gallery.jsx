@@ -5,6 +5,7 @@ import LazyImage from './LazyImage';
 function Gallery() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedImage, setSelectedImage] = useState(null);
+  const assetPath = (path) => encodeURI(path);
 
   const galleryImages = {
     regularService: [
@@ -12,42 +13,42 @@ function Gallery() {
         id: 1,
         title: 'Professional Service Center',
         category: 'regular',
-        image: '/img/web images/regular services/pexels-19x14-8478233.jpg',
+        image: assetPath('/img/web-images/regular-services/pexels-19x14-8478233.jpg'),
         description: 'State-of-the-art service facility'
       },
       {
         id: 2,
         title: 'Expert Technicians',
         category: 'regular',
-        image: '/img/web images/regular services/pexels-lynxexotics-15489246.jpg',
+        image: assetPath('/img/web-images/regular-services/pexels-lynxexotics-15489246.jpg'),
         description: 'Certified technicians at work'
       },
       {
         id: 3,
         title: 'Quality Service',
         category: 'regular',
-        image: '/img/web images/regular services/pexels-tami-19499386.jpg',
+        image: assetPath('/img/web-images/regular-services/pexels-tami-19499386.jpg'),
         description: 'Premium vehicle maintenance'
       },
       {
         id: 4,
         title: 'Advanced Diagnostics',
         category: 'regular',
-        image: '/img/web images/regular services/pexels-artempodrez-8985922.jpg',
+        image: assetPath('/img/web-images/regular-services/pexels-artempodrez-8985922.jpg'),
         description: 'Modern diagnostic equipment'
       },
       {
         id: 5,
         title: 'Complete Inspection',
         category: 'regular',
-        image: '/img/web images/regular services/pexels-artempodrez-8986139.jpg',
+        image: assetPath('/img/web-images/regular-services/pexels-artempodrez-8986139.jpg'),
         description: 'Thorough vehicle inspection'
       },
       {
         id: 6,
         title: 'Professional Care',
         category: 'regular',
-        image: '/img/web images/regular services/pexels-fatih-erden-141946798-10490623.jpg',
+        image: assetPath('/img/web-images/regular-services/pexels-fatih-erden-141946798-10490623.jpg'),
         description: 'Expert vehicle care services'
       }
     ],
@@ -56,42 +57,42 @@ function Gallery() {
         id: 7,
         title: 'Emergency Response',
         category: 'breakdown',
-        image: '/img/web images/break dwon/pexels-a-q-91521018-18863497.jpg',
+        image: assetPath('/img/web-images/breakdown/pexels-a-q-91521018-18863497.jpg'),
         description: '24/7 emergency assistance'
       },
       {
         id: 8,
         title: 'Roadside Help',
         category: 'breakdown',
-        image: '/img/web images/break dwon/pexels-edurawpro-21831855.jpg',
+        image: assetPath('/img/web-images/breakdown/pexels-edurawpro-21831855.jpg'),
         description: 'Quick roadside repairs'
       },
       {
         id: 9,
         title: 'Breakdown Recovery',
         category: 'breakdown',
-        image: '/img/web images/break dwon/pexels-jonathan-reynaga-861774-17429096.jpg',
+        image: assetPath('/img/web-images/breakdown/pexels-jonathan-reynaga-861774-17429096.jpg'),
         description: 'Professional breakdown service'
       },
       {
         id: 10,
         title: 'Rapid Assistance',
         category: 'breakdown',
-        image: '/img/web images/break dwon/pexels-mikebirdy-943930.jpg',
+        image: assetPath('/img/web-images/breakdown/pexels-mikebirdy-943930.jpg'),
         description: 'Fast emergency response'
       },
       {
         id: 11,
         title: 'Towing Service',
         category: 'breakdown',
-        image: '/img/web images/break dwon/pexels-mykola128-8660855.jpg',
+        image: assetPath('/img/web-images/breakdown/pexels-mykola128-8660855.jpg'),
         description: 'Professional towing assistance'
       },
       {
         id: 12,
         title: 'On-Site Repair',
         category: 'breakdown',
-        image: '/img/web images/break dwon/pexels-usuariodaniel-10061763.jpg',
+        image: assetPath('/img/web-images/breakdown/pexels-usuariodaniel-10061763.jpg'),
         description: 'On-the-spot emergency repairs'
       }
     ],
@@ -100,49 +101,49 @@ function Gallery() {
         id: 13,
         title: 'Custom Performance',
         category: 'modification',
-        image: '/img/web images/modificasoin/pexels-chickenbunny-102941452-14267360.jpg',
+        image: assetPath('/img/web-images/modification/pexels-chickenbunny-102941452-14267360.jpg'),
         description: 'Performance tuning and upgrades'
       },
       {
         id: 14,
         title: 'Aesthetic Upgrades',
         category: 'modification',
-        image: '/img/web images/modificasoin/pexels-dimkidama-14999240.jpg',
+        image: assetPath('/img/web-images/modification/pexels-dimkidama-14999240.jpg'),
         description: 'Custom body modifications'
       },
       {
         id: 15,
         title: 'Premium Customization',
         category: 'modification',
-        image: '/img/web images/modificasoin/pexels-kyle-buss-45080540-7457234.jpg',
+        image: assetPath('/img/web-images/modification/pexels-kyle-buss-45080540-7457234.jpg'),
         description: 'Exclusive custom modifications'
       },
       {
         id: 16,
         title: 'Advanced Tuning',
         category: 'modification',
-        image: '/img/web images/modificasoin/pexels-bylukemiller-32725702.jpg',
+        image: assetPath('/img/web-images/modification/pexels-bylukemiller-32725702.jpg'),
         description: 'ECU remapping and tuning'
       },
       {
         id: 17,
         title: 'Interior Customization',
         category: 'modification',
-        image: '/img/web images/modificasoin/pexels-jacobmooreimages-12330674.jpg',
+        image: assetPath('/img/web-images/modification/pexels-jacobmooreimages-12330674.jpg'),
         description: 'Premium interior upgrades'
       },
       {
         id: 18,
         title: 'Exterior Enhancement',
         category: 'modification',
-        image: '/img/web images/modificasoin/pexels-natasha-filippovskaya-2203043-10257898.jpg',
+        image: assetPath('/img/web-images/modification/pexels-natasha-filippovskaya-2203043-10257898.jpg'),
         description: 'Body kit and styling upgrades'
       },
       {
         id: 19,
         title: 'Full Customization',
         category: 'modification',
-        image: '/img/web images/modificasoin/pexels-sam-mccool-1923523643-28762239.jpg',
+        image: assetPath('/img/web-images/modification/pexels-sam-mccool-1923523643-28762239.jpg'),
         description: 'Complete vehicle customization'
       }
     ]

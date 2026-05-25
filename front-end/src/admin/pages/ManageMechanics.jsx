@@ -1,17 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import CommonTable from '../../components/CommonTable.jsx';
+import { mechanicsApi } from '../../utils/apiService';
 
 function ManageMechanics() {
-  const [mechanics, setMechanics] = useState([
-    { id: 1, name: 'Suresh Patel', expertise: 'Engine & Transmission', phone: '9876543250', experience: '8 years', status: 'Available', assignedJobs: 5, rating: 4.8 },
-    { id: 2, name: 'Rajesh Kumar', expertise: 'Electrical & AC', phone: '9876543251', experience: '6 years', status: 'Available', assignedJobs: 3, rating: 4.6 },
-    { id: 3, name: 'Ramesh Gupta', expertise: 'Suspension & Brakes', phone: '9876543252', experience: '10 years', status: 'Busy', assignedJobs: 7, rating: 4.9 },
-    { id: 4, name: 'Vikram Singh', expertise: 'General Maintenance', phone: '9876543253', experience: '5 years', status: 'Available', assignedJobs: 2, rating: 4.5 },
-    { id: 5, name: 'Ashok Sharma', expertise: 'Painting & Denting', phone: '9876543254', experience: '7 years', status: 'Available', assignedJobs: 4, rating: 4.7 },
-    { id: 6, name: 'Deepak Verma', expertise: 'Tire & Wheel Services', phone: '9876543255', experience: '4 years', status: 'Busy', assignedJobs: 6, rating: 4.4 },
-  ]);
+  const [mechanics, setMechanics] = useState([]);
 
-  const [filterStatus, setFilterStatus] = useState('All');
-  const [searchTerm, setSearchTerm] = useState('');
+  const loadMechanics = async () => {
+    try {
+      const res = await mechanicsApi.list();
+      const raw = res?.data || res || [];
+      setMechanics(raw.map(m => ({
+        ...m,
+        id: m.mechanicCode || m._id || '',
+        name: m.fullName || m.name || '—',
+        expertise: Array.isArray(m.expertise) ? m.expertise.join(', ') : (m.expertise || '—'),
+        phone: m.phone || '—',
+        experience: m.yearsExperience != null ? `${m.yearsExperience} yrs` : (m.experience || '—'),
+        status: m.status || m.availability || '—',
+        assignedJobs: m.assignedJobs || 0,
+        rating: m.rating || 0,
+      })));
+    } catch (err) {
+      console.error('Error loading mechanics:', err);
+    }
+  };
+
+  useEffect(() => { loadMechanics(); }, []);
+
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
@@ -23,48 +38,32 @@ function ManageMechanics() {
     rating: ''
   });
 
-  const handleAddMechanic = (e) => {
+  const handleAddMechanic = async (e) => {
     e.preventDefault();
     if (formData.name && formData.expertise && formData.phone) {
-      if (editingId) {
-        setMechanics(mechanics.map(m => m.id === editingId ? { ...m, ...formData, assignedJobs: m.assignedJobs } : m));
-        setEditingId(null);
-      } else {
-        const newMechanic = {
-          id: Math.max(...mechanics.map(m => m.id), 0) + 1,
-          ...formData,
-          assignedJobs: 0,
-          rating: formData.rating || '4.5'
-        };
-        setMechanics([...mechanics, newMechanic]);
+      const payload = {
+        fullName: formData.name,
+        expertise: formData.expertise.split(',').map(e => e.trim()).filter(Boolean),
+        phone: formData.phone,
+        yearsExperience: Number(formData.experience) || 0,
+        status: formData.status || 'Available',
+        rating: Number(formData.rating) || 4.5,
+        assignedJobs: 0,
+      };
+      try {
+        if (editingId) {
+          await mechanicsApi.update(editingId, payload);
+          setEditingId(null);
+        } else {
+          await mechanicsApi.create(payload);
+        }
+        await loadMechanics();
+        setFormData({ name: '', expertise: '', phone: '', experience: '', status: 'Available', rating: '' });
+        setShowForm(false);
+      } catch (err) {
+        console.error('Error saving mechanic:', err);
       }
-      setFormData({
-        name: '',
-        expertise: '',
-        phone: '',
-        experience: '',
-        status: 'Available',
-        rating: ''
-      });
-      setShowForm(false);
     }
-  };
-
-  const handleEdit = (mechanic) => {
-    setFormData({
-      name: mechanic.name,
-      expertise: mechanic.expertise,
-      phone: mechanic.phone,
-      experience: mechanic.experience,
-      status: mechanic.status,
-      rating: mechanic.rating
-    });
-    setEditingId(mechanic.id);
-    setShowForm(true);
-  };
-
-  const handleDelete = (id) => {
-    setMechanics(mechanics.filter(m => m.id !== id));
   };
 
   const handleCancel = () => {
@@ -80,25 +79,16 @@ function ManageMechanics() {
     });
   };
 
-  const handleStatusChange = (id, newStatus) => {
-    setMechanics(mechanics.map(m => m.id === id ? { ...m, status: newStatus } : m));
-  };
-
-  const filteredMechanics = mechanics.filter(m => {
-    const matchesStatus = filterStatus === 'All' || m.status === filterStatus;
-    const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          m.expertise.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
-
-  const getStatusCount = (status) => {
-    if (status === 'All') return mechanics.length;
-    return mechanics.filter(m => m.status === status).length;
-  };
-
-  const totalExperience = mechanics.reduce((sum, m) => sum + parseInt(m.experience), 0);
-  const avgRating = (mechanics.reduce((sum, m) => sum + parseFloat(m.rating), 0) / mechanics.length).toFixed(1);
-  const totalAssignedJobs = mechanics.reduce((sum, m) => sum + m.assignedJobs, 0);
+  const mechanicColumns = useMemo(() => [
+    { accessorKey: 'id', header: 'ID' },
+    { accessorKey: 'name', header: 'Name' },
+    { accessorKey: 'expertise', header: 'Expertise' },
+    { accessorKey: 'phone', header: 'Phone' },
+    { accessorKey: 'experience', header: 'Experience' },
+    { accessorKey: 'status', header: 'Status' },
+    { accessorKey: 'assignedJobs', header: 'Assigned Jobs' },
+    { accessorKey: 'rating', header: 'Rating' },
+  ], []);
 
   return (
     <div className="admin-page">
@@ -174,80 +164,13 @@ function ManageMechanics() {
         </div>
       )}
 
-      <div className="controls-bar">
-        <div className="filter-tabs">
-          {['All', 'Available', 'Busy', 'Off'].map((status) => (
-            <button
-              key={status}
-              className={`filter-tab ${filterStatus === status ? 'active' : ''}`}
-              onClick={() => setFilterStatus(status)}
-            >
-              {status} <span className="badge-count">{getStatusCount(status)}</span>
-            </button>
-          ))}
-        </div>
-
-        <input
-          type="text"
-          placeholder="Search by name or expertise"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
+      <div style={{ padding: '20px' }}>
+        <CommonTable 
+          columns={mechanicColumns} 
+          data={mechanics} 
+          fileName="mechanics-data"
+          showSelection={true}
         />
-      </div>
-
-      <div className="bookings-container">
-        {filteredMechanics.length > 0 ? (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Expertise</th>
-                <th>Phone</th>
-                <th>Experience</th>
-                <th>Rating</th>
-                <th>Assigned Jobs</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredMechanics.map((mechanic) => (
-                <tr key={mechanic.id}>
-                  <td><strong>{mechanic.name}</strong></td>
-                  <td>{mechanic.expertise}</td>
-                  <td><a href={`tel:${mechanic.phone}`}>{mechanic.phone}</a></td>
-                  <td>{mechanic.experience}</td>
-                  <td>
-                    <span style={{ color: '#dc2626', fontWeight: 'bold' }}>
-                      ⭐ {mechanic.rating}
-                    </span>
-                  </td>
-                  <td><strong>{mechanic.assignedJobs}</strong></td>
-                  <td>
-                    <select
-                      className={`status-select status-${mechanic.status.toLowerCase()}`}
-                      value={mechanic.status}
-                      onChange={(e) => handleStatusChange(mechanic.id, e.target.value)}
-                    >
-                      <option value="Available">Available</option>
-                      <option value="Busy">Busy</option>
-                      <option value="Off">Off</option>
-                    </select>
-                  </td>
-                  <td>
-                    <button className="btn-edit" onClick={() => handleEdit(mechanic)}>Edit</button>
-                    <button className="btn-delete" onClick={() => handleDelete(mechanic.id)}>Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="empty-state">
-            <p>No mechanics found</p>
-          </div>
-        )}
       </div>
 
       <div className="booking-stats">
@@ -261,11 +184,11 @@ function ManageMechanics() {
         </div>
         <div className="stat-item">
           <label>Average Rating</label>
-          <span>⭐ {avgRating}</span>
+          <span>⭐ {mechanics.length > 0 ? (mechanics.reduce((sum, m) => sum + (parseFloat(m.rating) || 0), 0) / mechanics.length).toFixed(1) : '0.0'}</span>
         </div>
         <div className="stat-item">
           <label>Total Assigned Jobs</label>
-          <span>{totalAssignedJobs}</span>
+          <span>{mechanics.reduce((sum, m) => sum + (Number(m.assignedJobs) || 0), 0)}</span>
         </div>
       </div>
     </div>

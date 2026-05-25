@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './contact.css';
+import { contactApi } from '../utils/apiService';
 
 function Contact() {
   const [formData, setFormData] = useState({
@@ -27,23 +28,8 @@ function Contact() {
     setError('');
     setIsSubmitting(true);
 
-    const endpoint = process.env.REACT_APP_CONTACT_ENDPOINT;
-
     try {
-      if (endpoint) {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData)
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to submit contact form');
-        }
-      } else {
-        // No endpoint configured: log locally so the user still sees success feedback.
-        console.info('Contact form submission (no endpoint configured):', formData);
-      }
+      await contactApi.submit(formData);
 
       setSubmitted(true);
       setFormData({

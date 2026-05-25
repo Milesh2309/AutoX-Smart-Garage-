@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import './auth.css';
 import { useAuth } from '../context/AuthContext';
+import { usersApi } from '../utils/apiService';
 
 function AdminLogin() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, requestForgotPassword } = useAuth();
   const [formData, setFormData] = useState({
     identifier: '', // Can be email or username
     password: '',
@@ -30,12 +31,49 @@ function AdminLogin() {
     return 'admin'; // Username format
   };
 
+  const resolveCustomerEmail = async (identifier) => {
+    const raw = String(identifier || '').trim();
+    if (!raw) return '';
+    if (raw.includes('@')) return raw.toLowerCase();
+
+    try {
+      const response = await usersApi.list();
+      const users = Array.isArray(response?.data) ? response.data : [];
+      const normalized = raw.toLowerCase();
+
+      const found = users.find((user) => {
+        const email = String(user?.email || '').toLowerCase();
+        const username = String(user?.username || '').toLowerCase();
+        const name = String(user?.name || user?.fullName || '').toLowerCase();
+        const phone = String(user?.phone || '').toLowerCase();
+
+        return (
+          email === normalized ||
+          username === normalized ||
+          name === normalized ||
+          phone === normalized
+        );
+      });
+
+      return String(found?.email || '').toLowerCase();
+    } catch (_error) {
+      return '';
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    // Clear field-level error when user edits + clear login error
+    setErrors(prev => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+    setLoginError('');
   };
 
   const validateForm = () => {
@@ -48,9 +86,18 @@ function AdminLogin() {
       } else {
         newErrors.identifier = 'Email is required';
       }
+    } else if (loginType === 'customer') {
+      // For customer login with email, validate email format
+      if (!formData.identifier.includes('@')) {
+        newErrors.identifier = 'Email must contain @ symbol';
+      } else if (!formData.identifier.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+        newErrors.identifier = 'Please enter a valid email address';
+      }
     }
 
-    if (formData.password.length < 6) {
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters';
     }
 
@@ -58,45 +105,39 @@ function AdminLogin() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoginError('');
 
     if (validateForm()) {
       setLoading(true);
-      const loginType = detectLoginType(formData.identifier);
 
-      setTimeout(() => {
-        setLoading(false);
+      try {
+        const loginType = detectLoginType(formData.identifier);
+        const emailToUse = loginType === 'customer'
+          ? await resolveCustomerEmail(formData.identifier)
+          : (formData.identifier.includes('@')
+            ? formData.identifier
+            : `${formData.identifier}@autox.com`);
 
-        if (loginType === 'admin') {
-          // Admin login - verify credentials
-          if (formData.identifier === 'admin' && formData.password === 'admin123') {
-            setSuccess(true);
-            setTimeout(() => {
-              login({ 
-                email: 'admin@autox.com',
-                fullName: 'Admin',
-                role: 'admin'
-              });
-              navigate('/admin', { replace: true });
-            }, 1500);
-          } else {
-            setLoginError('Invalid username or password');
-          }
-        } else {
-          // Customer login - accept any email/password combination
-          setSuccess(true);
-          setTimeout(() => {
-            login({ 
-              email: formData.identifier, 
-              fullName: formData.identifier.split('@')[0],
-              role: 'user' 
-            });
-            navigate('/customer/dashboard', { replace: true });
-          }, 1500);
+        if (!emailToUse) {
+          throw new Error('User email not found. Please enter registered email.');
         }
-      }, 1000);
+
+        const user = await login({
+          email: emailToUse,
+          password: formData.password,
+        });
+
+        setSuccess(true);
+        setTimeout(() => {
+          navigate(user?.role === 'admin' ? '/admin' : '/customer/dashboard', { replace: true });
+        }, 1200);
+      } catch (error) {
+        setLoginError(error?.message || 'Unable to login right now');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -108,7 +149,7 @@ function AdminLogin() {
     setForgotSuccess(false);
   };
 
-  const handleForgotSubmit = (e) => {
+  const handleForgotSubmit = async (e) => {
     e.preventDefault();
     setForgotErrors('');
 
@@ -118,14 +159,18 @@ function AdminLogin() {
     }
 
     setForgotLoading(true);
-    setTimeout(() => {
-      setForgotLoading(false);
+    try {
+      await requestForgotPassword(forgotEmail);
       setForgotSuccess(true);
       setTimeout(() => {
         setShowForgotPassword(false);
         setForgotEmail('');
       }, 2000);
-    }, 1000);
+    } catch (error) {
+      setForgotErrors(error?.message || 'Could not process forgot password request');
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   const closeForgotPassword = () => {
@@ -157,7 +202,7 @@ function AdminLogin() {
     }
     const loginType = detectLoginType(formData.identifier);
     if (loginType === 'admin') {
-      return '🔐 Admin login mode (Demo: admin)';
+      return '🔐 Admin login mode';
     }
     return '👤 Customer login mode';
   };
@@ -191,9 +236,18 @@ function AdminLogin() {
                 placeholder={getPlaceholder()}
                 className={errors.identifier ? 'error' : ''}
               />
-              {errors.identifier && <span className="error-text">{errors.identifier}</span>}
+              {errors.identifier && <span className="error-text">⚠️ {errors.identifier}</span>}
               {formData.identifier && (
                 <small className="helper-text">{getHelperText()}</small>
+              )}
+              {formData.identifier && !errors.identifier && detectLoginType(formData.identifier) === 'customer' && (
+                <small style={{ color: '#4caf50', display: 'block', marginTop: '4px' }}>✓ Valid email format - Customer login</small>
+              )}
+              {formData.identifier && !errors.identifier && detectLoginType(formData.identifier) === 'admin' && (
+                <small style={{ color: '#1976d2', display: 'block', marginTop: '4px' }}>👤 Admin username detected</small>
+              )}
+              {formData.identifier && !formData.identifier.includes('@') && detectLoginType(formData.identifier) === 'admin' && !errors.identifier && (
+                <small style={{ color: '#ff9800', display: 'block', marginTop: '4px' }}>ℹ️ Using admin login credentials</small>
               )}
             </div>
 
@@ -234,9 +288,13 @@ function AdminLogin() {
             <button 
               type="submit" 
               className="submit-btn"
-              disabled={loading}
+              disabled={loading || Object.keys(errors).length > 0}
+              style={{
+                opacity: (loading || Object.keys(errors).length > 0) ? 0.5 : 1,
+                cursor: (loading || Object.keys(errors).length > 0) ? 'not-allowed' : 'pointer'
+              }}
             >
-              {loading ? 'Logging in...' : 'Login'}
+              {loading ? 'Logging in...' : Object.keys(errors).length > 0 ? '⚠️ Please fix errors above' : 'Login'}
             </button>
 
             <div className="auth-footer">
@@ -314,6 +372,7 @@ function AdminLogin() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

@@ -1,103 +1,78 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from '../context/AuthContext';
+import { packagesApi } from '../utils/apiService';
 import './ViewPackages.css';
 
 function ViewPackages() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [packages, setPackages] = useState([]);
+  const [loadingPackages, setLoadingPackages] = useState(true);
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
 
-  const packages = [
-    {
-      id: 'basic',
-      name: 'Basic Care',
-      icon: '🚗',
-      price: 999,
-      description: 'Perfect for routine maintenance',
-      features: [
-        'Quick health check',
-        'Engine oil top-up',
-        'Exterior wash',
-        'Fluid level check',
-        'Tire pressure adjustment',
-        'Basic warranty: 3 months'
-      ],
-      cta: 'Choose Basic',
-      popular: false,
-      duration: 'per service'
-    },
-    {
-      id: 'standard',
-      name: 'Standard Service',
-      icon: '⚙️',
-      price: 2499,
-      description: 'Most popular choice for vehicle health',
-      features: [
-        'Full periodic service',
-        'Oil & filter change',
-        'Brake inspection',
-        'Battery health check',
-        'Free pickup & drop',
-        '6-month support & follow-up',
-        'Standard warranty: 6 months'
-      ],
-      cta: 'Choose Standard',
-      popular: true,
-      duration: 'per service'
-    },
-    {
-      id: 'premium',
-      name: 'Premium Plus',
-      icon: '⭐',
-      price: 5999,
-      description: 'Complete care with priority support',
-      features: [
-        'Full service + detailing',
-        'Complete engine checkup',
-        'Suspension inspection',
-        'Electrical diagnostics',
-        'Priority roadside help 24/7',
-        'Free pickup & drop',
-        '1-year support & maintenance',
-        'Premium warranty: 1 year',
-        'Free AC service included'
-      ],
-      cta: 'Choose Premium',
-      popular: false,
-      duration: 'per service'
-    },
-    {
-      id: 'annual',
-      name: 'Annual Membership',
-      icon: '🎯',
-      price: 8999,
-      description: 'Unlimited benefits for a year',
-      features: [
-        'Unlimited oil changes',
-        'Quarterly full service',
-        'Priority appointments',
-        '24/7 roadside assistance',
-        'Free parts & labor',
-        'Extended warranty coverage',
-        'Exclusive member benefits',
-        'VIP customer support',
-        'Free detailing service'
-      ],
-      cta: 'Subscribe Now',
-      popular: false,
-      duration: 'per year'
-    }
-  ];
+  useEffect(() => {
+    const loadPackages = async () => {
+      try {
+        const res = await packagesApi.listAll('status=active');
+        const list = res?.data || res || [];
+        setPackages(
+          list.map((item, idx) => ({
+            id: item._id || item.packageId || String(idx),
+            packageId: item.packageId || item._id,
+            name: item.name || 'Package',
+            icon: item.icon || '📦',
+            price: Number(item.price || 0),
+            description: item.description || '',
+            features: item.features || [],
+            duration: item.duration || 'per service',
+          }))
+        );
+      } catch {
+        setPackages([]);
+      } finally {
+        setLoadingPackages(false);
+      }
+    };
+
+    loadPackages();
+  }, []);
 
   const handleSelectPackage = (pkg) => {
     setSelectedPackage(pkg);
     setShowPurchaseModal(true);
   };
 
-  const handlePurchase = () => {
-    alert(`✓ Package "${selectedPackage.name}" added to cart! Proceeding to checkout...`);
-    setShowPurchaseModal(false);
-    navigate('/');
+  const handlePurchase = async () => {
+    if (!user) {
+      alert('Please login first to purchase a package.');
+      navigate('/login');
+      return;
+    }
+
+    setPurchasing(true);
+    try {
+      await packagesApi.subscribe({
+        packageId: selectedPackage.packageId || selectedPackage.id,
+        name: selectedPackage.name,
+        icon: selectedPackage.icon,
+        price: selectedPackage.price,
+        originalPrice: `₹${Math.round(selectedPackage.price * 1.3).toLocaleString('en-IN')}`,
+        description: selectedPackage.description,
+        features: selectedPackage.features,
+        validity: selectedPackage.duration,
+        totalServices: selectedPackage.features?.length || 5,
+      });
+      alert(`✅ "${selectedPackage.name}" subscribed successfully! View it in your dashboard.`);
+      setShowPurchaseModal(false);
+      navigate('/customer/dashboard');
+    } catch (err) {
+      alert(err?.message || 'Failed to subscribe. Please try again.');
+    } finally {
+      setPurchasing(false);
+    }
   };
 
   return (
@@ -109,10 +84,17 @@ function ViewPackages() {
       </div>
 
       <div className="packages-content">
+        {loadingPackages && (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#6b7280' }}>Loading packages...</div>
+        )}
         <div className="packages-grid">
+          {!loadingPackages && packages.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '20px', color: '#6b7280' }}>
+              No active packages available.
+            </div>
+          )}
           {packages.map((pkg) => (
-            <div key={pkg.id} className={`package-card ${pkg.popular ? 'popular' : ''}`}>
-              {pkg.popular && <div className="popular-badge">Most Popular</div>}
+            <div key={pkg.id} className="package-card">
               
               <div className="package-header">
                 <div className="package-icon">{pkg.icon}</div>
@@ -136,10 +118,10 @@ function ViewPackages() {
               </ul>
 
               <button 
-                className={`cta-button ${pkg.popular ? 'primary' : 'secondary'}`}
+                className="cta-button primary"
                 onClick={() => handleSelectPackage(pkg)}
               >
-                {pkg.cta}
+                Subscribe Now
               </button>
             </div>
           ))}
@@ -251,8 +233,9 @@ function ViewPackages() {
               <button 
                 className="btn-primary" 
                 onClick={handlePurchase}
+                disabled={purchasing}
               >
-                Proceed to Checkout
+                {purchasing ? 'Processing...' : 'Proceed to Checkout'}
               </button>
             </div>
           </div>

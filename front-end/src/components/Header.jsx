@@ -30,7 +30,6 @@ function Header() {
             <li><Link to="/about" className={isActive('/about') ? 'active' : ''}>About</Link></li>
             <li><Link to="/contact" className={isActive('/contact') ? 'active' : ''}>Contact</Link></li>
             <li><Link to="/login" className={`nav-auth ${isActive('/login') ? 'active' : ''}`}>Login</Link></li>
-            <li><Link to="/register" className={`nav-auth-primary ${isActive('/register') ? 'active' : ''}`}>Register</Link></li>
           </ul>
         </nav>
 

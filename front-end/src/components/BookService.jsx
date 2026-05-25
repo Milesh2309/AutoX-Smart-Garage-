@@ -1,12 +1,17 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth, useBookings } from '../context';
+import { useNotifications } from '../context/NotificationContext';
 import './BookService.css';
 
 function BookService() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { createBooking } = useBookings();
+  const { addNotification } = useNotifications();
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+    name: user?.name || '',
+    email: user?.email || '',
     phone: '',
     vehicle: '',
     serviceType: 'general-checkup',
@@ -32,14 +37,45 @@ function BookService() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Here you would typically send the form data to your backend
-    console.log('Booking submitted:', formData);
-    setSubmitted(true);
-    setTimeout(() => {
-      navigate('/');
-    }, 2000);
+    
+    // Create booking object
+    const bookingData = {
+      customerId: user?.id || Date.now(),
+      customerName: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      serviceId: Number.isFinite(Number(formData.serviceType)) ? Number(formData.serviceType) : null,
+      serviceName: serviceTypes.find(st => st.value === formData.serviceType)?.label || formData.serviceType,
+      vehicleNumber: formData.vehicle,
+      date: formData.preferredDate,
+      timeSlot: formData.preferredTime,
+      notes: formData.message,
+      status: 'pending',
+      amount: 500
+    };
+
+    // Use BookingContext to create booking
+    const result = await createBooking(bookingData);
+    
+    if (result.success) {
+      // Add notification for new booking
+      addNotification({
+        type: 'booking',
+        title: 'Booking Confirmed',
+        message: `Your ${bookingData.serviceName} is scheduled for ${formData.preferredDate}`,
+        icon: '✅',
+      });
+      
+      console.log('Booking submitted:', result.data);
+      setSubmitted(true);
+      setTimeout(() => {
+        navigate(user ? '/customer/dashboard' : '/');
+      }, 2000);
+    } else {
+      alert('Booking failed: ' + result.error);
+    }
   };
 
   if (submitted) {
