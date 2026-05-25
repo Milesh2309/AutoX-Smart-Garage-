@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import CommonTable from '../../components/CommonTable.jsx';
 import { usersApi } from '../../utils/apiService';
 
@@ -15,7 +15,7 @@ function ManageUsers() {
     password: '',
   });
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       const res = await usersApi.list();
       const raw = Array.isArray(res?.data)
@@ -43,9 +43,9 @@ function ManageUsers() {
       console.error('Error loading users:', err);
       // Keep existing rows on temporary failures (token refresh/network jitter).
     }
-  };
+  }, []);
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => { loadUsers(); }, [loadUsers]);
 
   const resetForm = () => {
     setFormData({
@@ -94,7 +94,7 @@ function ManageUsers() {
     }
   };
 
-  const handleEdit = (user) => {
+  const handleEdit = useCallback((user) => {
     setEditingId(user.id);
     setFormData({
       name: user.name || '',
@@ -104,9 +104,9 @@ function ManageUsers() {
       password: '',
     });
     setShowForm(true);
-  };
+  }, []);
 
-  const handleDelete = async (userId) => {
+  const handleDelete = useCallback(async (userId) => {
     if (!window.confirm('Delete this user?')) return;
 
     try {
@@ -116,7 +116,7 @@ function ManageUsers() {
     } catch (error) {
       alert(error?.message || 'Unable to delete user.');
     }
-  };
+  }, [loadUsers]);
 
   const userColumns = useMemo(() => [
     { accessorKey: 'id', header: 'ID', size: 100 },
@@ -157,7 +157,7 @@ function ManageUsers() {
         );
       },
     },
-  ], []);
+  ], [handleDelete, handleEdit]);
 
   const closeProfile = () => setSelectedUser(null);
 

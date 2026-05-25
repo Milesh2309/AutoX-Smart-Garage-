@@ -374,7 +374,7 @@ const BookingWizard = () => {
         },
         handler: async (response) => {
           try {
-            const verifyResult = await postPaymentRequest('/verify-payment', {
+            await postPaymentRequest('/verify-payment', {
               service_name: bookingData.serviceName,
               email: user?.email || undefined,
               amount,

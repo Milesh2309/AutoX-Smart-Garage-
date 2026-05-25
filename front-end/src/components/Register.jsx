@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import './auth.css';
 import { useAuth } from '../context/AuthContext';
@@ -32,13 +32,7 @@ function Register() {
     }));
   };
 
-  React.useEffect(() => {
-    if (Object.keys(errors).length > 0) {
-      validateForm();
-    }
-  }, [formData]);
-
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     const newErrors = {};
 
     if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
@@ -66,7 +60,13 @@ function Register() {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }, [formData]);
+
+  React.useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      validateForm();
+    }
+  }, [errors, validateForm]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

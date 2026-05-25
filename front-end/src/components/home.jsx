@@ -10,7 +10,7 @@ function Home() {
   const [expandedService, setExpandedService] = useState(null);
   const [clickEffect, setClickEffect] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [, setImageLoaded] = useState(false);
   const [videoAvailable, setVideoAvailable] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
 

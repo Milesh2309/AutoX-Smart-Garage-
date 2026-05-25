@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import CommonTable from '../../components/CommonTable';
 import { bookingApi, mechanicsApi } from '../../utils/apiService';
 import './ManageBookings.css';
@@ -14,7 +14,7 @@ function ManageBookings() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusPayload, setStatusPayload] = useState({ status: 'pending', mechanicId: '' });
 
-  const loadBookings = async () => {
+  const loadBookings = useCallback(async () => {
     try {
       const extractRows = (response) => {
         if (Array.isArray(response?.data)) return response.data;
@@ -36,9 +36,9 @@ function ManageBookings() {
       console.error('Unable to load bookings', error);
       // Keep previous rows instead of wiping grid on temporary API/auth failures.
     }
-  };
+  }, [searchVehicle, searchCustomer, statusFilter]);
 
-  const loadMechanics = async () => {
+  const loadMechanics = useCallback(async () => {
     try {
       const response = await mechanicsApi.list();
       const data = Array.isArray(response?.data)
@@ -50,13 +50,12 @@ function ManageBookings() {
     } catch (_error) {
       // Keep previous mechanics list on temporary API errors.
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadBookings();
     loadMechanics();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadBookings, loadMechanics]);
 
   const normalizedBookings = useMemo(() => {
     return bookings.map((booking) => ({
@@ -88,20 +87,20 @@ function ManageBookings() {
     });
   }, [normalizedBookings, searchVehicle, searchCustomer, statusFilter]);
 
-  const handleDelete = async (bookingId) => {
+  const handleDelete = useCallback(async (bookingId) => {
     if (!window.confirm('Delete this booking?')) return;
     await bookingApi.delete(bookingId);
     await loadBookings();
-  };
+  }, [loadBookings]);
 
-  const openStatusModal = (booking) => {
+  const openStatusModal = useCallback((booking) => {
     setSelectedBooking(booking);
     setStatusPayload({
       status: booking.bookingStatus || 'pending',
       mechanicId: booking.raw?.mechanicId ? String(booking.raw.mechanicId) : '',
     });
     setShowStatusModal(true);
-  };
+  }, []);
 
   const handleUpdateStatus = async (event) => {
     event.preventDefault();
@@ -157,7 +156,7 @@ function ManageBookings() {
         },
       },
     ],
-    [mechanics]
+    [handleDelete, openStatusModal]
   );
 
   return (
