@@ -7,6 +7,8 @@
   ],
   "scripts": {
     "build": "npm --prefix front-end run build",
-    "start": "npm --prefix front-end start"
+    "start": "npm --prefix back-end start",
+    "start:frontend": "npm --prefix front-end start",
+    "start:backend": "npm --prefix back-end start"
   }
 }
