@@ -1,0 +1,12 @@
+{
+  "name": "auto-x-smart-garage",
+  "private": true,
+  "workspaces": [
+    "front-end",
+    "back-end"
+  ],
+  "scripts": {
+    "build": "npm --prefix front-end run build",
+    "start": "npm --prefix front-end start"
+  }
+}
