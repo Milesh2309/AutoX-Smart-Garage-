@@ -11,10 +11,17 @@ const app = express();
 
 // Enable CORS for frontend
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:5000'],  
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+ origin: [
+   'http://localhost:3000',
+   'http://localhost:3001',
+   'http://localhost:3002',
+   'http://localhost:5000',
+   'https://auto-x-smart-garage.vercel.app',
+   /\.vercel\.app$/,
+ ],
+ credentials: true,
+ methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+ allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.use(express.json());
