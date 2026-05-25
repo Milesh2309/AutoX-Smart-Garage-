@@ -65,7 +65,7 @@ export const postPaymentRequest = async (path, payload) => {
   }
 
   if (String(lastError.message || '').toLowerCase().includes('failed to fetch')) {
-    throw new Error('Unable to connect to payment server. Please ensure backend is running on port 5000.');
+    throw new Error('Unable to connect to payment server. Please ensure the backend URL is configured correctly via REACT_APP_API_BASE_URL.');
   }
 
   throw lastError;
