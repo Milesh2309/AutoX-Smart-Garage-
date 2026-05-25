@@ -202,7 +202,7 @@ function AdminLogin() {
     }
     const loginType = detectLoginType(formData.identifier);
     if (loginType === 'admin') {
-      return '🔐 Admin login mode';
+      return ' ';
     }
     return '👤 Customer login mode';
   };
@@ -244,10 +244,10 @@ function AdminLogin() {
                 <small style={{ color: '#4caf50', display: 'block', marginTop: '4px' }}>✓ Valid email format - Customer login</small>
               )}
               {formData.identifier && !errors.identifier && detectLoginType(formData.identifier) === 'admin' && (
-                <small style={{ color: '#1976d2', display: 'block', marginTop: '4px' }}>👤 Admin username detected</small>
+                <small style={{ color: '#1976d2', display: 'block', marginTop: '4px' }}></small>
               )}
               {formData.identifier && !formData.identifier.includes('@') && detectLoginType(formData.identifier) === 'admin' && !errors.identifier && (
-                <small style={{ color: '#ff9800', display: 'block', marginTop: '4px' }}>ℹ️ Using admin login credentials</small>
+                <small style={{ color: '#ff9800', display: 'block', marginTop: '4px' }}></small>
               )}
             </div>
 
@@ -311,13 +311,6 @@ function AdminLogin() {
             <button className="social-btn whatsapp" onClick={handleWhatsAppSupport}>
               <span>💬</span> WhatsApp
             </button>
-          </div>
-
-          {/* Demo Info */}
-          <div className="demo-info">
-            <strong>Demo Credentials:</strong>
-            <div>👤 Username: <code>admin</code></div>
-            <div>🔑 Password: <code>admin123</code></div>
           </div>
         </div>
       </div>
