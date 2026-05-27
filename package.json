@@ -5,6 +5,12 @@
     "front-end",
     "back-end"
   ],
+  "dependencies": {
+    "express": "^4.22.2"
+  },
+  "overrides": {
+    "mime-types": "2.1.35"
+  },
   "scripts": {
     "build": "npm --prefix front-end run build",
     "start": "npm --prefix back-end start",
