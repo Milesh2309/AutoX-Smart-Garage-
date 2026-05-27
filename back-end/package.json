@@ -29,3 +29,8 @@
     "swagger-ui-express": "^5.0.1"
   }
 }
+{
+  "engines": {
+    "node": "18.x"
+  }
+}
