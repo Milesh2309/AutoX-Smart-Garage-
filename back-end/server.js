@@ -26,6 +26,9 @@ app.use(cors({
 
 app.use(express.json());
 
+const frontendBuildPath = path.join(__dirname, '..', 'front-end', 'build');
+app.use(express.static(frontendBuildPath));
+
 // Import Routes
 const userRoutes = require('./routes/userRoutes');
 const billingRoutes = require('./routes/billingRoutes');
@@ -122,6 +125,10 @@ app.get('/api-docs.json', (req, res) => {
   res.send(swaggerSpec);
 });
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendBuildPath, 'index.html'));
+});
 
 app.use(errorHandler);
 const port = process.env.PORT || 5000;
